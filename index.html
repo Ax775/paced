@@ -88,14 +88,6 @@
       ClipboardList, ArrowLeft, Users
     } from 'lucide-react';
 
-    // ═══════════════════════════════════════════════════════════════
-    // DATA LAYER
-    // ─────────────────────────────────────────────────────────────
-    // To plug in Supabase later:
-    //   • db.save(match)   → supabase.from('matches').upsert(match)
-    //   • db.get(id)       → supabase.from('matches').select().eq('id', id).single()
-    //   • db.uid()         → keep as-is or use crypto.randomUUID()
-    // ═══════════════════════════════════════════════════════════════
     const db = {
       save(match) {
         localStorage.setItem(`td:match:${match.id}`, JSON.stringify(match));
@@ -112,9 +104,6 @@
       },
     };
 
-    // ═══════════════════════════════════════════════════════════════
-    // ROUTER  (hash-based, no dependencies)
-    // ═══════════════════════════════════════════════════════════════
     function useRouter() {
       const [hash, setHash] = useState(window.location.hash);
       useEffect(() => {
@@ -126,34 +115,23 @@
       return { hash, go };
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // SHARED UI PRIMITIVES
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Slide-up bottom sheet modal for name entry */
     function NameModal({ title, subtitle, cta, onConfirm, onCancel }) {
       const [name, setName] = useState('');
       const ref = useRef(null);
-
       useEffect(() => {
         const t = setTimeout(() => ref.current?.focus(), 60);
         return () => clearTimeout(t);
       }, []);
-
       const confirm = () => { if (name.trim()) onConfirm(name.trim()); };
-
       return (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
           onClick={(e) => e.target === e.currentTarget && onCancel()}
         >
           <div className="anim-slide-up w-full max-w-sm rounded-t-3xl border border-slate-700 bg-slate-800 p-6 sm:rounded-3xl">
-            {/* Drag handle (mobile) */}
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-slate-600 sm:hidden" />
-
             <h3 className="text-white font-bold text-lg leading-snug">{title}</h3>
             {subtitle && <p className="mt-1 text-slate-400 text-sm">{subtitle}</p>}
-
             <input
               ref={ref}
               type="text"
@@ -164,7 +142,6 @@
               onKeyDown={(e) => e.key === 'Enter' && confirm()}
               className="mt-4 mb-4 w-full rounded-2xl border border-slate-600 bg-slate-700/80 px-4 py-3.5 text-white outline-none placeholder-slate-500 transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25"
             />
-
             <div className="flex gap-3">
               <button
                 onClick={onCancel}
@@ -185,7 +162,6 @@
       );
     }
 
-    /** Animated progress bar */
     function ProgressBar({ current, total, label }) {
       const pct   = total > 0 ? Math.min((current / total) * 100, 100) : 0;
       const full  = current >= total && total > 0;
@@ -211,7 +187,6 @@
       );
     }
 
-    /** Brief success toast */
     function Toast({ message }) {
       return (
         <div
@@ -224,36 +199,29 @@
       );
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // CREATE MATCH VIEW  (admin)
-    // ═══════════════════════════════════════════════════════════════
     function CreateView({ onCreated }) {
       const [form, setForm] = useState({
         opponent: '', date: '', time: '', location: '', driversNeeded: 2,
       });
-      const [tasks, setTasks]       = useState(['Bring the laundry bag', 'Referee duty', 'Buy snacks & drinks']);
+      const [tasks, setTasks] = useState(['Bring the laundry bag', 'Referee duty', 'Buy snacks & drinks']);
       const [taskInput, setTaskInput] = useState('');
-
       const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
       const adjustDrivers = (d) =>
         setForm(f => ({ ...f, driversNeeded: Math.max(1, Math.min(10, f.driversNeeded + d)) }));
-
       const addTask = () => {
         if (taskInput.trim()) { setTasks(t => [...t, taskInput.trim()]); setTaskInput(''); }
       };
       const removeTask = (i) => setTasks(t => t.filter((_, idx) => idx !== i));
-
       const isValid = form.opponent.trim() && form.date && form.time && form.location.trim();
-
       const handleCreate = () => {
         if (!isValid) return;
         const id = db.uid();
         db.save({
           id,
-          opponent:      form.opponent.trim(),
-          date:          form.date,
-          time:          form.time,
-          location:      form.location.trim(),
+          opponent: form.opponent.trim(),
+          date: form.date,
+          time: form.time,
+          location: form.location.trim(),
           driversNeeded: form.driversNeeded,
           drivers: Array.from({ length: form.driversNeeded }, (_, i) => ({
             id: `d${i}_${id}`, name: null,
@@ -265,11 +233,8 @@
         });
         onCreated(id);
       };
-
       return (
         <div className="min-h-screen bg-slate-950 pb-14">
-
-          {/* ── Hero header ─────────────────────────────── */}
           <div className="relative overflow-hidden bg-gradient-to-br from-orange-600 via-orange-500 to-amber-500 px-5 pt-14 pb-12">
             <div className="absolute -top-12 -right-12 h-52 w-52 rounded-full bg-white/10" />
             <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-black/10" />
@@ -282,16 +247,10 @@
               <p className="mt-2 text-sm text-white/70">Set up carpools &amp; tasks, then share one link with your squad</p>
             </div>
           </div>
-
           <div className="space-y-4 px-4 -mt-5">
-
-            {/* ── Match details card ─────────────────────── */}
             <div className="anim-slide-up rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-2xl">
               <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-500">Match Details</p>
-
               <div className="space-y-3">
-
-                {/* Opponent */}
                 <div>
                   <span className="mb-1.5 block text-sm text-slate-400">Opponent Team</span>
                   <div className="flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3 focus-within:ring-2 focus-within:ring-orange-500/40 transition-all">
@@ -303,8 +262,6 @@
                     />
                   </div>
                 </div>
-
-                {/* Date + Time */}
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: 'Date', type: 'date', key: 'date', Icon: Calendar },
@@ -322,8 +279,6 @@
                     </div>
                   ))}
                 </div>
-
-                {/* Location */}
                 <div>
                   <span className="mb-1.5 block text-sm text-slate-400">Venue / Location</span>
                   <div className="flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3 focus-within:ring-2 focus-within:ring-orange-500/40 transition-all">
@@ -335,8 +290,6 @@
                     />
                   </div>
                 </div>
-
-                {/* Cars needed */}
                 <div>
                   <span className="mb-3 block text-sm text-slate-400">Cars / Drivers Needed</span>
                   <div className="flex items-center gap-4">
@@ -355,7 +308,6 @@
                       className="flex h-11 w-11 select-none items-center justify-center rounded-xl bg-slate-700 text-xl font-bold text-white transition-all hover:bg-slate-600 active:scale-90"
                     >+</button>
                   </div>
-                  {/* Quick-pick buttons */}
                   <div className="mt-3 flex gap-2">
                     {[1, 2, 3, 4, 5].map(n => (
                       <button
@@ -372,11 +324,8 @@
                 </div>
               </div>
             </div>
-
-            {/* ── Tasks card ─────────────────────────────── */}
             <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-2xl">
               <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-500">Team Tasks</p>
-
               <div className="mb-3 space-y-2">
                 {tasks.map((task, i) => (
                   <div key={i} className="flex items-center gap-3 rounded-xl bg-slate-700/50 px-4 py-2.5">
@@ -392,7 +341,6 @@
                   <p className="py-2 text-center text-sm text-slate-600">No tasks yet</p>
                 )}
               </div>
-
               <div className="flex gap-2">
                 <input
                   type="text" placeholder="Add a task…"
@@ -407,8 +355,6 @@
                 ><Plus size={18} /></button>
               </div>
             </div>
-
-            {/* ── Create CTA ─────────────────────────────── */}
             <button
               onClick={handleCreate}
               disabled={!isValid}
@@ -428,46 +374,34 @@
       );
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // TEAM VIEW  (shared — no login required)
-    // ═══════════════════════════════════════════════════════════════
     function TeamView({ matchId, onBack }) {
-      const [match, setMatch]         = useState(null);
-      const [modal, setModal]         = useState(null);   // { type, id, label, cta }
-      const [toast, setToast]         = useState(null);
-      const [copied, setCopied]       = useState(false);
+      const [match, setMatch] = useState(null);
+      const [modal, setModal] = useState(null);
+      const [toast, setToast] = useState(null);
+      const [copied, setCopied] = useState(false);
       const [justClaimed, setJustClaimed] = useState(null);
-
       useEffect(() => { setMatch(db.get(matchId)); }, [matchId]);
-
       const persist = (updated) => { db.save(updated); setMatch(updated); };
-
       const flash = (id) => {
         setJustClaimed(id);
         setTimeout(() => setJustClaimed(null), 700);
       };
-
       const showToast = (msg) => {
         setToast(msg);
         setTimeout(() => setToast(null), 2800);
       };
-
       const claimDriver = (name, id) => {
         persist({ ...match, drivers: match.drivers.map(d => d.id === id ? { ...d, name } : d) });
         setModal(null); flash(id); showToast(`${name} is driving! 🚗`);
       };
-
       const releaseDriver = (id) =>
         persist({ ...match, drivers: match.drivers.map(d => d.id === id ? { ...d, name: null } : d) });
-
       const claimTask = (name, id) => {
         persist({ ...match, tasks: match.tasks.map(t => t.id === id ? { ...t, claimedBy: name } : t) });
         setModal(null); flash(id); showToast(`${name} is on it! ✅`);
       };
-
       const releaseTask = (id) =>
         persist({ ...match, tasks: match.tasks.map(t => t.id === id ? { ...t, claimedBy: null } : t) });
-
       const handleShare = async () => {
         const url = window.location.href;
         if (navigator.share) {
@@ -479,11 +413,9 @@
           showToast('Link copied to clipboard!');
         }
       };
-
-      /* ── Not found state ─────────────────────────────── */
       if (!match) return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 p-8 text-center">
-          <div className="mb-4 text-5xl">🏟️</div>
+          <div className="mb-4 text-5xl">🏙️</div>
           <h2 className="text-xl font-bold text-white">Match not found</h2>
           <p className="mt-2 text-sm text-slate-500">This link may have expired or storage was cleared.</p>
           <button
@@ -492,11 +424,9 @@
           >← Create New Match</button>
         </div>
       );
-
       const filledDrivers = match.drivers.filter(d => d.name).length;
       const claimedTasks  = match.tasks.filter(t => t.claimedBy).length;
       const allDone       = filledDrivers >= match.driversNeeded && claimedTasks >= match.tasks.length;
-
       const fmtDate = (s) => {
         try {
           return new Date(s + 'T12:00:00').toLocaleDateString('en-US', {
@@ -504,29 +434,21 @@
           });
         } catch { return s; }
       };
-
-      /* ── Status banner copy ─────────────────────────── */
       const statusMsg = allDone
         ? '🎉 All sorted — the team is ready to roll!'
         : filledDrivers < match.driversNeeded
           ? `🚨 Need ${match.driversNeeded - filledDrivers} more driver${match.driversNeeded - filledDrivers > 1 ? 's' : ''} — can you help?`
           : `✅ Rides covered! ${match.tasks.length - claimedTasks} task${match.tasks.length - claimedTasks > 1 ? 's' : ''} left to claim.`;
-
       return (
         <div className="min-h-screen bg-slate-950 pb-14">
-
-          {/* ── Hero header ─────────────────────────────── */}
           <div
             className="relative overflow-hidden px-5 pt-12 pb-8"
             style={{ background: 'linear-gradient(145deg, #0f172a 0%, #1e3a5f 55%, #0f172a 100%)' }}
           >
-            {/* Decorative glow */}
             <div
               className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full opacity-25"
               style={{ background: 'radial-gradient(circle, #f97316 0%, transparent 70%)' }}
             />
-
-            {/* Top bar */}
             <div className="relative mb-6 flex items-center justify-between">
               <button
                 onClick={onBack}
@@ -539,13 +461,9 @@
                 <span className="text-xs font-bold tracking-wider text-green-500">LIVE</span>
               </div>
             </div>
-
-            {/* Match title */}
             <div className="relative">
               <p className="text-sm font-medium text-slate-500">vs.</p>
               <h1 className="mt-0.5 text-4xl font-black leading-none text-white">{match.opponent}</h1>
-
-              {/* Info pills */}
               <div className="mt-4 flex flex-wrap gap-2">
                 {[
                   { Icon: Calendar, text: fmtDate(match.date) },
@@ -558,8 +476,6 @@
                   </div>
                 ))}
               </div>
-
-              {/* Share button */}
               <button
                 onClick={handleShare}
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-500/40 bg-orange-500/10 py-3 text-sm font-bold text-orange-400 transition-all hover:bg-orange-500/20 active:scale-95"
@@ -571,10 +487,7 @@
               </button>
             </div>
           </div>
-
           <div className="space-y-4 px-4 mt-4">
-
-            {/* ── Status banner ───────────────────────────── */}
             <div className={`rounded-2xl border p-4 ${
               allDone
                 ? 'border-green-500/30 bg-green-500/10'
@@ -584,8 +497,6 @@
                 {statusMsg}
               </p>
             </div>
-
-            {/* ── Carpool section ─────────────────────────── */}
             <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
               <div className="mb-4 flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500/20">
@@ -593,13 +504,11 @@
                 </div>
                 <h2 className="font-bold text-white">Carpool Sign-up</h2>
               </div>
-
               <ProgressBar
                 current={filledDrivers}
                 total={match.driversNeeded}
                 label="Driving capacity"
               />
-
               <div className="mt-4 space-y-2.5">
                 {match.drivers.map((driver, i) => {
                   const claimed = !!driver.name;
@@ -618,13 +527,11 @@
                           : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-orange-500/50 hover:bg-orange-500/5 active:scale-95'
                       } ${isNew ? 'anim-pop-in' : ''}`}
                     >
-                      {/* Avatar */}
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-black transition-all ${
                         claimed ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-500'
                       }`}>
                         {claimed ? driver.name[0].toUpperCase() : i + 1}
                       </div>
-
                       <div className="min-w-0 flex-1">
                         {claimed ? (
                           <>
@@ -637,7 +544,6 @@
                           </p>
                         )}
                       </div>
-
                       {claimed ? (
                         <button
                           onClick={(e) => { e.stopPropagation(); releaseDriver(driver.id); }}
@@ -651,8 +557,6 @@
                 })}
               </div>
             </div>
-
-            {/* ── Tasks section ────────────────────────────── */}
             {match.tasks.length > 0 && (
               <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
                 <div className="mb-4 flex items-center gap-2">
@@ -664,13 +568,11 @@
                     {claimedTasks}/{match.tasks.length}
                   </span>
                 </div>
-
                 <ProgressBar
                   current={claimedTasks}
                   total={match.tasks.length}
                   label="Tasks claimed"
                 />
-
                 <div className="mt-4 space-y-2.5">
                   {match.tasks.map((task) => {
                     const claimed = !!task.claimedBy;
@@ -689,13 +591,11 @@
                             : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-orange-500/50 hover:bg-orange-500/5 active:scale-95'
                         } ${isNew ? 'anim-pop-in' : ''}`}
                       >
-                        {/* Checkbox */}
                         <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition-all ${
                           claimed ? 'border-green-500 bg-green-500' : 'border-slate-600'
                         }`}>
                           {claimed && <CheckCircle size={13} className="text-white" />}
                         </div>
-
                         <div className="min-w-0 flex-1">
                           <p className={`text-sm font-semibold transition-colors ${
                             claimed ? 'text-slate-500 line-through' : 'text-white'
@@ -704,7 +604,6 @@
                             <p className="mt-0.5 text-xs text-green-400">by {task.claimedBy}</p>
                           )}
                         </div>
-
                         {claimed ? (
                           <button
                             onClick={(e) => { e.stopPropagation(); releaseTask(task.id); }}
@@ -719,8 +618,6 @@
                 </div>
               </div>
             )}
-
-            {/* ── Footer ────────────────────────────────────── */}
             <p className="pb-2 text-center text-xs text-slate-700">
               TeamDrive &middot; Data stored in your browser &middot;{' '}
               <button onClick={onBack} className="underline transition-colors hover:text-slate-500">
@@ -728,8 +625,6 @@
               </button>
             </p>
           </div>
-
-          {/* ── Name modal ──────────────────────────────────── */}
           {modal && (
             <NameModal
               title={modal.label}
@@ -742,20 +637,14 @@
               onCancel={() => setModal(null)}
             />
           )}
-
-          {/* ── Toast ───────────────────────────────────────── */}
           {toast && <Toast message={toast} key={toast} />}
         </div>
       );
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // ROOT
-    // ═══════════════════════════════════════════════════════════════
     function App() {
       const { hash, go } = useRouter();
       const matchId = hash.startsWith('#match-') ? hash.slice(7) : null;
-
       return matchId
         ? <TeamView matchId={matchId} onBack={() => go('')} />
         : <CreateView onCreated={(id) => go(`#match-${id}`)} />;
