@@ -2,766 +2,153 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>TeamDrive — MatchDay Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F5F1E8" />
+  <meta name="description" content="Aura — a calm companion for cycle-synced nutrition, hormonal balance, and gut health." />
+  <title>Aura — Cycle-Synced Nutrition</title>
+
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
+  <link rel="apple-touch-icon" href="./assets/icon.svg" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    // Quiet Luxury palette — sage, cream, muted terracotta
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
-        }
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            display: ['Fraunces', 'Georgia', 'serif'],
+          },
+          colors: {
+            cream: {
+              50:  '#FBF9F3',
+              100: '#F5F1E8',
+              200: '#EDE6D3',
+              300: '#E2D8BE',
+            },
+            sage: {
+              50:  '#F2F5F0',
+              100: '#E2E9DC',
+              200: '#C6D3BB',
+              300: '#A8BA98',
+              400: '#87A074',
+              500: '#6B8559',
+              600: '#556B47',
+              700: '#42533A',
+            },
+            terracotta: {
+              100: '#F4E2D8',
+              200: '#E8C4B0',
+              300: '#D9A188',
+              400: '#C78264',
+              500: '#B06849',
+              600: '#8F5138',
+            },
+            ink: {
+              400: '#8B8578',
+              500: '#5F5A4E',
+              600: '#3E3B33',
+              700: '#2A2823',
+            },
+          },
+          boxShadow: {
+            soft: '0 1px 2px rgba(66,83,58,0.04), 0 8px 24px rgba(66,83,58,0.06)',
+            glow: '0 0 0 1px rgba(168,186,152,0.25), 0 12px 40px rgba(107,133,89,0.12)',
+          },
+          borderRadius: {
+            'xl2': '1.25rem',
+            'xl3': '1.75rem',
+          },
+        },
+      },
+    };
+  </script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "react":             "https://esm.sh/react@18",
+        "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
+        "react-dom/client":  "https://esm.sh/react-dom@18/client",
+        "lucide-react":      "https://esm.sh/lucide-react@0.441.0?deps=react@18"
       }
     }
   </script>
-  <script type="importmap">
-  {
-    "imports": {
-      "react":             "https://esm.sh/react@18",
-      "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
-      "react-dom/client":  "https://esm.sh/react-dom@18/client",
-      "lucide-react":      "https://esm.sh/lucide-react"
-    }
-  }
-  </script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
   <style>
-    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body { font-family: 'Inter', system-ui, sans-serif; background: #020617; margin: 0; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #FBF9F3;
+      color: #3E3B33;
+      font-family: 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      background:
+        radial-gradient(1200px 600px at 85% -10%, #EDE6D3 0%, transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, #E2E9DC 0%, transparent 55%),
+        #FBF9F3;
+    }
+    .font-display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
 
-    /* Animations */
-    @keyframes slideUp {
-      from { transform: translateY(24px); opacity: 0; }
-      to   { transform: translateY(0);    opacity: 1; }
+    /* Calm animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
-    @keyframes popIn {
-      0%   { transform: scale(0.75); opacity: 0; }
-      65%  { transform: scale(1.06); }
-      100% { transform: scale(1);    opacity: 1; }
+    @keyframes breathe {
+      0%, 100% { transform: scale(1);    opacity: 0.85; }
+      50%      { transform: scale(1.02); opacity: 1; }
     }
-    @keyframes toastSlide {
-      from { transform: translateX(-50%) translateY(16px); opacity: 0; }
-      to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
-    }
-    @keyframes shimmer {
-      0%   { background-position: -200% center; }
-      100% { background-position:  200% center; }
-    }
+    .anim-fade-up { animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .anim-breathe { animation: breathe 6s ease-in-out infinite; }
 
-    .anim-slide-up { animation: slideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1); }
-    .anim-pop-in   { animation: popIn  0.38s cubic-bezier(0.34, 1.56, 0.64, 1); }
-    .anim-toast    { animation: toastSlide 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+    /* Subtle scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #E2D8BE; border-radius: 999px; }
+    ::-webkit-scrollbar-track { background: transparent; }
 
-    /* Date/time picker icon colour fix for dark bg */
-    input[type="date"]::-webkit-calendar-picker-indicator,
-    input[type="time"]::-webkit-calendar-picker-indicator {
-      filter: invert(0.6);
-      cursor: pointer;
+    /* Form resets that respect the palette */
+    input, select, button, textarea { font-family: inherit; color: inherit; }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none; margin: 0;
     }
-
-    /* Claimed card gradient */
-    .card-claimed {
-      background: linear-gradient(135deg, rgba(34,197,94,0.10) 0%, rgba(16,185,129,0.05) 100%);
-    }
-
-    /* Pulsing dot */
-    .pulse-dot {
-      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.4; }
-    }
+    input[type="number"] { -moz-appearance: textfield; }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
-  <script type="text/babel" data-type="module" data-presets="react">
-    import { useState, useEffect, useRef } from 'react';
-    import { createRoot } from 'react-dom/client';
-    import {
-      Car, MapPin, Calendar, Clock, Trophy, Share2,
-      CheckCircle, Plus, X, ChevronRight, Zap,
-      ClipboardList, ArrowLeft, Users
-    } from 'lucide-react';
+  <!-- React app. Babel standalone transforms JSX in-browser and walks
+       the import graph to pull in ./src/lib/*.js as real ES modules. -->
+  <script type="text/babel" data-type="module" data-presets="env,react" src="./src/app.jsx"></script>
 
-    // ═══════════════════════════════════════════════════════════════
-    // DATA LAYER
-    // ─────────────────────────────────────────────────────────────
-    // To plug in Supabase later:
-    //   • db.save(match)   → supabase.from('matches').upsert(match)
-    //   • db.get(id)       → supabase.from('matches').select().eq('id', id).single()
-    //   • db.uid()         → keep as-is or use crypto.randomUUID()
-    // ═══════════════════════════════════════════════════════════════
-    const db = {
-      save(match) {
-        localStorage.setItem(`td:match:${match.id}`, JSON.stringify(match));
-      },
-      get(id) {
-        try {
-          const raw = localStorage.getItem(`td:match:${id}`);
-          return raw ? JSON.parse(raw) : null;
-        } catch { return null; }
-      },
-      uid() {
-        const a = 'abcdefghijklmnopqrstuvwxyz0123456789';
-        return Array.from({ length: 8 }, () => a[Math.floor(Math.random() * a.length)]).join('');
-      },
-    };
-
-    // ═══════════════════════════════════════════════════════════════
-    // ROUTER  (hash-based, no dependencies)
-    // ═══════════════════════════════════════════════════════════════
-    function useRouter() {
-      const [hash, setHash] = useState(window.location.hash);
-      useEffect(() => {
-        const fn = () => setHash(window.location.hash);
-        window.addEventListener('hashchange', fn);
-        return () => window.removeEventListener('hashchange', fn);
-      }, []);
-      const go = (h) => { window.location.hash = h; };
-      return { hash, go };
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // SHARED UI PRIMITIVES
-    // ═══════════════════════════════════════════════════════════════
-
-    /** Slide-up bottom sheet modal for name entry */
-    function NameModal({ title, subtitle, cta, onConfirm, onCancel }) {
-      const [name, setName] = useState('');
-      const ref = useRef(null);
-
-      useEffect(() => {
-        const t = setTimeout(() => ref.current?.focus(), 60);
-        return () => clearTimeout(t);
-      }, []);
-
-      const confirm = () => { if (name.trim()) onConfirm(name.trim()); };
-
-      return (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
-          onClick={(e) => e.target === e.currentTarget && onCancel()}
-        >
-          <div className="anim-slide-up w-full max-w-sm rounded-t-3xl border border-slate-700 bg-slate-800 p-6 sm:rounded-3xl">
-            {/* Drag handle (mobile) */}
-            <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-slate-600 sm:hidden" />
-
-            <h3 className="text-white font-bold text-lg leading-snug">{title}</h3>
-            {subtitle && <p className="mt-1 text-slate-400 text-sm">{subtitle}</p>}
-
-            <input
-              ref={ref}
-              type="text"
-              placeholder="Your name…"
-              value={name}
-              maxLength={30}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && confirm()}
-              className="mt-4 mb-4 w-full rounded-2xl border border-slate-600 bg-slate-700/80 px-4 py-3.5 text-white outline-none placeholder-slate-500 transition-all focus:border-orange-500 focus:ring-2 focus:ring-orange-500/25"
-            />
-
-            <div className="flex gap-3">
-              <button
-                onClick={onCancel}
-                className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold transition-colors hover:bg-slate-600 active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirm}
-                disabled={!name.trim()}
-                className="flex-1 rounded-2xl bg-orange-500 py-3.5 text-white font-bold transition-all hover:bg-orange-600 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {cta}
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    /** Animated progress bar */
-    function ProgressBar({ current, total, label }) {
-      const pct   = total > 0 ? Math.min((current / total) * 100, 100) : 0;
-      const full  = current >= total && total > 0;
-      return (
-        <div>
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-slate-400 font-medium">{label}</span>
-            <span className={`font-bold tabular-nums ${full ? 'text-green-400' : 'text-orange-400'}`}>
-              {current}&thinsp;/&thinsp;{total}{full ? ' · ✓ Full!' : ''}
-            </span>
-          </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-slate-700">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ease-out ${
-                full
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-400'
-                  : 'bg-gradient-to-r from-orange-500 to-amber-400'
-              }`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    /** Brief success toast */
-    function Toast({ message }) {
-      return (
-        <div
-          className="anim-toast pointer-events-none fixed bottom-8 z-[100] flex items-center gap-2 rounded-full bg-green-500 px-5 py-3 text-sm font-bold text-white shadow-2xl shadow-green-500/40"
-          style={{ left: '50%', transform: 'translateX(-50%)' }}
-        >
-          <CheckCircle size={15} />
-          {message}
-        </div>
-      );
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // CREATE MATCH VIEW  (admin)
-    // ═══════════════════════════════════════════════════════════════
-    function CreateView({ onCreated }) {
-      const [form, setForm] = useState({
-        opponent: '', date: '', time: '', location: '', driversNeeded: 2,
+  <!-- Service worker registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => { /* offline-only nicety */ });
       });
-      const [tasks, setTasks]       = useState(['Bring the laundry bag', 'Referee duty', 'Buy snacks & drinks']);
-      const [taskInput, setTaskInput] = useState('');
-
-      const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
-      const adjustDrivers = (d) =>
-        setForm(f => ({ ...f, driversNeeded: Math.max(1, Math.min(10, f.driversNeeded + d)) }));
-
-      const addTask = () => {
-        if (taskInput.trim()) { setTasks(t => [...t, taskInput.trim()]); setTaskInput(''); }
-      };
-      const removeTask = (i) => setTasks(t => t.filter((_, idx) => idx !== i));
-
-      const isValid = form.opponent.trim() && form.date && form.time && form.location.trim();
-
-      const handleCreate = () => {
-        if (!isValid) return;
-        const id = db.uid();
-        db.save({
-          id,
-          opponent:      form.opponent.trim(),
-          date:          form.date,
-          time:          form.time,
-          location:      form.location.trim(),
-          driversNeeded: form.driversNeeded,
-          drivers: Array.from({ length: form.driversNeeded }, (_, i) => ({
-            id: `d${i}_${id}`, name: null,
-          })),
-          tasks: tasks.map((name, i) => ({
-            id: `t${i}_${id}`, name, claimedBy: null,
-          })),
-          createdAt: Date.now(),
-        });
-        onCreated(id);
-      };
-
-      return (
-        <div className="min-h-screen bg-slate-950 pb-14">
-
-          {/* ── Hero header ─────────────────────────────── */}
-          <div className="relative overflow-hidden bg-gradient-to-br from-orange-600 via-orange-500 to-amber-500 px-5 pt-14 pb-12">
-            <div className="absolute -top-12 -right-12 h-52 w-52 rounded-full bg-white/10" />
-            <div className="absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-black/10" />
-            <div className="relative">
-              <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-black/20 px-3.5 py-1.5">
-                <Zap size={13} className="text-white" />
-                <span className="text-xs font-black tracking-widest text-white">TEAMDRIVE</span>
-              </div>
-              <h1 className="text-4xl font-black leading-none text-white">Plan Your<br />Match Day</h1>
-              <p className="mt-2 text-sm text-white/70">Set up carpools &amp; tasks, then share one link with your squad</p>
-            </div>
-          </div>
-
-          <div className="space-y-4 px-4 -mt-5">
-
-            {/* ── Match details card ─────────────────────── */}
-            <div className="anim-slide-up rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-2xl">
-              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-500">Match Details</p>
-
-              <div className="space-y-3">
-
-                {/* Opponent */}
-                <div>
-                  <span className="mb-1.5 block text-sm text-slate-400">Opponent Team</span>
-                  <div className="flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3 focus-within:ring-2 focus-within:ring-orange-500/40 transition-all">
-                    <Trophy size={15} className="shrink-0 text-orange-400" />
-                    <input
-                      type="text" placeholder="e.g. FC Rivals United"
-                      value={form.opponent} onChange={set('opponent')}
-                      className="flex-1 bg-transparent text-white outline-none placeholder-slate-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Date + Time */}
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: 'Date', type: 'date', key: 'date', Icon: Calendar },
-                    { label: 'Kick-off', type: 'time', key: 'time', Icon: Clock },
-                  ].map(({ label, type, key, Icon }) => (
-                    <div key={key}>
-                      <span className="mb-1.5 block text-sm text-slate-400">{label}</span>
-                      <div className="flex items-center gap-2 rounded-xl bg-slate-700/60 px-3 py-3 focus-within:ring-2 focus-within:ring-orange-500/40 transition-all">
-                        <Icon size={14} className="shrink-0 text-orange-400" />
-                        <input
-                          type={type} value={form[key]} onChange={set(key)}
-                          className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Location */}
-                <div>
-                  <span className="mb-1.5 block text-sm text-slate-400">Venue / Location</span>
-                  <div className="flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3 focus-within:ring-2 focus-within:ring-orange-500/40 transition-all">
-                    <MapPin size={15} className="shrink-0 text-orange-400" />
-                    <input
-                      type="text" placeholder="e.g. City Sports Complex, North End"
-                      value={form.location} onChange={set('location')}
-                      className="flex-1 bg-transparent text-white outline-none placeholder-slate-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Cars needed */}
-                <div>
-                  <span className="mb-3 block text-sm text-slate-400">Cars / Drivers Needed</span>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => adjustDrivers(-1)}
-                      className="flex h-11 w-11 select-none items-center justify-center rounded-xl bg-slate-700 text-xl font-bold text-white transition-all hover:bg-slate-600 active:scale-90"
-                    >−</button>
-                    <div className="flex-1 text-center">
-                      <span className="text-4xl font-black text-white">{form.driversNeeded}</span>
-                      <span className="ml-2 text-sm text-slate-400">
-                        driver{form.driversNeeded !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => adjustDrivers(1)}
-                      className="flex h-11 w-11 select-none items-center justify-center rounded-xl bg-slate-700 text-xl font-bold text-white transition-all hover:bg-slate-600 active:scale-90"
-                    >+</button>
-                  </div>
-                  {/* Quick-pick buttons */}
-                  <div className="mt-3 flex gap-2">
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <button
-                        key={n}
-                        onClick={() => setForm(f => ({ ...f, driversNeeded: n }))}
-                        className={`flex-1 rounded-full py-1.5 text-sm font-bold transition-all ${
-                          form.driversNeeded === n
-                            ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
-                            : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
-                        }`}
-                      >{n}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Tasks card ─────────────────────────────── */}
-            <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5 shadow-2xl">
-              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-500">Team Tasks</p>
-
-              <div className="mb-3 space-y-2">
-                {tasks.map((task, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-xl bg-slate-700/50 px-4 py-2.5">
-                    <ClipboardList size={13} className="shrink-0 text-slate-500" />
-                    <span className="flex-1 text-sm text-white">{task}</span>
-                    <button
-                      onClick={() => removeTask(i)}
-                      className="p-0.5 text-slate-600 transition-colors hover:text-red-400"
-                    ><X size={13} /></button>
-                  </div>
-                ))}
-                {tasks.length === 0 && (
-                  <p className="py-2 text-center text-sm text-slate-600">No tasks yet</p>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text" placeholder="Add a task…"
-                  value={taskInput}
-                  onChange={(e) => setTaskInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addTask()}
-                  className="flex-1 rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none placeholder-slate-500 transition-colors focus:border-orange-500"
-                />
-                <button
-                  onClick={addTask}
-                  className="flex items-center justify-center rounded-xl bg-orange-500 px-4 text-white transition-colors hover:bg-orange-600 active:scale-95"
-                ><Plus size={18} /></button>
-              </div>
-            </div>
-
-            {/* ── Create CTA ─────────────────────────────── */}
-            <button
-              onClick={handleCreate}
-              disabled={!isValid}
-              className={`w-full rounded-2xl py-4 text-lg font-black transition-all ${
-                isValid
-                  ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-xl shadow-orange-500/25 hover:shadow-orange-500/40 active:scale-95'
-                  : 'cursor-not-allowed bg-slate-800 text-slate-600'
-              }`}
-            >
-              ⚡ Create Match &amp; Get Share Link
-            </button>
-            {!isValid && (
-              <p className="text-center text-xs text-slate-600">Fill in all match details above to continue</p>
-            )}
-          </div>
-        </div>
-      );
     }
-
-    // ═══════════════════════════════════════════════════════════════
-    // TEAM VIEW  (shared — no login required)
-    // ═══════════════════════════════════════════════════════════════
-    function TeamView({ matchId, onBack }) {
-      const [match, setMatch]         = useState(null);
-      const [modal, setModal]         = useState(null);   // { type, id, label, cta }
-      const [toast, setToast]         = useState(null);
-      const [copied, setCopied]       = useState(false);
-      const [justClaimed, setJustClaimed] = useState(null);
-
-      useEffect(() => { setMatch(db.get(matchId)); }, [matchId]);
-
-      const persist = (updated) => { db.save(updated); setMatch(updated); };
-
-      const flash = (id) => {
-        setJustClaimed(id);
-        setTimeout(() => setJustClaimed(null), 700);
-      };
-
-      const showToast = (msg) => {
-        setToast(msg);
-        setTimeout(() => setToast(null), 2800);
-      };
-
-      const claimDriver = (name, id) => {
-        persist({ ...match, drivers: match.drivers.map(d => d.id === id ? { ...d, name } : d) });
-        setModal(null); flash(id); showToast(`${name} is driving! 🚗`);
-      };
-
-      const releaseDriver = (id) =>
-        persist({ ...match, drivers: match.drivers.map(d => d.id === id ? { ...d, name: null } : d) });
-
-      const claimTask = (name, id) => {
-        persist({ ...match, tasks: match.tasks.map(t => t.id === id ? { ...t, claimedBy: name } : t) });
-        setModal(null); flash(id); showToast(`${name} is on it! ✅`);
-      };
-
-      const releaseTask = (id) =>
-        persist({ ...match, tasks: match.tasks.map(t => t.id === id ? { ...t, claimedBy: null } : t) });
-
-      const handleShare = async () => {
-        const url = window.location.href;
-        if (navigator.share) {
-          try { await navigator.share({ title: `TeamDrive: vs ${match?.opponent}`, url }); } catch {}
-        } else {
-          try { await navigator.clipboard.writeText(url); } catch {}
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2200);
-          showToast('Link copied to clipboard!');
-        }
-      };
-
-      /* ── Not found state ─────────────────────────────── */
-      if (!match) return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 p-8 text-center">
-          <div className="mb-4 text-5xl">🏟️</div>
-          <h2 className="text-xl font-bold text-white">Match not found</h2>
-          <p className="mt-2 text-sm text-slate-500">This link may have expired or storage was cleared.</p>
-          <button
-            onClick={onBack}
-            className="mt-6 rounded-2xl bg-orange-500 px-7 py-3 font-bold text-white hover:bg-orange-600"
-          >← Create New Match</button>
-        </div>
-      );
-
-      const filledDrivers = match.drivers.filter(d => d.name).length;
-      const claimedTasks  = match.tasks.filter(t => t.claimedBy).length;
-      const allDone       = filledDrivers >= match.driversNeeded && claimedTasks >= match.tasks.length;
-
-      const fmtDate = (s) => {
-        try {
-          return new Date(s + 'T12:00:00').toLocaleDateString('en-US', {
-            weekday: 'long', month: 'short', day: 'numeric',
-          });
-        } catch { return s; }
-      };
-
-      /* ── Status banner copy ─────────────────────────── */
-      const statusMsg = allDone
-        ? '🎉 All sorted — the team is ready to roll!'
-        : filledDrivers < match.driversNeeded
-          ? `🚨 Need ${match.driversNeeded - filledDrivers} more driver${match.driversNeeded - filledDrivers > 1 ? 's' : ''} — can you help?`
-          : `✅ Rides covered! ${match.tasks.length - claimedTasks} task${match.tasks.length - claimedTasks > 1 ? 's' : ''} left to claim.`;
-
-      return (
-        <div className="min-h-screen bg-slate-950 pb-14">
-
-          {/* ── Hero header ─────────────────────────────── */}
-          <div
-            className="relative overflow-hidden px-5 pt-12 pb-8"
-            style={{ background: 'linear-gradient(145deg, #0f172a 0%, #1e3a5f 55%, #0f172a 100%)' }}
-          >
-            {/* Decorative glow */}
-            <div
-              className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full opacity-25"
-              style={{ background: 'radial-gradient(circle, #f97316 0%, transparent 70%)' }}
-            />
-
-            {/* Top bar */}
-            <div className="relative mb-6 flex items-center justify-between">
-              <button
-                onClick={onBack}
-                className="flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-slate-300"
-              >
-                <ArrowLeft size={14} /> New Match
-              </button>
-              <div className="flex items-center gap-1.5">
-                <span className="pulse-dot inline-block h-2 w-2 rounded-full bg-green-500" />
-                <span className="text-xs font-bold tracking-wider text-green-500">LIVE</span>
-              </div>
-            </div>
-
-            {/* Match title */}
-            <div className="relative">
-              <p className="text-sm font-medium text-slate-500">vs.</p>
-              <h1 className="mt-0.5 text-4xl font-black leading-none text-white">{match.opponent}</h1>
-
-              {/* Info pills */}
-              <div className="mt-4 flex flex-wrap gap-2">
-                {[
-                  { Icon: Calendar, text: fmtDate(match.date) },
-                  { Icon: Clock,    text: match.time },
-                  { Icon: MapPin,   text: match.location },
-                ].map(({ Icon, text }) => (
-                  <div key={text} className="flex max-w-[180px] items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
-                    <Icon size={11} className="shrink-0 text-orange-400" />
-                    <span className="truncate text-xs font-semibold text-white">{text}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Share button */}
-              <button
-                onClick={handleShare}
-                className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border border-orange-500/40 bg-orange-500/10 py-3 text-sm font-bold text-orange-400 transition-all hover:bg-orange-500/20 active:scale-95"
-              >
-                {copied
-                  ? <><CheckCircle size={15} /> Copied to clipboard!</>
-                  : <><Share2 size={15} /> Share with Team</>
-                }
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-4 px-4 mt-4">
-
-            {/* ── Status banner ───────────────────────────── */}
-            <div className={`rounded-2xl border p-4 ${
-              allDone
-                ? 'border-green-500/30 bg-green-500/10'
-                : 'border-orange-500/30 bg-orange-500/10'
-            }`}>
-              <p className={`text-sm font-bold ${allDone ? 'text-green-400' : 'text-orange-400'}`}>
-                {statusMsg}
-              </p>
-            </div>
-
-            {/* ── Carpool section ─────────────────────────── */}
-            <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
-              <div className="mb-4 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500/20">
-                  <Car size={15} className="text-orange-400" />
-                </div>
-                <h2 className="font-bold text-white">Carpool Sign-up</h2>
-              </div>
-
-              <ProgressBar
-                current={filledDrivers}
-                total={match.driversNeeded}
-                label="Driving capacity"
-              />
-
-              <div className="mt-4 space-y-2.5">
-                {match.drivers.map((driver, i) => {
-                  const claimed = !!driver.name;
-                  const isNew   = justClaimed === driver.id;
-                  return (
-                    <div
-                      key={driver.id}
-                      onClick={() => !claimed && setModal({
-                        type: 'driver', id: driver.id,
-                        label: `Sign up as Driver ${i + 1}`,
-                        cta: "🚗 I'll drive!",
-                      })}
-                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all ${
-                        claimed
-                          ? 'card-claimed border-green-500/30'
-                          : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-orange-500/50 hover:bg-orange-500/5 active:scale-95'
-                      } ${isNew ? 'anim-pop-in' : ''}`}
-                    >
-                      {/* Avatar */}
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-black transition-all ${
-                        claimed ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-500'
-                      }`}>
-                        {claimed ? driver.name[0].toUpperCase() : i + 1}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        {claimed ? (
-                          <>
-                            <p className="font-bold text-white">{driver.name}</p>
-                            <p className="text-xs text-green-400">Driving ✓</p>
-                          </>
-                        ) : (
-                          <p className="text-sm text-slate-500">
-                            Driver {i + 1} — <span className="text-slate-400">tap to volunteer</span>
-                          </p>
-                        )}
-                      </div>
-
-                      {claimed ? (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); releaseDriver(driver.id); }}
-                          className="rounded-lg p-1.5 text-slate-600 transition-all hover:bg-red-400/10 hover:text-red-400"
-                        ><X size={14} /></button>
-                      ) : (
-                        <Car size={15} className="shrink-0 text-slate-700" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ── Tasks section ────────────────────────────── */}
-            {match.tasks.length > 0 && (
-              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
-                <div className="mb-4 flex items-center gap-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500/20">
-                    <ClipboardList size={15} className="text-orange-400" />
-                  </div>
-                  <h2 className="font-bold text-white">Team Tasks</h2>
-                  <span className="ml-auto tabular-nums text-sm text-slate-500">
-                    {claimedTasks}/{match.tasks.length}
-                  </span>
-                </div>
-
-                <ProgressBar
-                  current={claimedTasks}
-                  total={match.tasks.length}
-                  label="Tasks claimed"
-                />
-
-                <div className="mt-4 space-y-2.5">
-                  {match.tasks.map((task) => {
-                    const claimed = !!task.claimedBy;
-                    const isNew   = justClaimed === task.id;
-                    return (
-                      <div
-                        key={task.id}
-                        onClick={() => !claimed && setModal({
-                          type: 'task', id: task.id,
-                          label: `Claim: "${task.name}"`,
-                          cta: '✅ I\'ve got this!',
-                        })}
-                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all ${
-                          claimed
-                            ? 'card-claimed border-green-500/30'
-                            : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-orange-500/50 hover:bg-orange-500/5 active:scale-95'
-                        } ${isNew ? 'anim-pop-in' : ''}`}
-                      >
-                        {/* Checkbox */}
-                        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 transition-all ${
-                          claimed ? 'border-green-500 bg-green-500' : 'border-slate-600'
-                        }`}>
-                          {claimed && <CheckCircle size={13} className="text-white" />}
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <p className={`text-sm font-semibold transition-colors ${
-                            claimed ? 'text-slate-500 line-through' : 'text-white'
-                          }`}>{task.name}</p>
-                          {claimed && (
-                            <p className="mt-0.5 text-xs text-green-400">by {task.claimedBy}</p>
-                          )}
-                        </div>
-
-                        {claimed ? (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); releaseTask(task.id); }}
-                            className="rounded-lg p-1.5 text-slate-600 transition-all hover:bg-red-400/10 hover:text-red-400"
-                          ><X size={14} /></button>
-                        ) : (
-                          <ChevronRight size={15} className="shrink-0 text-slate-600" />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ── Footer ────────────────────────────────────── */}
-            <p className="pb-2 text-center text-xs text-slate-700">
-              TeamDrive &middot; Data stored in your browser &middot;{' '}
-              <button onClick={onBack} className="underline transition-colors hover:text-slate-500">
-                Create a new match
-              </button>
-            </p>
-          </div>
-
-          {/* ── Name modal ──────────────────────────────────── */}
-          {modal && (
-            <NameModal
-              title={modal.label}
-              subtitle="Enter your name so the team knows it's you"
-              cta={modal.cta}
-              onConfirm={(name) => {
-                if (modal.type === 'driver') claimDriver(name, modal.id);
-                else claimTask(name, modal.id);
-              }}
-              onCancel={() => setModal(null)}
-            />
-          )}
-
-          {/* ── Toast ───────────────────────────────────────── */}
-          {toast && <Toast message={toast} key={toast} />}
-        </div>
-      );
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // ROOT
-    // ═══════════════════════════════════════════════════════════════
-    function App() {
-      const { hash, go } = useRouter();
-      const matchId = hash.startsWith('#match-') ? hash.slice(7) : null;
-
-      return matchId
-        ? <TeamView matchId={matchId} onBack={() => go('')} />
-        : <CreateView onCreated={(id) => go(`#match-${id}`)} />;
-    }
-
-    createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
 </html>

@@ -1,0 +1,20 @@
+{
+  "name": "Aura — Cycle-Synced Nutrition",
+  "short_name": "Aura",
+  "description": "A calm companion for cycle-synced nutrition, hormonal balance, and gut health.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF9F3",
+  "theme_color": "#F5F1E8",
+  "categories": ["health", "lifestyle", "wellness"],
+  "icons": [
+    {
+      "src": "./assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
