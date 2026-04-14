@@ -1,22 +1,25 @@
 /**
  * Aura — React app entry
  * ----------------------
- * Minimal scaffold: onboarding flow → dashboard shell that renders the
- * cycle engine output. Full tracker / insights cards will land in the
- * next pass; this file exists to prove the pipeline (logic → UI) works
- * end-to-end and to give a calm visual baseline.
+ * Onboarding → dashboard with cycle engine, daily tracker, and insight.
+ * All numbers flow from pure functions in src/lib/*; this file is just
+ * the calm shell that arranges them.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
+  Check, Droplet, Wheat, Salad,
 } from 'lucide-react';
 
 import { getCycleState, PHASES, PHASE_META } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import { getDailyInsight } from './lib/insights.js';
-import { loadProfile, saveProfile, clearProfile } from './lib/storage.js';
+import {
+  loadProfile, saveProfile, clearProfile,
+  loadLog, saveLog, isoDate,
+} from './lib/storage.js';
 
 /* ------------------------------------------------------------------ */
 /*  Small presentational primitives                                    */
@@ -42,6 +45,226 @@ const inputCx =
   'w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-ink-700 ' +
   'placeholder:text-ink-400/70 focus:outline-none focus:border-sage-300 focus:ring-2 ' +
   'focus:ring-sage-200/60 transition';
+
+/* ------------------------------------------------------------------ */
+/*  Daily log hook                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Reactive wrapper around storage.loadLog / saveLog.
+ * The `update(patch)` callback merges shallowly and persists immediately,
+ * so every keystroke / tap is durable without explicit "save" buttons.
+ */
+function useDailyLog(date = new Date()) {
+  const key = isoDate(date);
+  const [log, setLog] = useState(() => loadLog(date));
+
+  // If the date changes (e.g. midnight rollover in an open tab) re-hydrate.
+  useEffect(() => { setLog(loadLog(date)); }, [key]); // eslint-disable-line
+
+  const update = useCallback((patch) => {
+    setLog((current) => {
+      const next = { ...current, ...patch };
+      if (patch.gut) next.gut = { ...current.gut, ...patch.gut };
+      saveLog(date, next);
+      return next;
+    });
+  }, [key]); // eslint-disable-line
+
+  return [log, update];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tracker primitives                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * SoftProgress — calm progress bar.
+ *
+ * Below target: sage fill.
+ * At target:    sage → terracotta gradient (a quiet "you got there").
+ * Over target:  same gradient, capped at 100% width — never red, never
+ *               a "you failed" colour. Aura is supportive by design.
+ */
+function SoftProgress({ value, target }) {
+  const safeTarget = Math.max(1, target);
+  const pct = Math.min(100, Math.round((value / safeTarget) * 100));
+  const reached = value >= safeTarget;
+  return (
+    <div className="h-2 rounded-full bg-cream-200/80 overflow-hidden">
+      <div
+        className="h-full rounded-full transition-all duration-700 ease-out"
+        style={{
+          width: `${pct}%`,
+          background: reached
+            ? 'linear-gradient(90deg, #87A074 0%, #C78264 100%)'
+            : '#A8BA98',
+        }}
+      />
+    </div>
+  );
+}
+
+/** Pill button used for quick-add increments. */
+function Chip({ children, onClick, ariaLabel }) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      onClick={onClick}
+      className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200
+                 text-ink-600 hover:bg-sage-100 hover:border-sage-200 hover:text-sage-700
+                 active:scale-95 transition"
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * Editable numeric value — tap to enter custom amount, otherwise driven
+ * by the quick-add chips. We use a plain text input so iOS shows the
+ * numeric keyboard via inputMode without spinner clutter.
+ */
+function NumberValue({ value, unit, target, onChange }) {
+  return (
+    <div className="flex items-baseline gap-1 font-display text-ink-700">
+      <input
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => {
+          const v = e.target.value.replace(/[^0-9]/g, '');
+          onChange(v === '' ? 0 : Math.min(99999, Number(v)));
+        }}
+        className="w-[3.4rem] text-right bg-transparent text-[26px] leading-none
+                   focus:outline-none focus:text-sage-700"
+        aria-label={`${unit} entered`}
+      />
+      <span className="text-ink-400 text-sm">/ {target} {unit}</span>
+    </div>
+  );
+}
+
+/**
+ * One row of the tracker: label, current/target, progress bar, quick-add chips.
+ * Designed to be re-used for any "log against a daily target" metric.
+ */
+function TrackerRow({ icon: Icon, label, value, target, unit, increments, onAdd, onSet }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="w-3.5 h-3.5 text-ink-400" />}
+          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">{label}</div>
+        </div>
+        <NumberValue value={value} unit={unit} target={target} onChange={onSet} />
+      </div>
+      <SoftProgress value={value} target={target} />
+      <div className="flex flex-wrap gap-2 mt-3">
+        {increments.map((inc) => (
+          <Chip key={inc} onClick={() => onAdd(inc)} ariaLabel={`Add ${inc} ${unit}`}>
+            +{inc} {unit}
+          </Chip>
+        ))}
+        {value > 0 && (
+          <Chip onClick={() => onSet(0)} ariaLabel={`Reset ${label}`}>
+            reset
+          </Chip>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Hydration tracker rendered as a row of glass icons. Tap a glass to
+ * "fill up to here", tap a filled one twice to clear it. Calmer than a
+ * pair of +/- buttons and immediately legible at a glance.
+ */
+function HydrationRow({ glasses, target, onChange }) {
+  const slots = Array.from({ length: target }, (_, i) => i + 1);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Droplet className="w-3.5 h-3.5 text-ink-400" />
+          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Hydration</div>
+        </div>
+        <div className="font-display text-ink-700 text-[20px] leading-none">
+          {glasses}<span className="text-ink-400 text-sm"> / {target} glasses</span>
+        </div>
+      </div>
+      <div className="flex gap-1.5 flex-wrap">
+        {slots.map((slot) => {
+          const filled = slot <= glasses;
+          return (
+            <button
+              key={slot}
+              type="button"
+              aria-label={`Set hydration to ${slot} glasses`}
+              onClick={() => onChange(filled && slot === glasses ? slot - 1 : slot)}
+              className={`w-7 h-9 rounded-b-full rounded-t-md border transition
+                          active:scale-95 ${
+                            filled
+                              ? 'bg-sage-200 border-sage-300'
+                              : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+                          }`}
+            />
+          );
+        })}
+      </div>
+      <div className="text-[11px] text-ink-400 mt-2">
+        Each glass ≈ 250 ml · tap to fill, tap the last filled to clear.
+      </div>
+    </div>
+  );
+}
+
+/** Gut health checklist — three soft toggles, no shame on missed items. */
+function GutChecklist({ gut, onToggle }) {
+  const items = [
+    { id: 'probiotics', label: 'Probiotics',     hint: 'Yogurt, kefir, capsule…',           icon: Sparkles },
+    { id: 'fiber',      label: 'Fibre-rich meal', hint: 'Veg, legumes, whole grains',        icon: Wheat },
+    { id: 'fermented',  label: 'Fermented food', hint: 'Sauerkraut, kimchi, miso, kombucha', icon: Salad },
+  ];
+  return (
+    <div className="space-y-2">
+      {items.map(({ id, label, hint, icon: Icon }) => {
+        const on = !!gut[id];
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onToggle(id)}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left
+                        active:scale-[0.99] ${
+                          on
+                            ? 'bg-sage-100 border-sage-300'
+                            : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+                        }`}
+          >
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition ${
+                on ? 'bg-sage-300 text-cream-50' : 'bg-cream-100 text-ink-400'
+              }`}
+            >
+              {on ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+            </div>
+            <div className="min-w-0">
+              <div className={`text-sm font-medium ${on ? 'text-sage-700' : 'text-ink-600'}`}>{label}</div>
+              <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
+            </div>
+            {on && (
+              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">
+                Done
+              </div>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Onboarding                                                         */
@@ -248,6 +471,19 @@ function Dashboard({ profile, onReset }) {
   const insight = useMemo(() => getDailyInsight(state.phase), [state.phase]);
   const PhaseIcon = PHASE_ICONS[state.phase];
 
+  // Daily tracker state, persisted to LocalStorage on every change.
+  const [log, updateLog] = useDailyLog();
+
+  // Hydration target in glasses (250 ml each), derived from the L target.
+  const waterGlassTarget = Math.max(6, Math.round(targets.hydrationL * 4));
+
+  const addProtein  = (g)    => updateLog({ protein:  Math.min(99999, log.protein  + g) });
+  const setProtein  = (g)    => updateLog({ protein:  g });
+  const addCalories = (kcal) => updateLog({ calories: Math.min(99999, log.calories + kcal) });
+  const setCalories = (kcal) => updateLog({ calories: kcal });
+  const setWater    = (g)    => updateLog({ hydration: Math.max(0, Math.min(waterGlassTarget, g)) });
+  const toggleGut   = (id)   => updateLog({ gut: { [id]: !log.gut[id] } });
+
   return (
     <div className="min-h-dvh px-5 py-8 max-w-md mx-auto">
       {/* Header */}
@@ -284,9 +520,9 @@ function Dashboard({ profile, onReset }) {
         </div>
       </Card>
 
-      {/* Today's targets */}
+      {/* Today's tracker — interactive, persisted */}
       <Card className="p-6 mb-5 anim-fade-up">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-5">
           <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Today's nourishment</div>
           {targets.calorieDelta > 0 && (
             <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
@@ -294,11 +530,42 @@ function Dashboard({ profile, onReset }) {
             </div>
           )}
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Metric label="Calories" value={targets.calories} unit="kcal" />
-          <Metric label="Protein"  value={targets.protein}  unit="g" />
-          <Metric label="Water"    value={targets.hydrationL} unit="L" />
+        <div className="space-y-6">
+          <TrackerRow
+            label="Calories"
+            value={log.calories}
+            target={targets.calories}
+            unit="kcal"
+            increments={[100, 250, 500]}
+            onAdd={addCalories}
+            onSet={setCalories}
+          />
+          <TrackerRow
+            label="Protein"
+            value={log.protein}
+            target={targets.protein}
+            unit="g"
+            increments={[10, 20, 30]}
+            onAdd={addProtein}
+            onSet={setProtein}
+          />
+          <HydrationRow
+            glasses={log.hydration}
+            target={waterGlassTarget}
+            onChange={setWater}
+          />
         </div>
+      </Card>
+
+      {/* Gut health checklist */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Gut health</div>
+          <div className="text-[11px] text-ink-400">
+            {Object.values(log.gut).filter(Boolean).length} of 3
+          </div>
+        </div>
+        <GutChecklist gut={log.gut} onToggle={toggleGut} />
       </Card>
 
       {/* Nutrient focus */}
@@ -330,18 +597,8 @@ function Dashboard({ profile, onReset }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · scaffold v0.1
+        Aura · v0.2 · tracker
       </div>
-    </div>
-  );
-}
-
-function Metric({ label, value, unit }) {
-  return (
-    <div className="rounded-xl bg-cream-100/70 border border-cream-200 p-3 text-center">
-      <div className="text-[10px] uppercase tracking-wider text-ink-400">{label}</div>
-      <div className="font-display text-[26px] leading-none text-ink-700 mt-1">{value}</div>
-      <div className="text-[11px] text-ink-400 mt-1">{unit}</div>
     </div>
   );
 }
