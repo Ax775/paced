@@ -95,6 +95,15 @@ export function daysBetween(a, b) {
   return Math.floor((bM - aM) / MS_PER_DAY);
 }
 
+/** ISO yyyy-mm-dd from a Date or parseable date string. Local-tz, not UTC. */
+export function toISODate(input = new Date()) {
+  const d = input instanceof Date ? new Date(input) : new Date(String(input));
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Phase math                                                         */
 /* ------------------------------------------------------------------ */
@@ -227,4 +236,116 @@ export function getCycleState(profile, today = new Date()) {
     progressPct:   Math.round((cycleDay / cycleLength) * 100),
     hasData:       true,
   };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Period log + cycle-length learning                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * If a fresh log lands within this many days of the previous one, treat
+ * it as the *same* bleed continuing — not a new cycle. (Average bleed
+ * is ~5 days; we use 10 to give a comfortable margin.)
+ */
+const SAME_PERIOD_GUARD_DAYS = 10;
+
+/** How many recent period starts to average when learning cycle length. */
+const LEARN_WINDOW = 4; // 4 starts → 3 gaps → smooth average
+
+/**
+ * Average of the last `LEARN_WINDOW` gaps in a sorted history of
+ * period-start ISO dates. Falls back to the provided default if there
+ * aren't enough data points yet.
+ */
+function learnedCycleLength(history, fallback) {
+  if (!Array.isArray(history) || history.length < 2) return fallback;
+  const recent = history.slice(-LEARN_WINDOW);
+  const gaps = [];
+  for (let i = 1; i < recent.length; i++) {
+    gaps.push(daysBetween(recent[i - 1], recent[i]));
+  }
+  const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+  return clampCycleLength(Math.round(avg));
+}
+
+/**
+ * Pure profile transform: "the user said her period started today".
+ *
+ * - Seeds period history with the onboarding `lastPeriodStart` if it
+ *   isn't already in there, so the very first log can compute a gap.
+ * - If the new entry is within SAME_PERIOD_GUARD_DAYS of the previous
+ *   entry, it's treated as the same bleed and the profile is returned
+ *   unchanged (referentially equal — handy for "did anything change?"
+ *   checks at the call site).
+ * - Otherwise appends, recomputes cycleLength as a rolling average of
+ *   the most recent gaps, and updates `lastPeriodStart`.
+ *
+ * @returns {object} possibly the same profile (no-op) or a new one
+ */
+export function logPeriodStart(profile, today = new Date()) {
+  if (!profile) return profile;
+  const dateISO = toISODate(today);
+
+  // Build a sorted, de-duplicated history seeded from lastPeriodStart.
+  const seed = profile.lastPeriodStart ? toISODate(profile.lastPeriodStart) : null;
+  const set = new Set(Array.isArray(profile.periodHistory) ? profile.periodHistory : []);
+  if (seed) set.add(seed);
+
+  // Already logged today — nothing to do.
+  if (set.has(dateISO)) return profile;
+
+  const history = Array.from(set).sort();
+  const last = history[history.length - 1];
+
+  if (last && daysBetween(last, dateISO) < SAME_PERIOD_GUARD_DAYS) {
+    // Same bleed continuing. Don't pollute history, don't relearn.
+    return profile;
+  }
+
+  history.push(dateISO);
+  const cycleLength = learnedCycleLength(history, profile.cycleLength);
+
+  return {
+    ...profile,
+    periodHistory:    history,
+    lastPeriodStart:  dateISO,
+    cycleLength,
+  };
+}
+
+/**
+ * Inverse of `logPeriodStart` for a given day — used by the "undo"
+ * affordance right after a tap. Removes the dated entry, rolls
+ * `lastPeriodStart` back to the previous one in history, and recomputes
+ * cycleLength from what's left.
+ */
+export function unlogPeriodStart(profile, today = new Date()) {
+  if (!profile?.periodHistory?.length) return profile;
+  const dateISO = toISODate(today);
+  const idx = profile.periodHistory.lastIndexOf(dateISO);
+  if (idx === -1) return profile;
+
+  const history = profile.periodHistory.slice();
+  history.splice(idx, 1);
+
+  const lastPeriodStart = history.length
+    ? history[history.length - 1]
+    : profile.lastPeriodStart;
+
+  return {
+    ...profile,
+    periodHistory:   history,
+    lastPeriodStart,
+    cycleLength:     learnedCycleLength(history, profile.cycleLength),
+  };
+}
+
+/**
+ * Was there an *explicit* period-start log on the given day?
+ * Only considers entries actually in `periodHistory` so the undo
+ * affordance never tries to roll back the onboarding seed value.
+ */
+export function isPeriodLoggedOn(profile, day = new Date()) {
+  if (!Array.isArray(profile?.periodHistory)) return false;
+  return profile.periodHistory.includes(toISODate(day));
 }

@@ -13,7 +13,10 @@ import {
   Check, Droplet, Wheat, Salad,
 } from 'lucide-react';
 
-import { getCycleState, PHASES, PHASE_META } from './lib/cycle.js';
+import {
+  getCycleState, PHASES, PHASE_META,
+  logPeriodStart, unlogPeriodStart, isPeriodLoggedOn,
+} from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import { getDailyInsight } from './lib/insights.js';
 import {
@@ -216,6 +219,70 @@ function HydrationRow({ glasses, target, onChange }) {
       <div className="text-[11px] text-ink-400 mt-2">
         Each glass ≈ 250 ml · tap to fill, tap the last filled to clear.
       </div>
+    </div>
+  );
+}
+
+/**
+ * Period log button — calm, low-key affordance that lives under the
+ * cycle ring. Two visual states:
+ *
+ *   not logged today → soft sage pill: "My period started today"
+ *   logged today     → muted underline: "Period logged today · undo"
+ *
+ * Tapping confirms (the action mutates profile + recomputes cycleLength)
+ * and the parent persists the result via onUpdateProfile.
+ */
+function PeriodLogButton({ profile, onUpdateProfile }) {
+  const loggedToday = isPeriodLoggedOn(profile);
+  const cyclesTracked = profile.periodHistory?.length ?? 0;
+
+  const handleLog = () => {
+    const ok = confirm(
+      'Log today as the start of your period?\n\n' +
+      'Aura will use this to learn your natural cycle length over time.'
+    );
+    if (!ok) return;
+    const next = logPeriodStart(profile);
+    if (next === profile) {
+      // No-op (e.g. within the "same bleed" guard window).
+      return;
+    }
+    onUpdateProfile(next);
+  };
+
+  const handleUndo = () => {
+    onUpdateProfile(unlogPeriodStart(profile));
+  };
+
+  if (loggedToday) {
+    return (
+      <button
+        type="button"
+        onClick={handleUndo}
+        className="mt-5 text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition"
+      >
+        Period logged today · undo
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-5 flex flex-col items-center gap-1.5">
+      <button
+        type="button"
+        onClick={handleLog}
+        className="text-xs px-4 py-2 rounded-full bg-sage-100 text-sage-700 border border-sage-200
+                   hover:bg-sage-200 active:scale-95 transition flex items-center gap-2"
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-terracotta-400" />
+        My period started today
+      </button>
+      {cyclesTracked > 0 && (
+        <div className="text-[10px] uppercase tracking-wider text-ink-400/80">
+          {cyclesTracked} {cyclesTracked === 1 ? 'cycle' : 'cycles'} tracked
+        </div>
+      )}
     </div>
   );
 }
@@ -465,7 +532,7 @@ function PhaseTimeline({ state }) {
   );
 }
 
-function Dashboard({ profile, onReset }) {
+function Dashboard({ profile, onUpdateProfile, onReset }) {
   const state   = useMemo(() => getCycleState(profile), [profile]);
   const targets = useMemo(() => getDailyTargets(profile, state.phase), [profile, state.phase]);
   const insight = useMemo(() => getDailyInsight(state.phase), [state.phase]);
@@ -514,6 +581,7 @@ function Dashboard({ profile, onReset }) {
           <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
             {state.phaseMeta.blurb}
           </p>
+          <PeriodLogButton profile={profile} onUpdateProfile={onUpdateProfile} />
         </div>
         <div className="mt-6">
           <PhaseTimeline state={state} />
@@ -597,7 +665,7 @@ function Dashboard({ profile, onReset }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v0.2 · tracker
+        Aura · v0.3 · period log
       </div>
     </div>
   );
@@ -621,9 +689,17 @@ function App() {
 
   if (!profile) return <Onboarding onComplete={setProfile} />;
 
+  // Single point of profile mutation — persists then re-renders.
+  const updateProfile = (next) => {
+    if (!next || next === profile) return;
+    saveProfile(next);
+    setProfile(next);
+  };
+
   return (
     <Dashboard
       profile={profile}
+      onUpdateProfile={updateProfile}
       onReset={() => {
         if (confirm('Reset your Aura profile? Your daily logs will be kept.')) {
           clearProfile();
