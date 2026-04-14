@@ -16,6 +16,7 @@ import {
 import {
   getCycleState, PHASES, PHASE_META,
   logPeriodStart, unlogPeriodStart, isPeriodLoggedOn,
+  getCycleHistory,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import { getDailyInsight } from './lib/insights.js';
@@ -220,6 +221,80 @@ function HydrationRow({ glasses, target, onChange }) {
         Each glass ≈ 250 ml · tap to fill, tap the last filled to clear.
       </div>
     </div>
+  );
+}
+
+/**
+ * Format an ISO date as a short month label like "APR".
+ * Uses local time-zone interpretation so the label matches the user's
+ * calendar — parsing as UTC would sometimes drift by a day.
+ */
+function shortMonth(iso) {
+  // Append T00:00 so browsers parse it as local, not UTC midnight.
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase();
+}
+
+/**
+ * CycleHistoryStrip — recent completed cycles at a glance.
+ *
+ * One vertical bar per gap between logged period starts, with bar
+ * heights scaled across the 21-45 day physiological range so longer
+ * cycles visibly reach higher. Bars use the same sage→terracotta
+ * gradient as the progress fills to keep the visual language coherent.
+ *
+ * Renders nothing until the user has at least one full cycle logged,
+ * so the dashboard stays uncluttered on first use.
+ */
+function CycleHistoryStrip({ profile }) {
+  const history = getCycleHistory(profile, 4);
+  if (history.length === 0) return null;
+
+  const avg = Math.round(
+    history.reduce((sum, g) => sum + g.length, 0) / history.length
+  );
+
+  // Scale cycle length → bar height. 21 days → 44 px, 45 days → 92 px.
+  const barHeight = (len) => {
+    const t = Math.min(1, Math.max(0, (len - 21) / 24));
+    return 44 + Math.round(t * 48);
+  };
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up">
+      <div className="flex items-center justify-between mb-5">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Recent cycles</div>
+        <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
+          avg {avg} days
+        </div>
+      </div>
+
+      <div className="flex items-end justify-around gap-3 h-[120px] px-1">
+        {history.map((gap) => (
+          <div key={gap.start} className="flex-1 flex flex-col items-center justify-end min-w-0">
+            <div className="font-display text-[15px] text-ink-700 mb-1 leading-none">
+              {gap.length}
+              <span className="text-[10px] text-ink-400 ml-0.5">d</span>
+            </div>
+            <div
+              className="w-full max-w-[42px] rounded-t-xl shadow-soft"
+              style={{
+                height: `${barHeight(gap.length)}px`,
+                background: 'linear-gradient(180deg, #C6D3BB 0%, #87A074 60%, #C78264 100%)',
+              }}
+              aria-label={`${gap.length} day cycle starting ${gap.start}`}
+            />
+            <div className="text-[10px] text-ink-400 uppercase tracking-wider mt-2">
+              {shortMonth(gap.end)}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[11px] text-ink-400 text-center mt-4 leading-relaxed">
+        Cycle length naturally varies — Aura uses your rhythm, not a textbook 28.
+      </p>
+    </Card>
   );
 }
 
@@ -588,6 +663,9 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
         </div>
       </Card>
 
+      {/* Recent cycles (only renders once there's ≥1 completed cycle) */}
+      <CycleHistoryStrip profile={profile} />
+
       {/* Today's tracker — interactive, persisted */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="flex items-center justify-between mb-5">
@@ -665,7 +743,7 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v0.3 · period log
+        Aura · v0.4 · history
       </div>
     </div>
   );

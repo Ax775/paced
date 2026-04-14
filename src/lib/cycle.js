@@ -349,3 +349,30 @@ export function isPeriodLoggedOn(profile, day = new Date()) {
   if (!Array.isArray(profile?.periodHistory)) return false;
   return profile.periodHistory.includes(toISODate(day));
 }
+
+/**
+ * Completed cycles derived from the profile's period history.
+ *
+ * One entry per gap between consecutive logged starts, chronological
+ * order (oldest → newest), trimmed to the most recent `max` cycles.
+ *
+ * Returns `[]` when there isn't yet at least one full cycle to show,
+ * so the UI can simply not render the history card until there's data.
+ *
+ * @param {object} profile
+ * @param {number} [max=4]  Cap on the number of returned cycles
+ * @returns {{ start: string, end: string, length: number }[]}
+ */
+export function getCycleHistory(profile, max = 4) {
+  const h = Array.isArray(profile?.periodHistory) ? profile.periodHistory : [];
+  if (h.length < 2) return [];
+  const gaps = [];
+  for (let i = 1; i < h.length; i++) {
+    gaps.push({
+      start:  h[i - 1],
+      end:    h[i],
+      length: daysBetween(h[i - 1], h[i]),
+    });
+  }
+  return gaps.slice(-Math.max(1, max));
+}
