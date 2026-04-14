@@ -299,6 +299,146 @@ function CycleHistoryStrip({ profile }) {
 }
 
 /**
+ * WeeklyHistoryStrip — "this week's nourishment".
+ *
+ * Three rows (Calories · Protein · Water), each seven bars wide,
+ * showing percentage-of-target for the past 7 days (today on the right).
+ *
+ * The nuance that sells the cycle-sync premise: each day's target is
+ * computed with *that day's* phase, not today's. So a week that spans
+ * the ovulatory→luteal transition visually shows the bars flatten on
+ * the day the calorie target jumped. A thin row of phase-coloured
+ * segments underneath the day axis reveals the cycle moving under the
+ * data — the single most on-brand bit of UI in the app.
+ *
+ * Renders nothing until at least one of the last 7 days has any entry,
+ * so the dashboard stays calm on first use.
+ */
+function WeeklyHistoryStrip({ profile, todayLog }) {
+  // `todayLog` is threaded in as a dep so that typing into the tracker
+  // immediately updates this week's bars without a page refresh.
+  const days = useMemo(() => {
+    const out = [];
+    const today = new Date();
+    for (let offset = 6; offset >= 0; offset--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - offset);
+      const isToday = offset === 0;
+      const log     = isToday ? todayLog : loadLog(d);
+      const state   = getCycleState(profile, d);
+      const targets = getDailyTargets(profile, state.phase);
+      const waterTarget = Math.max(6, Math.round(targets.hydrationL * 4));
+      out.push({
+        date:        d,
+        isToday,
+        phase:       state.phase,
+        phaseHue:    state.phaseMeta.hue,
+        pctCalories: pct(log.calories,  targets.calories),
+        pctProtein:  pct(log.protein,   targets.protein),
+        pctWater:    pct(log.hydration, waterTarget),
+      });
+    }
+    return out;
+  }, [profile, todayLog]);
+
+  // Hide the card entirely until there's something to show.
+  const anyData = days.some(
+    (d) => d.pctCalories > 0 || d.pctProtein > 0 || d.pctWater > 0
+  );
+  if (!anyData) return null;
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up">
+      <div className="flex items-center justify-between mb-5">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">
+          This week's nourishment
+        </div>
+        <div className="text-[11px] text-ink-400">Last 7 days</div>
+      </div>
+
+      <WeekBarRow label="Calories" values={days.map((d) => d.pctCalories)} />
+      <WeekBarRow label="Protein"  values={days.map((d) => d.pctProtein)}  />
+      <WeekBarRow label="Water"    values={days.map((d) => d.pctWater)}    />
+
+      {/* Day axis */}
+      <div className="flex gap-1.5 mt-4">
+        {days.map((d, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center">
+            <div
+              className={`text-[10px] uppercase tracking-wider ${
+                d.isToday ? 'text-sage-700 font-semibold' : 'text-ink-400'
+              }`}
+            >
+              {d.date.toLocaleDateString(undefined, { weekday: 'narrow' })}
+            </div>
+            {d.isToday && <div className="w-1 h-1 rounded-full bg-sage-500 mt-1" />}
+          </div>
+        ))}
+      </div>
+
+      {/* Phase colour strip — the cycle moving under your nutrition. */}
+      <div className="flex gap-1.5 mt-3" aria-label="Cycle phase per day">
+        {days.map((d, i) => (
+          <div
+            key={i}
+            className="flex-1 h-[3px] rounded-full"
+            style={{ background: d.phaseHue, opacity: 0.55 }}
+            title={PHASE_META[d.phase].label}
+          />
+        ))}
+      </div>
+
+      <p className="text-[11px] text-ink-400 text-center mt-4 leading-relaxed">
+        Targets shift with your cycle — these bars measure against each day's own phase.
+      </p>
+    </Card>
+  );
+}
+
+/** One metric row inside WeeklyHistoryStrip. */
+function WeekBarRow({ label, values }) {
+  return (
+    <div className="mb-5 last:mb-0">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">{label}</div>
+      </div>
+      <div className="flex items-end gap-1.5 h-[56px]">
+        {values.map((v, i) => {
+          const capped = Math.min(100, v);
+          const reached = v >= 100;
+          return (
+            <div
+              key={i}
+              className="flex-1 h-full rounded-md bg-cream-200/60 relative overflow-hidden"
+              aria-label={`${label} day ${i + 1}: ${Math.round(v)}% of target`}
+            >
+              <div
+                className="absolute bottom-0 left-0 right-0 rounded-md transition-all duration-500"
+                style={{
+                  height: `${capped}%`,
+                  background: reached
+                    ? 'linear-gradient(180deg, #A8BA98 0%, #C78264 100%)'
+                    : '#A8BA98',
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Percentage of a target, clamped, NaN-safe. Never negative. */
+function pct(value, target) {
+  const t = Number(target);
+  const v = Number(value);
+  if (!Number.isFinite(t) || t <= 0) return 0;
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  return (v / t) * 100;
+}
+
+/**
  * Period log button — calm, low-key affordance that lives under the
  * cycle ring. Two visual states:
  *
@@ -703,6 +843,9 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
         </div>
       </Card>
 
+      {/* This week's nourishment — phase-aware weekly bars */}
+      <WeeklyHistoryStrip profile={profile} todayLog={log} />
+
       {/* Gut health checklist */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="flex items-center justify-between mb-4">
@@ -743,7 +886,7 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v0.4 · history
+        Aura · v0.5 · weekly patterns
       </div>
     </div>
   );
