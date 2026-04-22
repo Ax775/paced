@@ -1,16 +1,15 @@
 /**
  * Aura — React app entry
  * ----------------------
- * Onboarding → dashboard with cycle engine, daily tracker, and insight.
- * All numbers flow from pure functions in src/lib/*; this file is just
- * the calm shell that arranges them.
+ * Onboarding → dashboard with cycle engine, daily tracker, symptom log, and insight.
+ * All numbers flow from pure functions in src/lib/*; this file is the calm shell.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
-  Check, Droplet, Wheat, Salad,
+  Check, Droplet, Wheat, Salad, ChevronLeft,
 } from 'lucide-react';
 
 import {
@@ -22,15 +21,18 @@ import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import { getDailyInsight } from './lib/insights.js';
 import {
   loadProfile, saveProfile, clearProfile,
-  loadLog, saveLog, isoDate,
+  loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
 } from './lib/storage.js';
 
 /* ------------------------------------------------------------------ */
 /*  Small presentational primitives                                    */
 /* ------------------------------------------------------------------ */
 
-const Card = ({ className = '', children }) => (
-  <div className={`rounded-xl3 bg-cream-50/80 backdrop-blur-sm shadow-soft border border-cream-200/60 ${className}`}>
+const Card = ({ className = '', style, children }) => (
+  <div
+    className={`rounded-xl3 bg-cream-50/80 backdrop-blur-sm shadow-soft border border-cream-200/60 ${className}`}
+    style={style}
+  >
     {children}
   </div>
 );
@@ -54,22 +56,17 @@ const inputCx =
 /*  Daily log hook                                                     */
 /* ------------------------------------------------------------------ */
 
-/**
- * Reactive wrapper around storage.loadLog / saveLog.
- * The `update(patch)` callback merges shallowly and persists immediately,
- * so every keystroke / tap is durable without explicit "save" buttons.
- */
 function useDailyLog(date = new Date()) {
   const key = isoDate(date);
   const [log, setLog] = useState(() => loadLog(date));
 
-  // If the date changes (e.g. midnight rollover in an open tab) re-hydrate.
   useEffect(() => { setLog(loadLog(date)); }, [key]); // eslint-disable-line
 
   const update = useCallback((patch) => {
     setLog((current) => {
       const next = { ...current, ...patch };
-      if (patch.gut) next.gut = { ...current.gut, ...patch.gut };
+      if (patch.gut)      next.gut      = { ...current.gut,      ...patch.gut };
+      if (patch.symptoms) next.symptoms = { ...current.symptoms, ...patch.symptoms };
       saveLog(date, next);
       return next;
     });
@@ -79,27 +76,60 @@ function useDailyLog(date = new Date()) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function pct(value, target) {
+  const t = Number(target);
+  const v = Number(value);
+  if (!Number.isFinite(t) || t <= 0) return 0;
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  return (v / t) * 100;
+}
+
+function formatNextPeriod(daysUntil) {
+  if (!daysUntil || daysUntil <= 0) return 'Soon';
+  if (daysUntil === 1) return 'Tomorrow';
+  const d = new Date();
+  d.setDate(d.getDate() + daysUntil);
+  const month = d.toLocaleDateString('en', { month: 'short' });
+  return `${month} ${d.getDate()} · in ${daysUntil} days`;
+}
+
+function shortMonth(iso) {
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase();
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tracker primitives                                                 */
 /* ------------------------------------------------------------------ */
 
 /**
- * SoftProgress — calm progress bar.
- *
- * Below target: sage fill.
- * At target:    sage → terracotta gradient (a quiet "you got there").
- * Over target:  same gradient, capped at 100% width — never red, never
- *               a "you failed" colour. Aura is supportive by design.
+ * SoftProgress — calm progress bar with mount animation.
+ * Starts at 0 and animates to the real value after a short delay so the
+ * fill is visible as the card fades in. After mount, reflects live value
+ * instantly (no reset to 0 on each tap).
  */
 function SoftProgress({ value, target }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setMounted(true), 120);
+    return () => clearTimeout(id);
+  }, []); // Only on mount
+
   const safeTarget = Math.max(1, target);
-  const pct = Math.min(100, Math.round((value / safeTarget) * 100));
+  const displayPct = mounted
+    ? Math.min(100, Math.round((value / safeTarget) * 100))
+    : 0;
   const reached = value >= safeTarget;
+
   return (
     <div className="h-2 rounded-full bg-cream-200/80 overflow-hidden">
       <div
         className="h-full rounded-full transition-all duration-700 ease-out"
         style={{
-          width: `${pct}%`,
+          width: `${displayPct}%`,
           background: reached
             ? 'linear-gradient(90deg, #87A074 0%, #C78264 100%)'
             : '#A8BA98',
@@ -109,7 +139,6 @@ function SoftProgress({ value, target }) {
   );
 }
 
-/** Pill button used for quick-add increments. */
 function Chip({ children, onClick, ariaLabel }) {
   return (
     <button
@@ -125,11 +154,6 @@ function Chip({ children, onClick, ariaLabel }) {
   );
 }
 
-/**
- * Editable numeric value — tap to enter custom amount, otherwise driven
- * by the quick-add chips. We use a plain text input so iOS shows the
- * numeric keyboard via inputMode without spinner clutter.
- */
 function NumberValue({ value, unit, target, onChange }) {
   return (
     <div className="flex items-baseline gap-1 font-display text-ink-700">
@@ -149,10 +173,6 @@ function NumberValue({ value, unit, target, onChange }) {
   );
 }
 
-/**
- * One row of the tracker: label, current/target, progress bar, quick-add chips.
- * Designed to be re-used for any "log against a daily target" metric.
- */
 function TrackerRow({ icon: Icon, label, value, target, unit, increments, onAdd, onSet }) {
   return (
     <div>
@@ -180,11 +200,6 @@ function TrackerRow({ icon: Icon, label, value, target, unit, increments, onAdd,
   );
 }
 
-/**
- * Hydration tracker rendered as a row of glass icons. Tap a glass to
- * "fill up to here", tap a filled one twice to clear it. Calmer than a
- * pair of +/- buttons and immediately legible at a glance.
- */
 function HydrationRow({ glasses, target, onChange }) {
   const slots = Array.from({ length: target }, (_, i) => i + 1);
   return (
@@ -224,28 +239,77 @@ function HydrationRow({ glasses, target, onChange }) {
   );
 }
 
-/**
- * Format an ISO date as a short month label like "APR".
- * Uses local time-zone interpretation so the label matches the user's
- * calendar — parsing as UTC would sometimes drift by a day.
- */
-function shortMonth(iso) {
-  // Append T00:00 so browsers parse it as local, not UTC midnight.
-  const d = new Date(`${iso}T00:00:00`);
-  return d.toLocaleDateString(undefined, { month: 'short' }).toUpperCase();
+/* ------------------------------------------------------------------ */
+/*  Symptom tracker                                                    */
+/* ------------------------------------------------------------------ */
+
+const SYMPTOM_META = [
+  { id: 'energy',   label: 'Energy',   icons: ['😴','🥱','😐','🙂','⚡'], hint: '1 = exhausted, 5 = energised' },
+  { id: 'mood',     label: 'Mood',     icons: ['😢','😔','😐','🙂','😄'], hint: '1 = low, 5 = great' },
+  { id: 'cramps',   label: 'Cramps',   icons: ['🔥','😣','😐','🙂','✨'], hint: '1 = intense, 5 = none' },
+  { id: 'bloating', label: 'Bloating', icons: ['🎈','😮','😐','🙂','✨'], hint: '1 = heavy, 5 = none' },
+];
+
+function SymptomTracker({ log, onUpdate }) {
+  const syms = log.symptoms || {};
+  const anyLogged = Object.values(syms).some(v => v > 0);
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '80ms' }}>
+      <div className="flex items-center justify-between mb-5">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">How are you feeling?</div>
+        {anyLogged && (
+          <div className="text-[11px] text-sage-600 bg-sage-50 border border-sage-200 px-2 py-0.5 rounded-full">
+            Logged
+          </div>
+        )}
+      </div>
+      <div className="space-y-5">
+        {SYMPTOM_META.map(({ id, label, icons, hint }) => {
+          const val = syms[id] ?? 0;
+          return (
+            <div key={id}>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="text-sm font-medium text-ink-600">{label}</div>
+                {val > 0 ? (
+                  <div className="text-base leading-none">{icons[val - 1]}</div>
+                ) : (
+                  <div className="text-[10px] text-ink-400/70">{hint}</div>
+                )}
+              </div>
+              <div className="flex gap-1.5">
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const active = val === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() =>
+                        onUpdate({ symptoms: { ...syms, [id]: active ? 0 : n } })
+                      }
+                      className={`flex-1 py-2.5 rounded-xl border transition active:scale-95 text-lg leading-none ${
+                        active
+                          ? 'bg-sage-100 border-sage-300 shadow-soft'
+                          : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+                      }`}
+                    >
+                      {icons[n - 1]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
 }
 
-/**
- * CycleHistoryStrip — recent completed cycles at a glance.
- *
- * One vertical bar per gap between logged period starts, with bar
- * heights scaled across the 21-45 day physiological range so longer
- * cycles visibly reach higher. Bars use the same sage→terracotta
- * gradient as the progress fills to keep the visual language coherent.
- *
- * Renders nothing until the user has at least one full cycle logged,
- * so the dashboard stays uncluttered on first use.
- */
+/* ------------------------------------------------------------------ */
+/*  Cycle history strip                                                */
+/* ------------------------------------------------------------------ */
+
 function CycleHistoryStrip({ profile }) {
   const history = getCycleHistory(profile, 4);
   if (history.length === 0) return null;
@@ -254,14 +318,13 @@ function CycleHistoryStrip({ profile }) {
     history.reduce((sum, g) => sum + g.length, 0) / history.length
   );
 
-  // Scale cycle length → bar height. 21 days → 44 px, 45 days → 92 px.
   const barHeight = (len) => {
     const t = Math.min(1, Math.max(0, (len - 21) / 24));
     return 44 + Math.round(t * 48);
   };
 
   return (
-    <Card className="p-6 mb-5 anim-fade-up">
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '120ms' }}>
       <div className="flex items-center justify-between mb-5">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Recent cycles</div>
         <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
@@ -298,25 +361,11 @@ function CycleHistoryStrip({ profile }) {
   );
 }
 
-/**
- * WeeklyHistoryStrip — "this week's nourishment".
- *
- * Three rows (Calories · Protein · Water), each seven bars wide,
- * showing percentage-of-target for the past 7 days (today on the right).
- *
- * The nuance that sells the cycle-sync premise: each day's target is
- * computed with *that day's* phase, not today's. So a week that spans
- * the ovulatory→luteal transition visually shows the bars flatten on
- * the day the calorie target jumped. A thin row of phase-coloured
- * segments underneath the day axis reveals the cycle moving under the
- * data — the single most on-brand bit of UI in the app.
- *
- * Renders nothing until at least one of the last 7 days has any entry,
- * so the dashboard stays calm on first use.
- */
+/* ------------------------------------------------------------------ */
+/*  Weekly nourishment strip                                           */
+/* ------------------------------------------------------------------ */
+
 function WeeklyHistoryStrip({ profile, todayLog }) {
-  // `todayLog` is threaded in as a dep so that typing into the tracker
-  // immediately updates this week's bars without a page refresh.
   const days = useMemo(() => {
     const out = [];
     const today = new Date();
@@ -341,14 +390,13 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
     return out;
   }, [profile, todayLog]);
 
-  // Hide the card entirely until there's something to show.
   const anyData = days.some(
     (d) => d.pctCalories > 0 || d.pctProtein > 0 || d.pctWater > 0
   );
   if (!anyData) return null;
 
   return (
-    <Card className="p-6 mb-5 anim-fade-up">
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '200ms' }}>
       <div className="flex items-center justify-between mb-5">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">
           This week's nourishment
@@ -360,7 +408,6 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
       <WeekBarRow label="Protein"  values={days.map((d) => d.pctProtein)}  />
       <WeekBarRow label="Water"    values={days.map((d) => d.pctWater)}    />
 
-      {/* Day axis */}
       <div className="flex gap-1.5 mt-4">
         {days.map((d, i) => (
           <div key={i} className="flex-1 flex flex-col items-center">
@@ -376,7 +423,6 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
         ))}
       </div>
 
-      {/* Phase colour strip — the cycle moving under your nutrition. */}
       <div className="flex gap-1.5 mt-3" aria-label="Cycle phase per day">
         {days.map((d, i) => (
           <div
@@ -395,7 +441,6 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
   );
 }
 
-/** One metric row inside WeeklyHistoryStrip. */
 function WeekBarRow({ label, values }) {
   return (
     <div className="mb-5 last:mb-0">
@@ -429,41 +474,25 @@ function WeekBarRow({ label, values }) {
   );
 }
 
-/** Percentage of a target, clamped, NaN-safe. Never negative. */
-function pct(value, target) {
-  const t = Number(target);
-  const v = Number(value);
-  if (!Number.isFinite(t) || t <= 0) return 0;
-  if (!Number.isFinite(v) || v <= 0) return 0;
-  return (v / t) * 100;
-}
+/* ------------------------------------------------------------------ */
+/*  Period log button                                                  */
+/* ------------------------------------------------------------------ */
 
 /**
- * Period log button — calm, low-key affordance that lives under the
- * cycle ring. Two visual states:
- *
- *   not logged today → soft sage pill: "My period started today"
- *   logged today     → muted underline: "Period logged today · undo"
- *
- * Tapping confirms (the action mutates profile + recomputes cycleLength)
- * and the parent persists the result via onUpdateProfile.
+ * Redesigned period log button — prominent terracotta CTA, no confirm
+ * dialog (trust the undo), brief satisfying state change when logged.
  */
 function PeriodLogButton({ profile, onUpdateProfile }) {
   const loggedToday = isPeriodLoggedOn(profile);
   const cyclesTracked = profile.periodHistory?.length ?? 0;
+  const [justLogged, setJustLogged] = useState(false);
 
   const handleLog = () => {
-    const ok = confirm(
-      'Log today as the start of your period?\n\n' +
-      'Aura will use this to learn your natural cycle length over time.'
-    );
-    if (!ok) return;
     const next = logPeriodStart(profile);
-    if (next === profile) {
-      // No-op (e.g. within the "same bleed" guard window).
-      return;
-    }
+    if (next === profile) return; // same-bleed guard
     onUpdateProfile(next);
+    setJustLogged(true);
+    setTimeout(() => setJustLogged(false), 2000);
   };
 
   const handleUndo = () => {
@@ -472,25 +501,32 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
 
   if (loggedToday) {
     return (
-      <button
-        type="button"
-        onClick={handleUndo}
-        className="mt-5 text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition"
-      >
-        Period logged today · undo
-      </button>
+      <div className={`mt-6 flex flex-col items-center gap-2 ${justLogged ? 'anim-pop' : ''}`}>
+        <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-terracotta-100 border border-terracotta-200 text-terracotta-600 text-sm">
+          <Check className="w-4 h-4" />
+          Period logged today
+        </div>
+        <button
+          type="button"
+          onClick={handleUndo}
+          className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition"
+        >
+          undo
+        </button>
+      </div>
     );
   }
 
   return (
-    <div className="mt-5 flex flex-col items-center gap-1.5">
+    <div className="mt-6 flex flex-col items-center gap-2 w-full">
       <button
         type="button"
         onClick={handleLog}
-        className="text-xs px-4 py-2 rounded-full bg-sage-100 text-sage-700 border border-sage-200
-                   hover:bg-sage-200 active:scale-95 transition flex items-center gap-2"
+        className="w-full max-w-[260px] px-6 py-3.5 rounded-2xl font-medium text-sm text-cream-50
+                   active:scale-[0.97] transition-transform flex items-center justify-center gap-3"
+        style={{ background: 'linear-gradient(135deg, #C78264 0%, #B06849 100%)' }}
       >
-        <span className="w-1.5 h-1.5 rounded-full bg-terracotta-400" />
+        <span className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
         My period started today
       </button>
       {cyclesTracked > 0 && (
@@ -502,7 +538,10 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
   );
 }
 
-/** Gut health checklist — three soft toggles, no shame on missed items. */
+/* ------------------------------------------------------------------ */
+/*  Gut health checklist                                               */
+/* ------------------------------------------------------------------ */
+
 function GutChecklist({ gut, onToggle }) {
   const items = [
     { id: 'probiotics', label: 'Probiotics',     hint: 'Yogurt, kefir, capsule…',           icon: Sparkles },
@@ -537,9 +576,7 @@ function GutChecklist({ gut, onToggle }) {
               <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
             </div>
             {on && (
-              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">
-                Done
-              </div>
+              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">Done</div>
             )}
           </button>
         );
@@ -549,134 +586,289 @@ function GutChecklist({ gut, onToggle }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Onboarding                                                         */
+/*  Onboarding — 3-step conversational flow                            */
 /* ------------------------------------------------------------------ */
 
 function Onboarding({ onComplete }) {
+  const [step, setStep] = useState(0);
+  const [animKey, setAnimKey] = useState(0); // bump to re-trigger fadeUp on step change
   const [form, setForm] = useState({
-    name: '',
-    age: '',
-    weightKg: '',
-    heightCm: '',
-    activityLevel: 'moderate',
-    cycleLength: 28,
+    name:            '',
+    age:             '',
+    weightKg:        '',
+    heightCm:        '',
+    activityLevel:   'moderate',
+    cycleLength:     28,
     lastPeriodStart: new Date().toISOString().slice(0, 10),
   });
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const setF  = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setFE = (k)    => (e) => setF(k, e.target.value);
 
-  const canSubmit =
-    form.age && form.weightKg && form.heightCm && form.lastPeriodStart;
+  const goTo = (n) => {
+    setStep(n);
+    setAnimKey(k => k + 1);
+  };
 
-  const submit = (e) => {
-    e.preventDefault();
-    if (!canSubmit) return;
+  const complete = () => {
     const profile = {
       ...form,
-      age:          Number(form.age),
-      weightKg:     Number(form.weightKg),
-      heightCm:     Number(form.heightCm),
-      cycleLength:  Number(form.cycleLength),
-      createdAt:    new Date().toISOString(),
+      age:         Number(form.age)      || 28,
+      weightKg:    Number(form.weightKg) || 62,
+      heightCm:    Number(form.heightCm) || 168,
+      cycleLength: Number(form.cycleLength),
+      createdAt:   new Date().toISOString(),
     };
     saveProfile(profile);
     onComplete(profile);
   };
 
+  const dots = (
+    <div className="flex justify-center gap-2 mb-8">
+      {[0, 1, 2].map(i => (
+        <div
+          key={i}
+          className="rounded-full transition-all duration-400"
+          style={{
+            width:      i === step ? 24 : 8,
+            height:     8,
+            background: i === step ? '#6B8559' : i < step ? '#A8BA98' : '#EDE6D3',
+          }}
+        />
+      ))}
+    </div>
+  );
+
+  const cardCx = `p-8 anim-fade-up`;
+
   return (
     <div className="min-h-dvh flex items-center justify-center px-5 py-10">
-      <Card className="w-full max-w-md p-7 anim-fade-up">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-11 h-11 rounded-2xl bg-sage-100 flex items-center justify-center">
-            <Flower2 className="w-5 h-5 text-sage-600" />
-          </div>
-          <div>
-            <div className="font-display text-2xl text-ink-700 leading-none">Aura</div>
-            <div className="text-xs text-ink-400 mt-1">A calmer way to nourish.</div>
-          </div>
-        </div>
+      <div className="w-full max-w-md">
+        {dots}
 
-        <h1 className="font-display text-[26px] text-ink-700 leading-tight mb-1">
-          Let's set your baseline.
-        </h1>
-        <p className="text-sm text-ink-500 mb-6">
-          Bio-individuality first. Nothing here is about restriction — just a gentle starting point.
-        </p>
+        {/* Step 0 — Welcome + name */}
+        {step === 0 && (
+          <Card key={animKey} className={cardCx}>
+            <div className="flex justify-center mb-6">
+              <div
+                className="w-16 h-16 rounded-[22px] flex items-center justify-center shadow-soft"
+                style={{ background: 'linear-gradient(135deg, #E2E9DC 0%, #F4E2D8 100%)' }}
+              >
+                <Flower2 className="w-7 h-7 text-sage-600" />
+              </div>
+            </div>
+            <h1 className="font-display text-[34px] text-ink-700 text-center leading-tight mb-2">
+              Hey, I'm Aura.
+            </h1>
+            <p className="text-sm text-ink-500 text-center leading-relaxed mb-8">
+              Your calm companion for cycle-synced nutrition, energy awareness, and gut health.
+            </p>
+            <div className="mb-6">
+              <label className="block text-sm text-ink-600 mb-2.5">
+                What should I call you?
+              </label>
+              <input
+                className={inputCx}
+                value={form.name}
+                onChange={setFE('name')}
+                placeholder="Your name (optional)"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && goTo(1)}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => goTo(1)}
+              className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
+                         hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2"
+            >
+              {form.name
+                ? `Nice to meet you, ${form.name.split(' ')[0]} ✓`
+                : "Let's begin"}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </Card>
+        )}
 
-        <form onSubmit={submit} className="space-y-5">
-          <Field>
-            <Label>Name (optional)</Label>
-            <input className={inputCx} value={form.name} onChange={set('name')} placeholder="e.g. Maya" />
-          </Field>
+        {/* Step 1 — Cycle details */}
+        {step === 1 && (
+          <Card key={animKey} className={cardCx}>
+            <h2 className="font-display text-[28px] text-ink-700 leading-tight mb-2">
+              {form.name
+                ? `${form.name.split(' ')[0]}, tell me about your cycle.`
+                : 'Tell me about your cycle.'}
+            </h2>
+            <p className="text-sm text-ink-500 mb-7 leading-relaxed">
+              This is where Aura's personalisation starts — everything flows from here.
+            </p>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field>
-              <Label>Age</Label>
-              <input className={inputCx} type="number" min="14" max="70" value={form.age} onChange={set('age')} placeholder="28" />
-            </Field>
-            <Field>
-              <Label>Cycle length</Label>
-              <input className={inputCx} type="number" min="21" max="45" value={form.cycleLength} onChange={set('cycleLength')} />
-            </Field>
-          </div>
+            <div className="space-y-6">
+              <Field>
+                <Label>When did your last period start?</Label>
+                <input
+                  className={inputCx}
+                  type="date"
+                  value={form.lastPeriodStart}
+                  onChange={setFE('lastPeriodStart')}
+                />
+              </Field>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field>
-              <Label>Weight (kg)</Label>
-              <input className={inputCx} type="number" min="30" max="200" value={form.weightKg} onChange={set('weightKg')} placeholder="62" />
-            </Field>
-            <Field>
-              <Label>Height (cm)</Label>
-              <input className={inputCx} type="number" min="120" max="220" value={form.heightCm} onChange={set('heightCm')} placeholder="168" />
-            </Field>
-          </div>
-
-          <Field>
-            <Label>Activity level</Label>
-            <div className="grid grid-cols-1 gap-2">
-              {ACTIVITY_LEVELS.map((lvl) => {
-                const active = form.activityLevel === lvl.id;
-                return (
+              <Field>
+                <Label>Typical cycle length</Label>
+                <div className="flex items-center gap-4 mt-1">
                   <button
                     type="button"
-                    key={lvl.id}
-                    onClick={() => setForm((f) => ({ ...f, activityLevel: lvl.id }))}
-                    className={`text-left px-4 py-3 rounded-xl border transition ${
-                      active
-                        ? 'bg-sage-100 border-sage-300 text-sage-700'
-                        : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
-                    }`}
-                  >
-                    <div className="text-sm font-medium">{lvl.label}</div>
-                    <div className="text-xs text-ink-400 mt-0.5">{lvl.hint}</div>
-                  </button>
-                );
-              })}
+                    onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
+                    className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                               text-ink-600 hover:bg-sage-100 hover:border-sage-200
+                               transition text-xl flex items-center justify-center"
+                  >−</button>
+                  <div className="flex-1 text-center">
+                    <span className="font-display text-[36px] text-ink-700 leading-none">
+                      {form.cycleLength}
+                    </span>
+                    <span className="text-sm text-ink-400 ml-1.5">days</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
+                    className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                               text-ink-600 hover:bg-sage-100 hover:border-sage-200
+                               transition text-xl flex items-center justify-center"
+                  >+</button>
+                </div>
+                <div className="text-[11px] text-ink-400 text-center mt-2">
+                  28 days is average — adjust to match your rhythm (21–45)
+                </div>
+              </Field>
             </div>
-          </Field>
 
-          <Field>
-            <Label>First day of your last period</Label>
-            <input className={inputCx} type="date" value={form.lastPeriodStart} onChange={set('lastPeriodStart')} />
-          </Field>
+            <div className="flex gap-3 mt-8">
+              <button
+                type="button"
+                onClick={() => goTo(0)}
+                className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
+                           hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
+              >
+                <ChevronLeft className="w-4 h-4" /> Back
+              </button>
+              <button
+                type="button"
+                onClick={() => goTo(2)}
+                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
+                           hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+              >
+                Next <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </Card>
+        )}
 
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="w-full mt-2 rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium tracking-wide
-                       hover:bg-sage-600 transition disabled:opacity-40 disabled:cursor-not-allowed
-                       flex items-center justify-center gap-2"
-          >
-            Begin <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
-      </Card>
+        {/* Step 2 — Physical basics */}
+        {step === 2 && (
+          <Card key={animKey} className={cardCx}>
+            <h2 className="font-display text-[28px] text-ink-700 leading-tight mb-2">
+              Almost there.
+            </h2>
+            <p className="text-sm text-ink-500 mb-1 leading-relaxed">
+              These help me personalise your nutrition targets.
+            </p>
+            <p className="text-xs text-ink-400 mb-6">
+              Rough estimates are fine — we refine over time. Skip anything you'd rather not share.
+            </p>
+
+            <div className="space-y-5">
+              <div className="grid grid-cols-3 gap-3">
+                <Field>
+                  <Label>Age</Label>
+                  <input
+                    className={inputCx}
+                    type="number"
+                    min="14"
+                    max="70"
+                    value={form.age}
+                    onChange={setFE('age')}
+                    placeholder="28"
+                  />
+                </Field>
+                <Field>
+                  <Label>Weight kg</Label>
+                  <input
+                    className={inputCx}
+                    type="number"
+                    min="30"
+                    max="200"
+                    value={form.weightKg}
+                    onChange={setFE('weightKg')}
+                    placeholder="62"
+                  />
+                </Field>
+                <Field>
+                  <Label>Height cm</Label>
+                  <input
+                    className={inputCx}
+                    type="number"
+                    min="120"
+                    max="220"
+                    value={form.heightCm}
+                    onChange={setFE('heightCm')}
+                    placeholder="168"
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <Label>How active are you?</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {ACTIVITY_LEVELS.map((lvl) => {
+                    const active = form.activityLevel === lvl.id;
+                    return (
+                      <button
+                        type="button"
+                        key={lvl.id}
+                        onClick={() => setF('activityLevel', lvl.id)}
+                        className={`text-left px-4 py-3 rounded-xl border transition ${
+                          active
+                            ? 'bg-sage-100 border-sage-300 text-sage-700'
+                            : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+                        }`}
+                      >
+                        <div className="text-sm font-medium">{lvl.label}</div>
+                        <div className="text-xs text-ink-400 mt-0.5">{lvl.hint}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+            </div>
+
+            <div className="flex gap-3 mt-7">
+              <button
+                type="button"
+                onClick={() => goTo(1)}
+                className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
+                           hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
+              >
+                <ChevronLeft className="w-4 h-4" /> Back
+              </button>
+              <button
+                type="button"
+                onClick={complete}
+                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
+                           hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+              >
+                Begin <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Dashboard (scaffold)                                               */
+/*  Dashboard                                                          */
 /* ------------------------------------------------------------------ */
 
 const PHASE_ICONS = {
@@ -693,7 +885,6 @@ function CycleRing({ state }) {
   const progress = state.hasData ? state.progressPct / 100 : 0;
   const dashOffset = c * (1 - progress);
 
-  // Phase arcs: map each phase to a coloured segment around the ring.
   const phaseArcs = useMemo(() => {
     let cursor = 0;
     return state.phaseMap.map((slot) => {
@@ -714,12 +905,11 @@ function CycleRing({ state }) {
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
         <defs>
           <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%"  stopColor="#A8BA98" />
+            <stop offset="0%"   stopColor="#A8BA98" />
             <stop offset="100%" stopColor="#C78264" />
           </linearGradient>
         </defs>
 
-        {/* Phase arcs — faint coloured bands behind everything */}
         {phaseArcs.map((arc) => (
           <circle
             key={arc.phase}
@@ -730,7 +920,6 @@ function CycleRing({ state }) {
           />
         ))}
 
-        {/* Progress stroke */}
         <circle
           cx={size / 2} cy={size / 2} r={r}
           stroke="url(#ring-grad)" strokeWidth="14" strokeLinecap="round" fill="none"
@@ -781,10 +970,10 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
   const insight = useMemo(() => getDailyInsight(state.phase), [state.phase]);
   const PhaseIcon = PHASE_ICONS[state.phase];
 
-  // Daily tracker state, persisted to LocalStorage on every change.
   const [log, updateLog] = useDailyLog();
 
-  // Hydration target in glasses (250 ml each), derived from the L target.
+  const streak = useMemo(() => getStreak(log), [log]);
+
   const waterGlassTarget = Math.max(6, Math.round(targets.hydrationL * 4));
 
   const addProtein  = (g)    => updateLog({ protein:  Math.min(99999, log.protein  + g) });
@@ -794,29 +983,40 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
   const setWater    = (g)    => updateLog({ hydration: Math.max(0, Math.min(waterGlassTarget, g)) });
   const toggleGut   = (id)   => updateLog({ gut: { [id]: !log.gut[id] } });
 
+  const displayName = profile.name ? profile.name.split(' ')[0] : null;
+
   return (
     <div className="min-h-dvh px-5 py-8 max-w-md mx-auto">
       {/* Header */}
       <header className="flex items-center justify-between mb-7 anim-fade-up">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Good day{profile.name ? `, ${profile.name}` : ''}</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">
+            Good day{displayName ? `, ${displayName}` : ''}
+          </div>
           <h1 className="font-display text-[30px] leading-tight text-ink-700">Your Aura</h1>
         </div>
-        <button
-          onClick={onReset}
-          aria-label="Settings"
-          className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
-        >
-          <Settings className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {streak > 0 && (
+            <div className="text-[11px] text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1.5 rounded-full whitespace-nowrap">
+              🌿 {streak} {streak === 1 ? 'day' : 'days'}
+            </div>
+          )}
+          <button
+            onClick={onReset}
+            aria-label="Settings"
+            className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </header>
 
-      {/* Cycle ring + phase label */}
-      <Card className="p-6 mb-5 anim-fade-up" >
+      {/* Cycle ring — the hero card */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
         <div className="flex flex-col items-center">
           <CycleRing state={state} />
-          <div className="flex items-center gap-2 mt-5">
-            <PhaseIcon className="w-4 h-4" style={{ color: state.phaseMeta.hue }} />
+          <div className="flex items-center gap-2 mt-5 flex-wrap justify-center">
+            <PhaseIcon className="w-4 h-4 shrink-0" style={{ color: state.phaseMeta.hue }} />
             <div className="font-display text-xl text-ink-700">{state.phaseMeta.label}</div>
             <span className="text-ink-400">·</span>
             <div className="text-sm text-ink-500">{state.phaseMeta.subtitle}</div>
@@ -824,6 +1024,14 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
           <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
             {state.phaseMeta.blurb}
           </p>
+          {state.hasData && (
+            <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-cream-100 border border-cream-200">
+              <span className="text-[11px] text-ink-400">Next period</span>
+              <span className="text-[11px] font-medium text-ink-600">
+                {formatNextPeriod(state.daysUntilNext)}
+              </span>
+            </div>
+          )}
           <PeriodLogButton profile={profile} onUpdateProfile={onUpdateProfile} />
         </div>
         <div className="mt-6">
@@ -831,11 +1039,14 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
         </div>
       </Card>
 
+      {/* Symptom tracker */}
+      <SymptomTracker log={log} onUpdate={updateLog} />
+
       {/* Recent cycles (only renders once there's ≥1 completed cycle) */}
       <CycleHistoryStrip profile={profile} />
 
-      {/* Today's tracker — interactive, persisted */}
-      <Card className="p-6 mb-5 anim-fade-up">
+      {/* Today's nourishment */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '160ms' }}>
         <div className="flex items-center justify-between mb-5">
           <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Today's nourishment</div>
           {targets.calorieDelta > 0 && (
@@ -871,11 +1082,11 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
         </div>
       </Card>
 
-      {/* This week's nourishment — phase-aware weekly bars */}
+      {/* Weekly nourishment history */}
       <WeeklyHistoryStrip profile={profile} todayLog={log} />
 
       {/* Gut health checklist */}
-      <Card className="p-6 mb-5 anim-fade-up">
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '240ms' }}>
         <div className="flex items-center justify-between mb-4">
           <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Gut health</div>
           <div className="text-[11px] text-ink-400">
@@ -886,7 +1097,7 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
       </Card>
 
       {/* Nutrient focus */}
-      <Card className="p-6 mb-5 anim-fade-up">
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '280ms' }}>
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Nutrient focus</div>
         <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
         <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
@@ -903,7 +1114,7 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
       </Card>
 
       {/* Daily insight */}
-      <Card className="p-6 anim-fade-up">
+      <Card className="p-6 anim-fade-up" style={{ animationDelay: '320ms' }}>
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">
           <Sparkles className="w-3.5 h-3.5" />
           Daily insight
@@ -914,7 +1125,7 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v0.5 · weekly patterns
+        Aura · v0.7
       </div>
     </div>
   );
@@ -927,7 +1138,6 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
 function App() {
   const [profile, setProfile] = useState(() => loadProfile());
 
-  // Keep profile reactive if another tab edits it.
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key === 'aura.profile') setProfile(loadProfile());
@@ -938,7 +1148,6 @@ function App() {
 
   if (!profile) return <Onboarding onComplete={setProfile} />;
 
-  // Single point of profile mutation — persists then re-renders.
   const updateProfile = (next) => {
     if (!next || next === profile) return;
     saveProfile(next);

@@ -30,7 +30,7 @@ export function loadProfile() {
 export function saveProfile(profile) {
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  } catch { /* quota / private mode — fail silently, calm vibes */ }
+  } catch { /* quota / private mode — fail silently */ }
 }
 
 export function clearProfile() {
@@ -62,6 +62,12 @@ export function emptyLog() {
       fiber:      false,
       fermented:  false,
     },
+    symptoms: {
+      energy:   0, // 1–5 (1=poor, 5=great)
+      mood:     0,
+      cramps:   0, // 1=intense, 5=none
+      bloating: 0, // 1=heavy, 5=none
+    },
   };
 }
 
@@ -69,7 +75,15 @@ export function loadLog(date = new Date()) {
   try {
     const raw = localStorage.getItem(logKey(date));
     if (!raw) return emptyLog();
-    return { ...emptyLog(), ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    const base = emptyLog();
+    // Deep-merge nested objects so old logs without symptoms/gut stay valid.
+    return {
+      ...base,
+      ...parsed,
+      gut:      { ...base.gut,      ...(parsed.gut      || {}) },
+      symptoms: { ...base.symptoms, ...(parsed.symptoms || {}) },
+    };
   } catch {
     return emptyLog();
   }
@@ -85,7 +99,46 @@ export function saveLog(date, log) {
 export function updateLog(date, patch) {
   const current = loadLog(date);
   const next = { ...current, ...patch };
-  if (patch.gut) next.gut = { ...current.gut, ...patch.gut };
+  if (patch.gut)      next.gut      = { ...current.gut,      ...patch.gut };
+  if (patch.symptoms) next.symptoms = { ...current.symptoms, ...patch.symptoms };
   saveLog(date, next);
   return next;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Streak                                                             */
+/* ------------------------------------------------------------------ */
+
+/** True if the log has any data entered. */
+export function logHasData(log) {
+  if (!log) return false;
+  return (
+    log.calories  > 0 ||
+    log.protein   > 0 ||
+    log.hydration > 0 ||
+    Object.values(log.gut      || {}).some(Boolean) ||
+    Object.values(log.symptoms || {}).some(v => v > 0)
+  );
+}
+
+/**
+ * Count consecutive days (ending today) where the user logged something.
+ * If today has no data, returns 0 — the streak is alive until midnight.
+ * Re-evaluate by passing the live `todayLog` so the count updates without
+ * a page reload when the user taps a tracker for the first time today.
+ *
+ * @param {object} todayLog  — live log state from useDailyLog
+ * @param {Date}   [today]   — override for testing
+ */
+export function getStreak(todayLog, today = new Date()) {
+  if (!logHasData(todayLog)) return 0;
+  let count = 1;
+  const d = new Date(today);
+  d.setDate(d.getDate() - 1);
+  while (count < 365) {
+    if (!logHasData(loadLog(d))) break;
+    count++;
+    d.setDate(d.getDate() - 1);
+  }
+  return count;
 }
