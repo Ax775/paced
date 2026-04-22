@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
-  Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen,
+  Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen, Activity,
 } from 'lucide-react';
 
 import {
@@ -586,6 +586,141 @@ function GutChecklist({ gut, onToggle }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Sleep tracker                                                      */
+/* ------------------------------------------------------------------ */
+
+const SLEEP_SLOTS = [5, 6, 7, 8, 9, 10];
+
+function SleepTracker({ hours, onChange }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Moon className="w-3.5 h-3.5 text-ink-400" />
+          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Sleep last night</div>
+        </div>
+        {hours > 0 && (
+          <div className="font-display text-ink-700 text-[20px] leading-none">
+            {hours}<span className="text-ink-400 text-sm">h</span>
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2">
+        {SLEEP_SLOTS.map((h) => {
+          const active = hours === h;
+          return (
+            <button
+              key={h}
+              type="button"
+              aria-label={`${h} hours sleep`}
+              onClick={() => onChange(active ? 0 : h)}
+              className={`flex-1 py-2.5 rounded-xl border text-sm transition active:scale-95 ${
+                active
+                  ? 'bg-sage-100 border-sage-300 text-sage-700 font-medium shadow-soft'
+                  : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
+              }`}
+            >
+              {h}h
+            </button>
+          );
+        })}
+      </div>
+      <div className="text-[11px] text-ink-400 mt-2">
+        Quality sleep supports hormone balance and recovery.
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Movement tracker                                                    */
+/* ------------------------------------------------------------------ */
+
+const MOVEMENT_SLOTS = [15, 30, 45, 60, 90];
+
+function MovementTracker({ minutes, onChange, phase }) {
+  const phaseHints = {
+    menstrual:  'Gentle walk or stretching is plenty.',
+    follicular: 'Great time to ramp up intensity.',
+    ovulatory:  'Peak energy — go for it.',
+    luteal:     'Listen to your body; moderate is ideal.',
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-ink-400" />
+          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Movement today</div>
+        </div>
+        {minutes > 0 && (
+          <div className="font-display text-ink-700 text-[20px] leading-none">
+            {minutes}<span className="text-ink-400 text-sm"> min</span>
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {MOVEMENT_SLOTS.map((m) => {
+          const active = minutes === m;
+          return (
+            <button
+              key={m}
+              type="button"
+              aria-label={`${m} minutes movement`}
+              onClick={() => onChange(active ? 0 : m)}
+              className={`px-3 py-2.5 rounded-xl border text-sm transition active:scale-95 ${
+                active
+                  ? 'bg-sage-100 border-sage-300 text-sage-700 font-medium shadow-soft'
+                  : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
+              }`}
+            >
+              {m}m
+            </button>
+          );
+        })}
+        {minutes > 0 && (
+          <button
+            type="button"
+            onClick={() => onChange(0)}
+            className="px-3 py-2.5 rounded-xl border border-cream-200 bg-cream-50 text-ink-400 text-sm transition hover:border-sage-200"
+          >
+            reset
+          </button>
+        )}
+      </div>
+      {phase && (
+        <div className="text-[11px] text-ink-400 mt-2">{phaseHints[phase]}</div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Journal note                                                        */
+/* ------------------------------------------------------------------ */
+
+function JournalNote({ note, onChange }) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2.5">Today's note</div>
+      <textarea
+        value={note}
+        onChange={(e) => onChange(e.target.value.slice(0, 280))}
+        placeholder="Anything worth remembering about today…"
+        rows={3}
+        className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm
+                   text-ink-700 placeholder:text-ink-400/60 focus:outline-none
+                   focus:border-sage-300 focus:ring-2 focus:ring-sage-200/60
+                   transition resize-none leading-relaxed"
+      />
+      <div className="flex justify-end mt-1">
+        <span className="text-[10px] text-ink-400/60">{(note || '').length}/280</span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Onboarding — 3-step conversational flow                            */
 /* ------------------------------------------------------------------ */
 
@@ -868,6 +1003,188 @@ function Onboarding({ onComplete }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Settings screen                                                    */
+/* ------------------------------------------------------------------ */
+
+function SettingsScreen({ profile, onSave, onReset, onBack }) {
+  const [form, setForm] = useState({
+    name:          profile.name          || '',
+    age:           profile.age           || '',
+    weightKg:      profile.weightKg      || '',
+    heightCm:      profile.heightCm      || '',
+    activityLevel: profile.activityLevel || 'moderate',
+    cycleLength:   profile.cycleLength   || 28,
+  });
+  const [saved, setSaved] = useState(false);
+
+  const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSave = () => {
+    onSave({
+      ...profile,
+      name:          form.name,
+      age:           Number(form.age)      || profile.age,
+      weightKg:      Number(form.weightKg) || profile.weightKg,
+      heightCm:      Number(form.heightCm) || profile.heightCm,
+      activityLevel: form.activityLevel,
+      cycleLength:   Number(form.cycleLength),
+    });
+    setSaved(true);
+    setTimeout(() => { setSaved(false); onBack(); }, 800);
+  };
+
+  return (
+    <div className="min-h-dvh px-5 py-8 max-w-md mx-auto">
+      {/* Header */}
+      <header className="flex items-center gap-3 mb-8 anim-fade-up">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back to dashboard"
+          className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                     flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <h1 className="font-display text-[28px] text-ink-700 leading-tight">Settings</h1>
+      </header>
+
+      {/* Profile fields */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Profile</div>
+        <div className="space-y-5">
+          <Field>
+            <Label>Name</Label>
+            <input
+              className={inputCx}
+              value={form.name}
+              onChange={(e) => setF('name', e.target.value)}
+              placeholder="Your name (optional)"
+            />
+          </Field>
+
+          <div className="grid grid-cols-3 gap-3">
+            <Field>
+              <Label>Age</Label>
+              <input
+                className={inputCx}
+                type="number" min="14" max="70"
+                value={form.age}
+                onChange={(e) => setF('age', e.target.value)}
+                placeholder="28"
+              />
+            </Field>
+            <Field>
+              <Label>Weight kg</Label>
+              <input
+                className={inputCx}
+                type="number" min="30" max="200"
+                value={form.weightKg}
+                onChange={(e) => setF('weightKg', e.target.value)}
+                placeholder="62"
+              />
+            </Field>
+            <Field>
+              <Label>Height cm</Label>
+              <input
+                className={inputCx}
+                type="number" min="120" max="220"
+                value={form.heightCm}
+                onChange={(e) => setF('heightCm', e.target.value)}
+                placeholder="168"
+              />
+            </Field>
+          </div>
+
+          <Field>
+            <Label>Cycle length</Label>
+            <div className="flex items-center gap-4 mt-1">
+              <button
+                type="button"
+                onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
+                className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                           text-ink-600 hover:bg-sage-100 hover:border-sage-200
+                           transition text-xl flex items-center justify-center"
+              >−</button>
+              <div className="flex-1 text-center">
+                <span className="font-display text-[36px] text-ink-700 leading-none">
+                  {form.cycleLength}
+                </span>
+                <span className="text-sm text-ink-400 ml-1.5">days</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
+                className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                           text-ink-600 hover:bg-sage-100 hover:border-sage-200
+                           transition text-xl flex items-center justify-center"
+              >+</button>
+            </div>
+          </Field>
+
+          <Field>
+            <Label>How active are you?</Label>
+            <div className="grid grid-cols-1 gap-2 mt-1">
+              {ACTIVITY_LEVELS.map((lvl) => {
+                const active = form.activityLevel === lvl.id;
+                return (
+                  <button
+                    type="button"
+                    key={lvl.id}
+                    onClick={() => setF('activityLevel', lvl.id)}
+                    className={`text-left px-4 py-3 rounded-xl border transition ${
+                      active
+                        ? 'bg-sage-100 border-sage-300 text-sage-700'
+                        : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+                    }`}
+                  >
+                    <div className="text-sm font-medium">{lvl.label}</div>
+                    <div className="text-xs text-ink-400 mt-0.5">{lvl.hint}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+        </div>
+      </Card>
+
+      {/* Save */}
+      <button
+        type="button"
+        onClick={handleSave}
+        className={`w-full rounded-xl py-3.5 font-medium text-sm
+                    active:scale-[0.98] transition flex items-center justify-center gap-2 mb-5 ${
+                      saved
+                        ? 'bg-sage-400 text-cream-50'
+                        : 'bg-sage-500 text-cream-50 hover:bg-sage-600'
+                    }`}
+      >
+        {saved ? <><Check className="w-4 h-4" /> Saved!</> : 'Save changes'}
+      </button>
+
+      {/* Danger zone */}
+      <Card className="p-6 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Danger zone</div>
+        <p className="text-sm text-ink-500 mb-4 leading-relaxed">
+          Reset your profile and start fresh. Your daily logs are kept.
+        </p>
+        <button
+          type="button"
+          onClick={onReset}
+          className="w-full rounded-xl border border-terracotta-200 bg-terracotta-100/50
+                     text-terracotta-600 py-3 text-sm font-medium
+                     hover:bg-terracotta-100 active:scale-[0.98] transition"
+        >
+          Reset profile
+        </button>
+      </Card>
+
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v0.8</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Dashboard                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -964,7 +1281,7 @@ function PhaseTimeline({ state }) {
   );
 }
 
-function Dashboard({ profile, onUpdateProfile, onReset }) {
+function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   const state   = useMemo(() => getCycleState(profile), [profile]);
   const targets = useMemo(() => getDailyTargets(profile, state.phase), [profile, state.phase]);
   const insight = useMemo(() => getDailyInsight(state.phase), [state.phase]);
@@ -982,6 +1299,9 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
   const setCalories = (kcal) => updateLog({ calories: kcal });
   const setWater    = (g)    => updateLog({ hydration: Math.max(0, Math.min(waterGlassTarget, g)) });
   const toggleGut   = (id)   => updateLog({ gut: { [id]: !log.gut[id] } });
+  const setSleep    = (h)    => updateLog({ sleep: h });
+  const setMovement = (m)    => updateLog({ movement: m });
+  const setNote     = (txt)  => updateLog({ note: txt });
 
   const displayName = profile.name ? profile.name.split(' ')[0] : null;
 
@@ -1002,7 +1322,7 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
             </div>
           )}
           <button
-            onClick={onReset}
+            onClick={onOpenSettings}
             aria-label="Settings"
             className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
           >
@@ -1082,6 +1402,16 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
         </div>
       </Card>
 
+      {/* Wellbeing — sleep + movement */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '200ms' }}>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Wellbeing</div>
+        <div className="space-y-6">
+          <SleepTracker hours={log.sleep} onChange={setSleep} />
+          <div className="h-px bg-cream-200/70" />
+          <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
+        </div>
+      </Card>
+
       {/* Weekly nourishment history */}
       <WeeklyHistoryStrip profile={profile} todayLog={log} />
 
@@ -1113,8 +1443,13 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
         </div>
       </Card>
 
+      {/* Journal note */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '340ms' }}>
+        <JournalNote note={log.note} onChange={setNote} />
+      </Card>
+
       {/* Daily insight */}
-      <Card className="p-6 anim-fade-up" style={{ animationDelay: '320ms' }}>
+      <Card className="p-6 anim-fade-up" style={{ animationDelay: '380ms' }}>
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">
           <Sparkles className="w-3.5 h-3.5" />
           Daily insight
@@ -1125,7 +1460,7 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v0.7
+        Aura · v0.8
       </div>
     </div>
   );
@@ -1303,7 +1638,8 @@ function LogboekView({ profile }) {
 
 function App() {
   const [profile, setProfile] = useState(() => loadProfile());
-  const [tab, setTab] = useState('home');
+  const [tab, setTab]   = useState('home');   // 'home' | 'logboek'
+  const [view, setView] = useState('main');   // 'main' | 'settings'
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -1321,18 +1657,33 @@ function App() {
     setProfile(next);
   };
 
+  const handleReset = () => {
+    if (confirm('Reset your Aura profile? Your daily logs will be kept.')) {
+      clearProfile();
+      setProfile(null);
+      setView('main');
+      setTab('home');
+    }
+  };
+
+  if (view === 'settings') {
+    return (
+      <SettingsScreen
+        profile={profile}
+        onSave={updateProfile}
+        onBack={() => setView('main')}
+        onReset={handleReset}
+      />
+    );
+  }
+
   return (
     <>
       {tab === 'home' && (
         <Dashboard
           profile={profile}
           onUpdateProfile={updateProfile}
-          onReset={() => {
-            if (confirm('Reset your Aura profile? Your daily logs will be kept.')) {
-              clearProfile();
-              setProfile(null);
-            }
-          }}
+          onOpenSettings={() => setView('settings')}
         />
       )}
       {tab === 'logboek' && <LogboekView profile={profile} />}

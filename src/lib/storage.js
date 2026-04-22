@@ -57,6 +57,9 @@ export function emptyLog() {
     protein:   0,
     calories:  0,
     hydration: 0,         // in glasses (250 ml each)
+    sleep:     0,         // hours slept last night
+    movement:  0,         // minutes of activity today
+    note:      '',        // free-text journal note (max 280 chars)
     gut: {
       probiotics: false,
       fiber:      false,
