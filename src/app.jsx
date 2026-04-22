@@ -9,7 +9,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
-  Check, Droplet, Wheat, Salad, ChevronLeft,
+  Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen,
 } from 'lucide-react';
 
 import {
@@ -986,7 +986,7 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
   const displayName = profile.name ? profile.name.split(' ')[0] : null;
 
   return (
-    <div className="min-h-dvh px-5 py-8 max-w-md mx-auto">
+    <div className="min-h-dvh px-5 py-8 pb-28 max-w-md mx-auto">
       {/* Header */}
       <header className="flex items-center justify-between mb-7 anim-fade-up">
         <div>
@@ -1132,11 +1132,178 @@ function Dashboard({ profile, onUpdateProfile, onReset }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Bottom navigation                                                  */
+/* ------------------------------------------------------------------ */
+
+function BottomNav({ active, onSelect }) {
+  const tabs = [
+    { id: 'home',     label: 'Vandaag', icon: Flower2   },
+    { id: 'logboek',  label: 'Logboek', icon: BookOpen  },
+  ];
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex">
+      {tabs.map(({ id, label, icon: Icon }) => {
+        const on = active === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onSelect(id)}
+            className={`flex-1 flex flex-col items-center py-3 gap-1 transition ${
+              on ? 'text-sage-600' : 'text-ink-400 hover:text-ink-600'
+            }`}
+          >
+            <Icon className="w-5 h-5" strokeWidth={on ? 2 : 1.5} />
+            <span className="text-[10px] uppercase tracking-wider font-medium">{label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Logboek                                                            */
+/* ------------------------------------------------------------------ */
+
+const SYMPTOM_EMOJIS = {
+  energy:   ['😴','🥱','😐','🙂','⚡'],
+  mood:     ['😢','😔','😐','🙂','😄'],
+  cramps:   ['🔥','😣','😐','🙂','✨'],
+  bloating: ['🎈','😮','😐','🙂','✨'],
+};
+
+function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay }) {
+  const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
+  const syms = log.symptoms || {};
+  const symptomsLogged = Object.entries(syms).filter(([, v]) => v > 0);
+  const waterTarget = Math.max(6, Math.round(targets.hydrationL * 4));
+
+  return (
+    <Card
+      className={`p-4 anim-fade-up transition-opacity ${!hasData ? 'opacity-40' : ''}`}
+      style={{ animationDelay: `${animDelay}ms` }}
+    >
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 flex flex-col items-center w-10">
+          <div className="text-[10px] uppercase tracking-wider text-ink-400">{weekday}</div>
+          <div className="font-display text-[22px] text-ink-700 leading-none">{date.getDate()}</div>
+          <div className="text-[10px] text-ink-400">
+            {date.toLocaleDateString(undefined, { month: 'short' })}
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2.5">
+            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: state.phaseMeta.hue }} />
+            <div className="text-[11px] text-ink-500">{state.phaseMeta.label}</div>
+            {isToday && (
+              <div className="text-[10px] bg-sage-100 text-sage-700 px-1.5 py-0.5 rounded-full">Today</div>
+            )}
+          </div>
+
+          {hasData ? (
+            <div className="space-y-1.5">
+              {log.calories > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] text-ink-400 w-14 shrink-0">Calories</div>
+                  <div className="flex-1 h-1.5 bg-cream-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-sage-300"
+                      style={{ width: `${Math.min(100, pct(log.calories, targets.calories))}%` }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-ink-500 w-16 text-right shrink-0">{log.calories} kcal</div>
+                </div>
+              )}
+              {log.protein > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] text-ink-400 w-14 shrink-0">Protein</div>
+                  <div className="flex-1 h-1.5 bg-cream-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.min(100, pct(log.protein, targets.protein))}%`,
+                        background: '#C78264',
+                      }}
+                    />
+                  </div>
+                  <div className="text-[11px] text-ink-500 w-16 text-right shrink-0">{log.protein} g</div>
+                </div>
+              )}
+              {log.hydration > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="text-[11px] text-ink-400 w-14 shrink-0">Water</div>
+                  <div className="flex-1 flex gap-px overflow-hidden">
+                    {Array.from({ length: waterTarget }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`h-1.5 flex-1 rounded-sm ${i < log.hydration ? 'bg-sage-200' : 'bg-cream-200'}`}
+                      />
+                    ))}
+                  </div>
+                  <div className="text-[11px] text-ink-500 w-16 text-right shrink-0">{log.hydration} gl</div>
+                </div>
+              )}
+              {symptomsLogged.length > 0 && (
+                <div className="flex items-center gap-1 mt-2 pt-2 border-t border-cream-200/60">
+                  {symptomsLogged.map(([id, val]) => (
+                    <span key={id} className="text-base leading-none" title={id}>
+                      {SYMPTOM_EMOJIS[id]?.[val - 1] ?? ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-[11px] text-ink-400/60 italic">Nothing logged yet</div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function LogboekView({ profile }) {
+  const days = useMemo(() => {
+    const out = [];
+    const today = new Date();
+    for (let offset = 0; offset < 14; offset++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - offset);
+      const log     = loadLog(d);
+      const state   = getCycleState(profile, d);
+      const targets = getDailyTargets(profile, state.phase);
+      out.push({ date: d, isToday: offset === 0, log, state, targets, hasData: logHasData(log) });
+    }
+    return out;
+  }, [profile]);
+
+  return (
+    <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
+      <header className="mb-7 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Your journal</div>
+        <h1 className="font-display text-[30px] leading-tight text-ink-700">Logboek</h1>
+      </header>
+      <div className="space-y-3">
+        {days.map((entry, i) => (
+          <LogboekEntry key={i} {...entry} animDelay={i * 25} />
+        ))}
+      </div>
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
+        Showing last 14 days
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Root                                                               */
 /* ------------------------------------------------------------------ */
 
 function App() {
   const [profile, setProfile] = useState(() => loadProfile());
+  const [tab, setTab] = useState('home');
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -1155,16 +1322,22 @@ function App() {
   };
 
   return (
-    <Dashboard
-      profile={profile}
-      onUpdateProfile={updateProfile}
-      onReset={() => {
-        if (confirm('Reset your Aura profile? Your daily logs will be kept.')) {
-          clearProfile();
-          setProfile(null);
-        }
-      }}
-    />
+    <>
+      {tab === 'home' && (
+        <Dashboard
+          profile={profile}
+          onUpdateProfile={updateProfile}
+          onReset={() => {
+            if (confirm('Reset your Aura profile? Your daily logs will be kept.')) {
+              clearProfile();
+              setProfile(null);
+            }
+          }}
+        />
+      )}
+      {tab === 'logboek' && <LogboekView profile={profile} />}
+      <BottomNav active={tab} onSelect={setTab} />
+    </>
   );
 }
 
