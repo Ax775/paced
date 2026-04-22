@@ -693,6 +693,22 @@ function CycleRing({ state }) {
   const progress = state.hasData ? state.progressPct / 100 : 0;
   const dashOffset = c * (1 - progress);
 
+  // Phase arcs: map each phase to a coloured segment around the ring.
+  const phaseArcs = useMemo(() => {
+    let cursor = 0;
+    return state.phaseMap.map((slot) => {
+      const fraction = slot.length / state.cycleLength;
+      const offset = c * (1 - cursor);
+      cursor += fraction;
+      return {
+        phase:     slot.phase,
+        hue:       PHASE_META[slot.phase].hue,
+        dasharray: `${c * fraction} ${c * (1 - fraction)}`,
+        offset,
+      };
+    });
+  }, [state.phaseMap, state.cycleLength, c]);
+
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
@@ -702,7 +718,19 @@ function CycleRing({ state }) {
             <stop offset="100%" stopColor="#C78264" />
           </linearGradient>
         </defs>
-        <circle cx={size / 2} cy={size / 2} r={r} stroke="#EDE6D3" strokeWidth="14" fill="none" />
+
+        {/* Phase arcs — faint coloured bands behind everything */}
+        {phaseArcs.map((arc) => (
+          <circle
+            key={arc.phase}
+            cx={size / 2} cy={size / 2} r={r}
+            stroke={arc.hue} strokeWidth="14" strokeOpacity="0.22"
+            fill="none"
+            strokeDasharray={arc.dasharray} strokeDashoffset={arc.offset}
+          />
+        ))}
+
+        {/* Progress stroke */}
         <circle
           cx={size / 2} cy={size / 2} r={r}
           stroke="url(#ring-grad)" strokeWidth="14" strokeLinecap="round" fill="none"
