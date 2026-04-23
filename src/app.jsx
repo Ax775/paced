@@ -37,8 +37,8 @@ const Card = ({ className = '', style, children }) => (
   </div>
 );
 
-const Label = ({ children }) => (
-  <label className="block text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium mb-2">
+const Label = ({ children, htmlFor, className = '' }) => (
+  <label htmlFor={htmlFor} className={`block text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium mb-2 ${className}`}>
     {children}
   </label>
 );
@@ -839,8 +839,9 @@ function Onboarding({ onComplete }) {
 
             <div className="space-y-6">
               <Field>
-                <Label>When did your last period start?</Label>
+                <Label htmlFor="onboarding-period-date">When did your last period start?</Label>
                 <input
+                  id="onboarding-period-date"
                   className={inputCx}
                   type="date"
                   value={form.lastPeriodStart}
@@ -915,8 +916,9 @@ function Onboarding({ onComplete }) {
             <div className="space-y-5">
               <div className="grid grid-cols-3 gap-3">
                 <Field>
-                  <Label>Age</Label>
+                  <Label htmlFor="onboarding-age">Age</Label>
                   <input
+                    id="onboarding-age"
                     className={inputCx}
                     type="number"
                     min="14"
@@ -927,8 +929,9 @@ function Onboarding({ onComplete }) {
                   />
                 </Field>
                 <Field>
-                  <Label>Weight kg</Label>
+                  <Label htmlFor="onboarding-weight">Weight kg</Label>
                   <input
+                    id="onboarding-weight"
                     className={inputCx}
                     type="number"
                     min="30"
@@ -939,8 +942,9 @@ function Onboarding({ onComplete }) {
                   />
                 </Field>
                 <Field>
-                  <Label>Height cm</Label>
+                  <Label htmlFor="onboarding-height">Height cm</Label>
                   <input
+                    id="onboarding-height"
                     className={inputCx}
                     type="number"
                     min="120"
@@ -1054,8 +1058,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Profile</div>
         <div className="space-y-5">
           <Field>
-            <Label>Name</Label>
+            <Label htmlFor="settings-name">Name</Label>
             <input
+              id="settings-name"
               className={inputCx}
               value={form.name}
               onChange={(e) => setF('name', e.target.value)}
@@ -1065,8 +1070,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
 
           <div className="grid grid-cols-3 gap-3">
             <Field>
-              <Label>Age</Label>
+              <Label htmlFor="settings-age">Age</Label>
               <input
+                id="settings-age"
                 className={inputCx}
                 type="number" min="14" max="70"
                 value={form.age}
@@ -1075,8 +1081,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               />
             </Field>
             <Field>
-              <Label>Weight kg</Label>
+              <Label htmlFor="settings-weight">Weight kg</Label>
               <input
+                id="settings-weight"
                 className={inputCx}
                 type="number" min="30" max="200"
                 value={form.weightKg}
@@ -1085,8 +1092,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               />
             </Field>
             <Field>
-              <Label>Height cm</Label>
+              <Label htmlFor="settings-height">Height cm</Label>
               <input
+                id="settings-height"
                 className={inputCx}
                 type="number" min="120" max="220"
                 value={form.heightCm}
