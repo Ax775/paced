@@ -90,27 +90,25 @@
        original file URL). This plugin rewrites relative imports to
        absolute URLs so the blob module can resolve them correctly. -->
   <script>
-    // Cache-buster: a new value on every page load breaks the module
-    // registry cache so edits to lib files are always picked up.
+    // Register SYNCHRONOUSLY — Babel processes text/babel scripts on
+    // DOMContentLoaded, so the plugin must exist before that fires.
+    // A per-load timestamp cache-busts the ES module registry so edits
+    // to lib files are always picked up without a hard-refresh.
     const _v = Date.now();
-    document.addEventListener('DOMContentLoaded', () => {
-      Babel.registerPlugin('absolute-imports', ({ types: t }) => ({
-        visitor: {
-          'ImportDeclaration|ExportNamedDeclaration|ExportAllDeclaration'(path) {
-            const src = path.node.source;
-            if (!src) return;
-            const val = src.value;
-            if (val.startsWith('./') || val.startsWith('../')) {
-              // Resolve relative to origin + append cache-buster so lib
-              // modules are never served stale from the module registry.
-              const base = new URL('./src/', window.location.href).href;
-              const abs  = new URL(val.replace(/^\.\//, ''), base).href;
-              path.node.source = t.stringLiteral(abs + '?v=' + _v);
-            }
+    Babel.registerPlugin('absolute-imports', ({ types: t }) => ({
+      visitor: {
+        'ImportDeclaration|ExportNamedDeclaration|ExportAllDeclaration'(path) {
+          const src = path.node.source;
+          if (!src) return;
+          const val = src.value;
+          if (val.startsWith('./') || val.startsWith('../')) {
+            const base = new URL('./src/', window.location.href).href;
+            const abs  = new URL(val.replace(/^\.\//, ''), base).href;
+            path.node.source = t.stringLiteral(abs + '?v=' + _v);
           }
         }
-      }));
-    });
+      }
+    }));
   </script>
 
   <style>
