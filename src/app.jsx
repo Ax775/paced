@@ -486,13 +486,18 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
   const loggedToday = isPeriodLoggedOn(profile);
   const cyclesTracked = profile.periodHistory?.length ?? 0;
   const [justLogged, setJustLogged] = useState(false);
+  const timerRef = React.useRef(null);
+
+  useEffect(() => {
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, []);
 
   const handleLog = () => {
     const next = logPeriodStart(profile);
     if (next === profile) return; // same-bleed guard
     onUpdateProfile(next);
     setJustLogged(true);
-    setTimeout(() => setJustLogged(false), 2000);
+    timerRef.current = setTimeout(() => setJustLogged(false), 2000);
   };
 
   const handleUndo = () => {
@@ -1020,6 +1025,11 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
     cycleLength:   profile.cycleLength   || 28,
   });
   const [saved, setSaved] = useState(false);
+  const saveTimerRef = React.useRef(null);
+
+  useEffect(() => {
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, []);
 
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -1034,7 +1044,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
       cycleLength:   Number(form.cycleLength),
     });
     setSaved(true);
-    setTimeout(() => { setSaved(false); onBack(); }, 800);
+    saveTimerRef.current = setTimeout(() => { setSaved(false); onBack(); }, 800);
   };
 
   return (
