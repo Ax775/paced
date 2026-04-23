@@ -5,11 +5,12 @@
  * All numbers flow from pure functions in src/lib/*; this file is the calm shell.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen, Activity,
+  BarChart2, Download, X, TrendingUp,
 } from 'lucide-react';
 
 import {
@@ -37,8 +38,11 @@ const Card = ({ className = '', style, children }) => (
   </div>
 );
 
-const Label = ({ children }) => (
-  <label className="block text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium mb-2">
+const Label = ({ children, htmlFor }) => (
+  <label
+    htmlFor={htmlFor}
+    className="block text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium mb-2"
+  >
     {children}
   </label>
 );
@@ -102,21 +106,58 @@ function shortMonth(iso) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  CSV export                                                         */
+/* ------------------------------------------------------------------ */
+
+function exportCSV(profile) {
+  const rows = ['date,cycleDay,phase,mood,energy,cramps,bloating,calories,protein,water,sleep,movement,note'];
+  const today = new Date();
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const log = loadLog(d);
+    const state = getCycleState(profile, d);
+    const s = log.symptoms || {};
+    rows.push([
+      isoDate(d),
+      state.cycleDay ?? '',
+      state.phase,
+      s.mood     || '',
+      s.energy   || '',
+      s.cramps   || '',
+      s.bloating || '',
+      log.calories  || '',
+      log.protein   || '',
+      log.hydration || '',
+      log.sleep     || '',
+      log.movement  || '',
+      `"${(log.note || '').replace(/"/g, '""')}"`,
+    ].join(','));
+  }
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'aura-log.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tracker primitives                                                 */
 /* ------------------------------------------------------------------ */
 
 /**
  * SoftProgress — calm progress bar with mount animation.
  * Starts at 0 and animates to the real value after a short delay so the
- * fill is visible as the card fades in. After mount, reflects live value
- * instantly (no reset to 0 on each tap).
+ * fill is visible as the card fades in.
  */
 function SoftProgress({ value, target }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     const id = setTimeout(() => setMounted(true), 120);
     return () => clearTimeout(id);
-  }, []); // Only on mount
+  }, []);
 
   const safeTarget = Math.max(1, target);
   const displayPct = mounted
@@ -145,7 +186,7 @@ function Chip({ children, onClick, ariaLabel }) {
       type="button"
       aria-label={ariaLabel}
       onClick={onClick}
-      className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200
+      className="min-h-[44px] text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200
                  text-ink-600 hover:bg-sage-100 hover:border-sage-200 hover:text-sage-700
                  active:scale-95 transition"
     >
@@ -478,21 +519,21 @@ function WeekBarRow({ label, values }) {
 /*  Period log button                                                  */
 /* ------------------------------------------------------------------ */
 
-/**
- * Redesigned period log button — prominent terracotta CTA, no confirm
- * dialog (trust the undo), brief satisfying state change when logged.
- */
 function PeriodLogButton({ profile, onUpdateProfile }) {
   const loggedToday = isPeriodLoggedOn(profile);
   const cyclesTracked = profile.periodHistory?.length ?? 0;
   const [justLogged, setJustLogged] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const handleLog = () => {
     const next = logPeriodStart(profile);
-    if (next === profile) return; // same-bleed guard
+    if (next === profile) return;
     onUpdateProfile(next);
+    if (timerRef.current) clearTimeout(timerRef.current);
     setJustLogged(true);
-    setTimeout(() => setJustLogged(false), 2000);
+    timerRef.current = setTimeout(() => setJustLogged(false), 2000);
   };
 
   const handleUndo = () => {
@@ -633,7 +674,7 @@ function SleepTracker({ hours, onChange }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Movement tracker                                                    */
+/*  Movement tracker                                                   */
 /* ------------------------------------------------------------------ */
 
 const MOVEMENT_SLOTS = [15, 30, 45, 60, 90];
@@ -696,7 +737,7 @@ function MovementTracker({ minutes, onChange, phase }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Journal note                                                        */
+/*  Journal note                                                       */
 /* ------------------------------------------------------------------ */
 
 function JournalNote({ note, onChange }) {
@@ -721,12 +762,79 @@ function JournalNote({ note, onChange }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  PWA install prompt banner                                          */
+/* ------------------------------------------------------------------ */
+
+function PWAInstallBanner() {
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem('aura.pwa.dismissed')) return;
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setVisible(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+    setVisible(false);
+  };
+
+  const handleDismiss = () => {
+    localStorage.setItem('aura.pwa.dismissed', '1');
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed bottom-16 left-0 right-0 z-40 px-4 pb-2 anim-slide-up">
+      <div className="max-w-md mx-auto bg-cream-50/95 backdrop-blur-md border border-cream-200 rounded-2xl shadow-soft p-4 flex items-center gap-3">
+        <div
+          className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: 'linear-gradient(135deg, #E2E9DC 0%, #F4E2D8 100%)' }}
+        >
+          <Flower2 className="w-5 h-5 text-sage-600" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-ink-700">Add Aura to home screen</div>
+          <div className="text-xs text-ink-400 mt-0.5">Works offline, feels like an app.</div>
+        </div>
+        <button
+          type="button"
+          onClick={handleInstall}
+          className="px-4 py-2 rounded-xl bg-sage-500 text-cream-50 text-xs font-medium hover:bg-sage-600 transition shrink-0 min-h-[44px]"
+        >
+          Install
+        </button>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="p-1 text-ink-400 hover:text-ink-600 transition shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          aria-label="Dismiss install prompt"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Onboarding — 3-step conversational flow                            */
 /* ------------------------------------------------------------------ */
 
 function Onboarding({ onComplete }) {
   const [step, setStep] = useState(0);
-  const [animKey, setAnimKey] = useState(0); // bump to re-trigger fadeUp on step change
+  const [animKey, setAnimKey] = useState(0);
   const [form, setForm] = useState({
     name:            '',
     age:             '',
@@ -799,10 +907,11 @@ function Onboarding({ onComplete }) {
               Your calm companion for cycle-synced nutrition, energy awareness, and gut health.
             </p>
             <div className="mb-6">
-              <label className="block text-sm text-ink-600 mb-2.5">
+              <label className="block text-sm text-ink-600 mb-2.5" htmlFor="onboard-name">
                 What should I call you?
               </label>
               <input
+                id="onboard-name"
                 className={inputCx}
                 value={form.name}
                 onChange={setFE('name')}
@@ -839,8 +948,9 @@ function Onboarding({ onComplete }) {
 
             <div className="space-y-6">
               <Field>
-                <Label>When did your last period start?</Label>
+                <Label htmlFor="onboard-last-period">When did your last period start?</Label>
                 <input
+                  id="onboard-last-period"
                   className={inputCx}
                   type="date"
                   value={form.lastPeriodStart}
@@ -854,7 +964,7 @@ function Onboarding({ onComplete }) {
                   <button
                     type="button"
                     onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
-                    className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                    className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
                                transition text-xl flex items-center justify-center"
                   >−</button>
@@ -867,7 +977,7 @@ function Onboarding({ onComplete }) {
                   <button
                     type="button"
                     onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
-                    className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                    className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
                                transition text-xl flex items-center justify-center"
                   >+</button>
@@ -915,8 +1025,9 @@ function Onboarding({ onComplete }) {
             <div className="space-y-5">
               <div className="grid grid-cols-3 gap-3">
                 <Field>
-                  <Label>Age</Label>
+                  <Label htmlFor="onboard-age">Age</Label>
                   <input
+                    id="onboard-age"
                     className={inputCx}
                     type="number"
                     min="14"
@@ -927,8 +1038,9 @@ function Onboarding({ onComplete }) {
                   />
                 </Field>
                 <Field>
-                  <Label>Weight kg</Label>
+                  <Label htmlFor="onboard-weight">Weight kg</Label>
                   <input
+                    id="onboard-weight"
                     className={inputCx}
                     type="number"
                     min="30"
@@ -939,8 +1051,9 @@ function Onboarding({ onComplete }) {
                   />
                 </Field>
                 <Field>
-                  <Label>Height cm</Label>
+                  <Label htmlFor="onboard-height">Height cm</Label>
                   <input
+                    id="onboard-height"
                     className={inputCx}
                     type="number"
                     min="120"
@@ -1016,6 +1129,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
     cycleLength:   profile.cycleLength   || 28,
   });
   const [saved, setSaved] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -1030,7 +1146,8 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
       cycleLength:   Number(form.cycleLength),
     });
     setSaved(true);
-    setTimeout(() => { setSaved(false); onBack(); }, 800);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => { setSaved(false); onBack(); }, 800);
   };
 
   return (
@@ -1041,7 +1158,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
           type="button"
           onClick={onBack}
           aria-label="Back to dashboard"
-          className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+          className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                      flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
         >
           <ChevronLeft className="w-4 h-4" />
@@ -1054,8 +1171,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Profile</div>
         <div className="space-y-5">
           <Field>
-            <Label>Name</Label>
+            <Label htmlFor="settings-name">Name</Label>
             <input
+              id="settings-name"
               className={inputCx}
               value={form.name}
               onChange={(e) => setF('name', e.target.value)}
@@ -1065,8 +1183,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
 
           <div className="grid grid-cols-3 gap-3">
             <Field>
-              <Label>Age</Label>
+              <Label htmlFor="settings-age">Age</Label>
               <input
+                id="settings-age"
                 className={inputCx}
                 type="number" min="14" max="70"
                 value={form.age}
@@ -1075,8 +1194,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               />
             </Field>
             <Field>
-              <Label>Weight kg</Label>
+              <Label htmlFor="settings-weight">Weight kg</Label>
               <input
+                id="settings-weight"
                 className={inputCx}
                 type="number" min="30" max="200"
                 value={form.weightKg}
@@ -1085,8 +1205,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               />
             </Field>
             <Field>
-              <Label>Height cm</Label>
+              <Label htmlFor="settings-height">Height cm</Label>
               <input
+                id="settings-height"
                 className={inputCx}
                 type="number" min="120" max="220"
                 value={form.heightCm}
@@ -1102,7 +1223,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               <button
                 type="button"
                 onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
-                className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                            text-ink-600 hover:bg-sage-100 hover:border-sage-200
                            transition text-xl flex items-center justify-center"
               >−</button>
@@ -1115,7 +1236,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               <button
                 type="button"
                 onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
-                className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200
+                className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                            text-ink-600 hover:bg-sage-100 hover:border-sage-200
                            transition text-xl flex items-center justify-center"
               >+</button>
@@ -1179,7 +1300,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         </button>
       </Card>
 
-      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v0.8</div>
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v0.9</div>
     </div>
   );
 }
@@ -1317,14 +1438,14 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
         </div>
         <div className="flex items-center gap-2">
           {streak > 0 && (
-            <div className="text-[11px] text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1.5 rounded-full whitespace-nowrap">
+            <div className="text-[11px] text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1.5 rounded-full whitespace-nowrap anim-streak-pulse">
               🌿 {streak} {streak === 1 ? 'day' : 'days'}
             </div>
           )}
           <button
             onClick={onOpenSettings}
             aria-label="Settings"
-            className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
+            className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -1460,7 +1581,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v0.8
+        Aura · v0.9
       </div>
     </div>
   );
@@ -1472,8 +1593,9 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
 function BottomNav({ active, onSelect }) {
   const tabs = [
-    { id: 'home',     label: 'Vandaag', icon: Flower2   },
-    { id: 'logboek',  label: 'Logboek', icon: BookOpen  },
+    { id: 'home',     label: 'Vandaag',   icon: Flower2   },
+    { id: 'logboek',  label: 'Logboek',   icon: BookOpen  },
+    { id: 'stats',    label: 'Inzichten', icon: BarChart2 },
   ];
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex">
@@ -1484,7 +1606,7 @@ function BottomNav({ active, onSelect }) {
             key={id}
             type="button"
             onClick={() => onSelect(id)}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition ${
+            className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] ${
               on ? 'text-sage-600' : 'text-ink-400 hover:text-ink-600'
             }`}
           >
@@ -1508,7 +1630,7 @@ const SYMPTOM_EMOJIS = {
   bloating: ['🎈','😮','😐','🙂','✨'],
 };
 
-function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay }) {
+function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, onGoToToday }) {
   const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
   const syms = log.symptoms || {};
   const symptomsLogged = Object.entries(syms).filter(([, v]) => v > 0);
@@ -1580,6 +1702,20 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay }
                   <div className="text-[11px] text-ink-500 w-16 text-right shrink-0">{log.hydration} gl</div>
                 </div>
               )}
+              {(log.sleep > 0 || log.movement > 0) && (
+                <div className="flex items-center gap-3 mt-1">
+                  {log.sleep > 0 && (
+                    <div className="flex items-center gap-1 text-[11px] text-ink-400">
+                      <Moon className="w-3 h-3" />{log.sleep}h
+                    </div>
+                  )}
+                  {log.movement > 0 && (
+                    <div className="flex items-center gap-1 text-[11px] text-ink-400">
+                      <Activity className="w-3 h-3" />{log.movement}m
+                    </div>
+                  )}
+                </div>
+              )}
               {symptomsLogged.length > 0 && (
                 <div className="flex items-center gap-1 mt-2 pt-2 border-t border-cream-200/60">
                   {symptomsLogged.map(([id, val]) => (
@@ -1589,9 +1725,25 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay }
                   ))}
                 </div>
               )}
+              {log.note ? (
+                <div className="text-[11px] text-ink-400/80 italic mt-1 line-clamp-2">"{log.note}"</div>
+              ) : null}
+            </div>
+          ) : isToday ? (
+            <div className="flex items-center gap-3">
+              <div className="text-[11px] text-ink-400/70 italic">Nothing logged yet today.</div>
+              {onGoToToday && (
+                <button
+                  type="button"
+                  onClick={onGoToToday}
+                  className="text-[11px] text-sage-600 underline decoration-dotted underline-offset-2 hover:text-sage-700 transition"
+                >
+                  Start tracking
+                </button>
+              )}
             </div>
           ) : (
-            <div className="text-[11px] text-ink-400/60 italic">Nothing logged yet</div>
+            <div className="text-[11px] text-ink-400/60 italic">Nothing logged</div>
           )}
         </div>
       </div>
@@ -1599,7 +1751,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay }
   );
 }
 
-function LogboekView({ profile }) {
+function LogboekView({ profile, onGoHome }) {
   const days = useMemo(() => {
     const out = [];
     const today = new Date();
@@ -1616,17 +1768,191 @@ function LogboekView({ profile }) {
 
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
-      <header className="mb-7 anim-fade-up">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Your journal</div>
-        <h1 className="font-display text-[30px] leading-tight text-ink-700">Logboek</h1>
+      <header className="flex items-center justify-between mb-7 anim-fade-up">
+        <div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Your journal</div>
+          <h1 className="font-display text-[30px] leading-tight text-ink-700">Logboek</h1>
+        </div>
+        <button
+          type="button"
+          onClick={() => exportCSV(profile)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cream-100 border border-cream-200
+                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 transition min-h-[44px]"
+          aria-label="Export CSV"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Export
+        </button>
       </header>
       <div className="space-y-3">
         {days.map((entry, i) => (
-          <LogboekEntry key={i} {...entry} animDelay={i * 25} />
+          <LogboekEntry key={i} {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
         ))}
       </div>
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Showing last 14 days
+        Showing last 14 days · Export includes 90 days
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Insights / Statistics tab                                          */
+/* ------------------------------------------------------------------ */
+
+const SYMPTOM_LABELS = { energy: 'Energy', mood: 'Mood', cramps: 'Cramps', bloating: 'Bloating' };
+
+function InsightsView({ profile }) {
+  const today = useMemo(() => new Date(), []);
+
+  const { avgCycle, topByPhase, streakRecord, cycleHistory } = useMemo(() => {
+    const history = getCycleHistory(profile, 12);
+    const avgCycle = history.length
+      ? Math.round(history.reduce((sum, g) => sum + g.length, 0) / history.length)
+      : null;
+
+    // Symptom tallies per phase, last 90 days
+    const tallies = {};
+    for (const p of Object.values(PHASES)) tallies[p] = {};
+    const scanDate = new Date(today);
+    for (let i = 0; i < 90; i++) {
+      const log = loadLog(scanDate);
+      const state = getCycleState(profile, scanDate);
+      for (const [sym, val] of Object.entries(log.symptoms || {})) {
+        if (val > 0) {
+          tallies[state.phase][sym] = (tallies[state.phase][sym] || 0) + 1;
+        }
+      }
+      scanDate.setDate(scanDate.getDate() - 1);
+    }
+
+    const topByPhase = {};
+    for (const [phase, counts] of Object.entries(tallies)) {
+      const entries = Object.entries(counts);
+      if (!entries.length) { topByPhase[phase] = null; continue; }
+      entries.sort((a, b) => b[1] - a[1]);
+      topByPhase[phase] = entries[0][0];
+    }
+
+    // Streak record — longest consecutive run in past 365 days
+    let best = 0, run = 0;
+    const rd = new Date(today);
+    for (let i = 0; i < 365; i++) {
+      if (logHasData(loadLog(rd))) {
+        run++;
+        if (run > best) best = run;
+      } else {
+        run = 0;
+      }
+      rd.setDate(rd.getDate() - 1);
+    }
+
+    return { avgCycle, topByPhase, streakRecord: best, cycleHistory: history };
+  }, [profile, today]);
+
+  const currentStreak = useMemo(() => {
+    return getStreak(loadLog(today), today);
+  }, [today]);
+
+  const hasSymptomData = Object.values(topByPhase).some(v => v !== null);
+
+  return (
+    <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
+      <header className="mb-7 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Your patterns</div>
+        <h1 className="font-display text-[30px] leading-tight text-ink-700">Inzichten</h1>
+      </header>
+
+      {/* Streak card */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Logging streak</div>
+        <div className="flex items-end gap-8">
+          <div>
+            <div className="font-display text-[52px] text-ink-700 leading-none">
+              {currentStreak}
+            </div>
+            <div className="text-xs text-ink-400 mt-1">Current (days)</div>
+          </div>
+          {streakRecord > 0 && (
+            <div>
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-sage-500" />
+                <div className="font-display text-[32px] text-sage-600 leading-none">
+                  {streakRecord}
+                </div>
+              </div>
+              <div className="text-xs text-ink-400 mt-1">Record</div>
+            </div>
+          )}
+        </div>
+        {currentStreak === 0 && (
+          <p className="text-xs text-ink-400 mt-3 leading-relaxed">
+            Log anything today to start your streak — even just a mood check counts.
+          </p>
+        )}
+      </Card>
+
+      {/* Cycle stats */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '80ms' }}>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Cycle overview</div>
+        {cycleHistory.length >= 1 ? (
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="font-display text-[38px] text-ink-700 leading-none">
+                {avgCycle ?? '—'}
+              </div>
+              <div className="text-xs text-ink-400 mt-1">Avg cycle (days)</div>
+            </div>
+            <div>
+              <div className="font-display text-[38px] text-ink-700 leading-none">
+                {cycleHistory.length}
+              </div>
+              <div className="text-xs text-ink-400 mt-1">Cycles tracked</div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-ink-400 leading-relaxed">
+            Log your period start on the home tab to unlock cycle statistics.
+          </p>
+        )}
+      </Card>
+
+      {/* Symptoms per phase */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '120ms' }}>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">
+          Most logged symptom per phase
+        </div>
+        {hasSymptomData ? (
+          <div className="space-y-3.5">
+            {Object.entries(PHASE_META).map(([phase, meta]) => {
+              const top = topByPhase[phase];
+              return (
+                <div key={phase} className="flex items-center gap-3">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ background: meta.hue }}
+                  />
+                  <div className="text-xs text-ink-500 w-[76px] shrink-0">{meta.label}</div>
+                  {top ? (
+                    <div className="text-xs font-medium text-ink-700 bg-cream-100 px-2.5 py-1 rounded-full border border-cream-200">
+                      {SYMPTOM_LABELS[top]}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-ink-400/60 italic">not enough data</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-ink-400 leading-relaxed">
+            Track your symptoms daily to see patterns emerge across your cycle phases.
+          </p>
+        )}
+      </Card>
+
+      <div className="text-center text-[11px] text-ink-400 mt-4 mb-2">
+        Based on your last 90 days of logged data.
       </div>
     </div>
   );
@@ -1638,7 +1964,7 @@ function LogboekView({ profile }) {
 
 function App() {
   const [profile, setProfile] = useState(() => loadProfile());
-  const [tab, setTab]   = useState('home');   // 'home' | 'logboek'
+  const [tab, setTab]   = useState('home');   // 'home' | 'logboek' | 'stats'
   const [view, setView] = useState('main');   // 'main' | 'settings'
 
   useEffect(() => {
@@ -1679,15 +2005,22 @@ function App() {
 
   return (
     <>
-      {tab === 'home' && (
-        <Dashboard
-          profile={profile}
-          onUpdateProfile={updateProfile}
-          onOpenSettings={() => setView('settings')}
-        />
-      )}
-      {tab === 'logboek' && <LogboekView profile={profile} />}
+      {/* Tab content — key on tab triggers fade-in on switch */}
+      <div key={tab} className="anim-tab-in">
+        {tab === 'home' && (
+          <Dashboard
+            profile={profile}
+            onUpdateProfile={updateProfile}
+            onOpenSettings={() => setView('settings')}
+          />
+        )}
+        {tab === 'logboek' && (
+          <LogboekView profile={profile} onGoHome={() => setTab('home')} />
+        )}
+        {tab === 'stats' && <InsightsView profile={profile} />}
+      </div>
       <BottomNav active={tab} onSelect={setTab} />
+      <PWAInstallBanner />
     </>
   );
 }

@@ -119,6 +119,9 @@ export function logHasData(log) {
     log.calories  > 0 ||
     log.protein   > 0 ||
     log.hydration > 0 ||
+    log.sleep     > 0 ||
+    log.movement  > 0 ||
+    (log.note || '').length > 0 ||
     Object.values(log.gut      || {}).some(Boolean) ||
     Object.values(log.symptoms || {}).some(v => v > 0)
   );
