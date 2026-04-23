@@ -196,7 +196,7 @@ function getDailyInsight(phase,date=new Date()){const pool=TIPS[phase]??TIPS.fol
 
 const PROFILE_KEY='aura.profile',LOG_PREFIX='aura.log.';
 function _isoDate(d=new Date()){const date=d instanceof Date?d:new Date(d);return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
-function emptyLog(){return{protein:0,calories:0,hydration:0,gut:{probiotics:false,fiber:false,fermented:false},symptoms:{energy:0,mood:0,cramps:0,bloating:0}};}
+function emptyLog(){return{protein:0,calories:0,hydration:0,sleep:0,movement:0,note:'',gut:{probiotics:false,fiber:false,fermented:false},symptoms:{energy:0,mood:0,cramps:0,bloating:0}};}
 function logHasData(log){if(!log)return false;return log.calories>0||log.protein>0||log.hydration>0||Object.values(log.gut||{}).some(Boolean)||Object.values(log.symptoms||{}).some(v=>v>0);}
 function loadProfile(){try{const raw=localStorage.getItem(PROFILE_KEY);return raw?JSON.parse(raw):null;}catch{return null;}}
 function saveProfile(p){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(p));}catch{}}
@@ -234,7 +234,7 @@ function getStreak(todayLog,today=new Date()){
   for(let i=6;i>=0;i--){
     const dd=new Date(today);dd.setDate(dd.getDate()-i);
     if(i===0){
-      saveLog(dd,{calories:1420,protein:88,hydration:5,gut:{probiotics:true,fiber:true,fermented:false},symptoms:{energy:4,mood:4,cramps:0,bloating:1}});
+      saveLog(dd,{calories:1420,protein:88,hydration:5,sleep:7.5,movement:30,note:'',gut:{probiotics:true,fiber:true,fermented:false},symptoms:{energy:4,mood:4,cramps:0,bloating:1}});
     }else if(i<=3){
       saveLog(dd,{calories:1800+i*60,protein:95+i*5,hydration:7-i,gut:{probiotics:i<2,fiber:true,fermented:i===1},symptoms:{energy:4-i%2,mood:4,cramps:0,bloating:0}});
     }
@@ -496,7 +496,31 @@ function PhaseTimeline({state}){
   return(<div className="flex gap-1.5">{state.phaseMap.map(slot=>{const active=slot.phase===state.phase,meta=PHASE_META[slot.phase];return(<div key={slot.phase} className="flex-1 flex flex-col items-center gap-1.5" style={{flexGrow:slot.length}}><div className={`h-1.5 w-full rounded-full transition ${active?'anim-breathe':''}`} style={{background:active?meta.hue:'#EDE6D3'}}/><div className={`text-[10px] uppercase tracking-wider ${active?'text-ink-600':'text-ink-400/70'}`}>{meta.label}</div></div>);})}</div>);
 }
 
-function Dashboard({profile,onUpdateProfile,onReset}){
+function PreviewSettingsScreen({profile,onBack}){
+  return(
+    <div className="min-h-dvh px-5 py-8 max-w-md mx-auto">
+      <header className="flex items-center gap-3 mb-8">
+        <button type="button" onClick={onBack} aria-label="Back" className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"><ChevronLeft className="w-4 h-4"/></button>
+        <h1 className="font-display text-[28px] text-ink-700 leading-tight">Settings</h1>
+      </header>
+      <Card className="p-6 mb-5">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Profile</div>
+        <div className="space-y-2 text-sm text-ink-600">
+          <div className="flex justify-between"><span className="text-ink-400">Naam</span><span>{profile.name||'—'}</span></div>
+          <div className="flex justify-between"><span className="text-ink-400">Cycluslengte</span><span>{profile.cycleLength} dagen</span></div>
+          <div className="flex justify-between"><span className="text-ink-400">Activiteit</span><span>{profile.activityLevel}</span></div>
+        </div>
+      </Card>
+      <Card className="p-6">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Danger zone</div>
+        <button type="button" onClick={()=>{localStorage.clear();window.location.reload();}} className="w-full rounded-xl border border-terracotta-200 bg-terracotta-100/50 text-terracotta-600 py-3 text-sm font-medium hover:bg-terracotta-100 active:scale-[0.98] transition">Data wissen</button>
+      </Card>
+      <div className="text-center text-[11px] text-ink-400 mt-8">Aura · v0.8 · preview</div>
+    </div>
+  );
+}
+
+function Dashboard({profile,onUpdateProfile,onOpenSettings}){
   const state=useMemo(()=>getCycleState(profile),[profile]);
   const targets=useMemo(()=>getDailyTargets(profile,state.phase),[profile,state.phase]);
   const insight=useMemo(()=>getDailyInsight(state.phase),[state.phase]);
@@ -520,7 +544,7 @@ function Dashboard({profile,onUpdateProfile,onReset}){
         </div>
         <div className="flex items-center gap-2">
           {streak>0&&<div className="text-[11px] text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1.5 rounded-full whitespace-nowrap">🌿 {streak} {streak===1?'day':'days'}</div>}
-          <button onClick={onReset} aria-label="Settings" className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"><Settings className="w-4 h-4"/></button>
+          <button onClick={onOpenSettings} aria-label="Settings" className="w-10 h-10 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"><Settings className="w-4 h-4"/></button>
         </div>
       </header>
 
@@ -733,12 +757,14 @@ function Onboarding({onComplete}){
 function App(){
   const[profile,setProfile]=useState(()=>loadProfile());
   const[tab,setTab]=useState('home');
+  const[view,setView]=useState('main');
   useEffect(()=>{const onStorage=(e)=>{if(e.key===PROFILE_KEY)setProfile(loadProfile());};window.addEventListener('storage',onStorage);return()=>window.removeEventListener('storage',onStorage);},[]);
   if(!profile)return<Onboarding onComplete={setProfile}/>;
   const updateProfile=(next)=>{if(!next||next===profile)return;saveProfile(next);setProfile(next);};
+  if(view==='settings')return<PreviewSettingsScreen profile={profile} onBack={()=>setView('main')}/>;
   return(
     <>
-      {tab==='home'&&<Dashboard profile={profile} onUpdateProfile={updateProfile} onReset={()=>{if(confirm('Reset your Aura profile? Your daily logs will be kept.')){clearProfile();setProfile(null);}}}/>}
+      {tab==='home'&&<Dashboard profile={profile} onUpdateProfile={updateProfile} onOpenSettings={()=>setView('settings')}/>}
       {tab==='logboek'&&<LogboekView profile={profile}/>}
       <BottomNav active={tab} onSelect={setTab}/>
     </>
