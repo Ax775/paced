@@ -144,6 +144,58 @@ function exportCSV(profile) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Apple Health XML export (feature 7)                               */
+/* ------------------------------------------------------------------ */
+
+function exportAppleHealth(profile) {
+  const today = new Date();
+  const records = [];
+
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const log = loadLog(d);
+    const iso = d.toISOString();
+    const dateStr = d.toISOString().slice(0, 10);
+
+    if (log.calories > 0) {
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.calories}"/>`);
+    }
+    if (log.protein > 0) {
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.protein}"/>`);
+    }
+    if (log.hydration > 0) {
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.hydration * 250}"/>`);
+    }
+    if (log.sleep > 0) {
+      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${iso}" startDate="${dateStr}T22:00:00" endDate="${dateStr}T0${log.sleep}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
+    }
+    if (log.movement > 0) {
+      const est = Math.round(log.movement * 5);
+      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T08:${String(log.movement).padStart(2,'0')}:00" value="${est}"/>`);
+    }
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [
+  <!ATTLIST Record type CDATA #IMPLIED>
+]>
+<HealthData locale="nl_NL">
+  <ExportDate value="${today.toISOString()}"/>
+  <Me HKCharacteristicTypeIdentifierDateOfBirth="" HKCharacteristicTypeIdentifierBiologicalSex="HKBiologicalSexFemale"/>
+${records.join('\n')}
+</HealthData>`;
+
+  const blob = new Blob([xml], { type: 'application/xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'aura-health-export.xml';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tracker primitives                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -829,6 +881,44 @@ function PWAInstallBanner() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  In-app reminder banner (feature 3)                                */
+/* ------------------------------------------------------------------ */
+
+function ReminderBanner({ profile }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.notifEnabled || !profile?.notifTime) return;
+    const today = new Date();
+    const todayLog = loadLog(today);
+    if (logHasData(todayLog)) return;
+
+    const [h, m] = (profile.notifTime || '20:00').split(':').map(Number);
+    const now = today.getHours() * 60 + today.getMinutes();
+    const target = h * 60 + m;
+    if (now >= target) setVisible(true);
+  }, [profile]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50 px-4 pt-safe">
+      <div className="max-w-md mx-auto mt-3 bg-sage-50/95 backdrop-blur-md border border-sage-200 rounded-2xl shadow-soft p-4 flex items-center gap-3 anim-slide-up">
+        <div className="text-xl">🌸</div>
+        <div className="flex-1">
+          <div className="text-sm font-medium text-ink-700">Vergeet niet te loggen!</div>
+          <div className="text-xs text-ink-400 mt-0.5">Je hebt vandaag nog niets bijgehouden.</div>
+        </div>
+        <button type="button" onClick={() => setVisible(false)}
+          className="p-1 text-ink-400 hover:text-ink-600 min-h-[44px] min-w-[44px] flex items-center justify-center">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Onboarding — 3-step conversational flow                            */
 /* ------------------------------------------------------------------ */
 
@@ -837,11 +927,8 @@ function Onboarding({ onComplete }) {
   const [animKey, setAnimKey] = useState(0);
   const [form, setForm] = useState({
     name:            '',
-    age:             '',
-    weightKg:        '',
-    heightCm:        '',
-    activityLevel:   'moderate',
     cycleLength:     28,
+    mensDuration:    5,
     lastPeriodStart: new Date().toISOString().slice(0, 10),
   });
 
@@ -855,12 +942,16 @@ function Onboarding({ onComplete }) {
 
   const complete = () => {
     const profile = {
-      ...form,
-      age:         Number(form.age)      || 28,
-      weightKg:    Number(form.weightKg) || 62,
-      heightCm:    Number(form.heightCm) || 168,
-      cycleLength: Number(form.cycleLength),
-      createdAt:   new Date().toISOString(),
+      name:            form.name.trim(),
+      cycleLength:     Number(form.cycleLength),
+      mensDuration:    Number(form.mensDuration) || 5,
+      lastPeriodStart: form.lastPeriodStart,
+      age:             28,
+      weightKg:        62,
+      heightCm:        168,
+      activityLevel:   'moderate',
+      onboardingDone:  true,
+      createdAt:       new Date().toISOString(),
     };
     saveProfile(profile);
     onComplete(profile);
@@ -889,7 +980,7 @@ function Onboarding({ onComplete }) {
       <div className="w-full max-w-md">
         {dots}
 
-        {/* Step 0 — Welcome + name */}
+        {/* Step 0 — Naam */}
         {step === 0 && (
           <Card key={animKey} className={cardCx}>
             <div className="flex justify-center mb-6">
@@ -901,21 +992,21 @@ function Onboarding({ onComplete }) {
               </div>
             </div>
             <h1 className="font-display text-[34px] text-ink-700 text-center leading-tight mb-2">
-              Hey, I'm Aura.
+              Hoi, ik ben Aura.
             </h1>
             <p className="text-sm text-ink-500 text-center leading-relaxed mb-8">
-              Your calm companion for cycle-synced nutrition, energy awareness, and gut health.
+              Jouw rustige gids voor cyclus-bewuste voeding, energie en welzijn.
             </p>
             <div className="mb-6">
               <label className="block text-sm text-ink-600 mb-2.5" htmlFor="onboard-name">
-                What should I call you?
+                Hoe heet je?
               </label>
               <input
                 id="onboard-name"
                 className={inputCx}
                 value={form.name}
                 onChange={setFE('name')}
-                placeholder="Your name (optional)"
+                placeholder="Jouw naam (optioneel)"
                 autoFocus
                 onKeyDown={(e) => e.key === 'Enter' && goTo(1)}
               />
@@ -926,29 +1017,29 @@ function Onboarding({ onComplete }) {
               className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
                          hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2"
             >
-              {form.name
-                ? `Nice to meet you, ${form.name.split(' ')[0]} ✓`
-                : "Let's begin"}
+              {form.name.trim()
+                ? `Fijn je te ontmoeten, ${form.name.trim().split(' ')[0]} ✓`
+                : 'Laten we beginnen'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </Card>
         )}
 
-        {/* Step 1 — Cycle details */}
+        {/* Step 1 — Cyclus instellen */}
         {step === 1 && (
           <Card key={animKey} className={cardCx}>
             <h2 className="font-display text-[28px] text-ink-700 leading-tight mb-2">
-              {form.name
-                ? `${form.name.split(' ')[0]}, tell me about your cycle.`
-                : 'Tell me about your cycle.'}
+              {form.name.trim()
+                ? `${form.name.trim().split(' ')[0]}, vertel over je cyclus.`
+                : 'Vertel over je cyclus.'}
             </h2>
             <p className="text-sm text-ink-500 mb-7 leading-relaxed">
-              This is where Aura's personalisation starts — everything flows from here.
+              Hier begint de personalisatie — alles komt hieruit voort.
             </p>
 
             <div className="space-y-6">
               <Field>
-                <Label htmlFor="onboard-last-period">When did your last period start?</Label>
+                <Label htmlFor="onboard-last-period">Wanneer begon je laatste menstruatie?</Label>
                 <input
                   id="onboard-last-period"
                   className={inputCx}
@@ -959,7 +1050,7 @@ function Onboarding({ onComplete }) {
               </Field>
 
               <Field>
-                <Label>Typical cycle length</Label>
+                <Label>Typische cycluslengte</Label>
                 <div className="flex items-center gap-4 mt-1">
                   <button
                     type="button"
@@ -972,7 +1063,7 @@ function Onboarding({ onComplete }) {
                     <span className="font-display text-[36px] text-ink-700 leading-none">
                       {form.cycleLength}
                     </span>
-                    <span className="text-sm text-ink-400 ml-1.5">days</span>
+                    <span className="text-sm text-ink-400 ml-1.5">dagen</span>
                   </div>
                   <button
                     type="button"
@@ -983,7 +1074,33 @@ function Onboarding({ onComplete }) {
                   >+</button>
                 </div>
                 <div className="text-[11px] text-ink-400 text-center mt-2">
-                  28 days is average — adjust to match your rhythm (21–45)
+                  28 dagen is gemiddeld — pas aan naar jouw ritme (21–45)
+                </div>
+              </Field>
+
+              <Field>
+                <Label>Hoe lang duurt je menstruatie?</Label>
+                <div className="flex items-center gap-4 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setF('mensDuration', Math.max(2, form.mensDuration - 1))}
+                    className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
+                               text-ink-600 hover:bg-sage-100 hover:border-sage-200
+                               transition text-xl flex items-center justify-center"
+                  >−</button>
+                  <div className="flex-1 text-center">
+                    <span className="font-display text-[36px] text-ink-700 leading-none">
+                      {form.mensDuration}
+                    </span>
+                    <span className="text-sm text-ink-400 ml-1.5">dagen</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setF('mensDuration', Math.min(10, form.mensDuration + 1))}
+                    className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
+                               text-ink-600 hover:bg-sage-100 hover:border-sage-200
+                               transition text-xl flex items-center justify-center"
+                  >+</button>
                 </div>
               </Field>
             </div>
@@ -995,7 +1112,7 @@ function Onboarding({ onComplete }) {
                 className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
                            hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
               >
-                <ChevronLeft className="w-4 h-4" /> Back
+                <ChevronLeft className="w-4 h-4" /> Terug
               </button>
               <button
                 type="button"
@@ -1003,101 +1120,49 @@ function Onboarding({ onComplete }) {
                 className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
                            hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
               >
-                Next <ArrowRight className="w-4 h-4" />
+                Volgende <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </Card>
         )}
 
-        {/* Step 2 — Physical basics */}
+        {/* Step 2 — Welkomstscherm */}
         {step === 2 && (
           <Card key={animKey} className={cardCx}>
-            <h2 className="font-display text-[28px] text-ink-700 leading-tight mb-2">
-              Almost there.
-            </h2>
-            <p className="text-sm text-ink-500 mb-1 leading-relaxed">
-              These help me personalise your nutrition targets.
-            </p>
-            <p className="text-xs text-ink-400 mb-6">
-              Rough estimates are fine — we refine over time. Skip anything you'd rather not share.
-            </p>
-
-            <div className="space-y-5">
-              <div className="grid grid-cols-3 gap-3">
-                <Field>
-                  <Label htmlFor="onboard-age">Age</Label>
-                  <input
-                    id="onboard-age"
-                    className={inputCx}
-                    type="number"
-                    min="14"
-                    max="70"
-                    value={form.age}
-                    onChange={setFE('age')}
-                    placeholder="28"
-                  />
-                </Field>
-                <Field>
-                  <Label htmlFor="onboard-weight">Weight kg</Label>
-                  <input
-                    id="onboard-weight"
-                    className={inputCx}
-                    type="number"
-                    min="30"
-                    max="200"
-                    value={form.weightKg}
-                    onChange={setFE('weightKg')}
-                    placeholder="62"
-                  />
-                </Field>
-                <Field>
-                  <Label htmlFor="onboard-height">Height cm</Label>
-                  <input
-                    id="onboard-height"
-                    className={inputCx}
-                    type="number"
-                    min="120"
-                    max="220"
-                    value={form.heightCm}
-                    onChange={setFE('heightCm')}
-                    placeholder="168"
-                  />
-                </Field>
-              </div>
-
-              <Field>
-                <Label>How active are you?</Label>
-                <div className="grid grid-cols-1 gap-2">
-                  {ACTIVITY_LEVELS.map((lvl) => {
-                    const active = form.activityLevel === lvl.id;
-                    return (
-                      <button
-                        type="button"
-                        key={lvl.id}
-                        onClick={() => setF('activityLevel', lvl.id)}
-                        className={`text-left px-4 py-3 rounded-xl border transition ${
-                          active
-                            ? 'bg-sage-100 border-sage-300 text-sage-700'
-                            : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
-                        }`}
-                      >
-                        <div className="text-sm font-medium">{lvl.label}</div>
-                        <div className="text-xs text-ink-400 mt-0.5">{lvl.hint}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
+            <div className="flex justify-center mb-5">
+              <div className="text-5xl">🌸</div>
             </div>
-
-            <div className="flex gap-3 mt-7">
+            <h2 className="font-display text-[28px] text-ink-700 text-center leading-tight mb-2">
+              {form.name.trim() ? `Welkom, ${form.name.trim().split(' ')[0]}!` : 'Welkom bij Aura!'}
+            </h2>
+            <p className="text-sm text-ink-500 text-center leading-relaxed mb-6">
+              Dit vind je in de app:
+            </p>
+            <div className="space-y-2 mb-7">
+              {[
+                { emoji: '🌸', label: 'Vandaag', desc: 'Volg voeding, slaap en symptomen' },
+                { emoji: '🥗', label: 'Voeding', desc: 'Recepten afgestemd op je fase' },
+                { emoji: '📓', label: 'Logboek', desc: 'Jouw dagelijkse geschiedenis' },
+                { emoji: '📊', label: 'Inzichten', desc: 'Patronen in je cyclus en data' },
+                { emoji: '⚙️', label: 'Instellingen', desc: 'Doelen, herinneringen en meer' },
+              ].map(({ emoji, label, desc }) => (
+                <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-cream-100/70">
+                  <span className="text-xl">{emoji}</span>
+                  <div>
+                    <div className="text-sm font-medium text-ink-700">{label}</div>
+                    <div className="text-xs text-ink-400">{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => goTo(1)}
                 className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
                            hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
               >
-                <ChevronLeft className="w-4 h-4" /> Back
+                <ChevronLeft className="w-4 h-4" /> Terug
               </button>
               <button
                 type="button"
@@ -1128,14 +1193,50 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
     activityLevel: profile.activityLevel || 'moderate',
     cycleLength:   profile.cycleLength   || 28,
   });
-  const [saved, setSaved] = useState(false);
+  const [goals, setGoals] = useState({
+    calories:  (profile.goals?.calories)  || '',
+    protein:   (profile.goals?.protein)   || '',
+    hydration: (profile.goals?.hydration) || '',
+    movement:  (profile.goals?.movement)  || '',
+    sleep:     (profile.goals?.sleep)     || '',
+  });
+  const [notifEnabled, setNotifEnabled] = useState(profile.notifEnabled || false);
+  const [notifTime, setNotifTime]       = useState(profile.notifTime    || '20:00');
+  const [toast, setToast]     = useState('');
+  const [saved, setSaved]     = useState(false);
   const timerRef = useRef(null);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
-  const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const setF  = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const setG  = (k, v) => setGoals((g) => ({ ...g, [k]: v }));
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 3000);
+  };
+
+  const handleNotifToggle = async () => {
+    if (notifEnabled) {
+      setNotifEnabled(false);
+      return;
+    }
+    if (!('Notification' in window)) {
+      showToast('Notificaties worden niet ondersteund in deze browser');
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      setNotifEnabled(true);
+      showToast('Notificaties ingeschakeld ✓');
+    } else {
+      showToast('Notificaties geblokkeerd');
+    }
+  };
 
   const handleSave = () => {
+    const cleanGoals = {};
+    Object.entries(goals).forEach(([k, v]) => { if (Number(v) > 0) cleanGoals[k] = Number(v); });
     onSave({
       ...profile,
       name:          form.name,
@@ -1144,46 +1245,56 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
       heightCm:      Number(form.heightCm) || profile.heightCm,
       activityLevel: form.activityLevel,
       cycleLength:   Number(form.cycleLength),
+      goals:         cleanGoals,
+      notifEnabled,
+      notifTime,
     });
     setSaved(true);
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => { setSaved(false); onBack(); }, 800);
+    timerRef.current = setTimeout(() => { setSaved(false); }, 800);
   };
 
   return (
-    <div className="min-h-dvh px-5 py-8 max-w-md mx-auto">
+    <div className="min-h-dvh px-5 py-8 pb-28 max-w-md mx-auto">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-ink-700 text-cream-50 text-sm shadow-lg anim-fade-up whitespace-nowrap">
+          {toast}
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex items-center gap-3 mb-8 anim-fade-up">
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back to dashboard"
+          aria-label="Terug"
           className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                      flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <h1 className="font-display text-[28px] text-ink-700 leading-tight">Settings</h1>
+        <h1 className="font-display text-[28px] text-ink-700 leading-tight">Instellingen</h1>
       </header>
 
       {/* Profile fields */}
       <Card className="p-6 mb-5 anim-fade-up">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Profile</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Profiel</div>
         <div className="space-y-5">
           <Field>
-            <Label htmlFor="settings-name">Name</Label>
+            <Label htmlFor="settings-name">Naam</Label>
             <input
               id="settings-name"
               className={inputCx}
               value={form.name}
               onChange={(e) => setF('name', e.target.value)}
-              placeholder="Your name (optional)"
+              placeholder="Jouw naam (optioneel)"
             />
           </Field>
 
           <div className="grid grid-cols-3 gap-3">
             <Field>
-              <Label htmlFor="settings-age">Age</Label>
+              <Label htmlFor="settings-age">Leeftijd</Label>
               <input
                 id="settings-age"
                 className={inputCx}
@@ -1194,7 +1305,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               />
             </Field>
             <Field>
-              <Label htmlFor="settings-weight">Weight kg</Label>
+              <Label htmlFor="settings-weight">Gewicht kg</Label>
               <input
                 id="settings-weight"
                 className={inputCx}
@@ -1205,7 +1316,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               />
             </Field>
             <Field>
-              <Label htmlFor="settings-height">Height cm</Label>
+              <Label htmlFor="settings-height">Lengte cm</Label>
               <input
                 id="settings-height"
                 className={inputCx}
@@ -1218,7 +1329,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
           </div>
 
           <Field>
-            <Label>Cycle length</Label>
+            <Label>Cycluslengte</Label>
             <div className="flex items-center gap-4 mt-1">
               <button
                 type="button"
@@ -1231,7 +1342,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
                 <span className="font-display text-[36px] text-ink-700 leading-none">
                   {form.cycleLength}
                 </span>
-                <span className="text-sm text-ink-400 ml-1.5">days</span>
+                <span className="text-sm text-ink-400 ml-1.5">dagen</span>
               </div>
               <button
                 type="button"
@@ -1244,7 +1355,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
           </Field>
 
           <Field>
-            <Label>How active are you?</Label>
+            <Label>Activiteitsniveau</Label>
             <div className="grid grid-cols-1 gap-2 mt-1">
               {ACTIVITY_LEVELS.map((lvl) => {
                 const active = form.activityLevel === lvl.id;
@@ -1269,6 +1380,65 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         </div>
       </Card>
 
+      {/* Dagelijkse doelen */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Dagelijkse doelen</div>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { key: 'calories',  label: 'Calorieën',  unit: 'kcal', placeholder: '1800' },
+            { key: 'protein',   label: 'Eiwitdoel',   unit: 'g',    placeholder: '100' },
+            { key: 'hydration', label: 'Waterdoel',   unit: 'ml',   placeholder: '2000' },
+            { key: 'movement',  label: 'Bewegingsdoel', unit: 'min', placeholder: '30' },
+            { key: 'sleep',     label: 'Slaapdoel',   unit: 'uur',  placeholder: '8' },
+          ].map(({ key, label, unit, placeholder }) => (
+            <Field key={key}>
+              <Label>{label}</Label>
+              <div className="relative">
+                <input
+                  className={inputCx + ' pr-10'}
+                  type="number"
+                  min="0"
+                  value={goals[key]}
+                  onChange={(e) => setG(key, e.target.value)}
+                  placeholder={placeholder}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-400">{unit}</span>
+              </div>
+            </Field>
+          ))}
+        </div>
+        <p className="text-[11px] text-ink-400 mt-3">Laat leeg om automatische doelen te gebruiken.</p>
+      </Card>
+
+      {/* Herinneringen */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Herinneringen</div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-sm font-medium text-ink-700">Dagelijkse herinnering</div>
+            <div className="text-xs text-ink-400 mt-0.5">Push-notificatie om te loggen</div>
+          </div>
+          <button
+            type="button"
+            onClick={handleNotifToggle}
+            className={`relative w-12 h-6 rounded-full transition ${notifEnabled ? 'bg-sage-500' : 'bg-cream-300'}`}
+          >
+            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${notifEnabled ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+        {notifEnabled && (
+          <Field>
+            <Label>Tijdstip</Label>
+            <input
+              type="time"
+              className={inputCx}
+              value={notifTime}
+              onChange={(e) => setNotifTime(e.target.value)}
+            />
+          </Field>
+        )}
+      </Card>
+
       {/* Save */}
       <button
         type="button"
@@ -1280,14 +1450,39 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
                         : 'bg-sage-500 text-cream-50 hover:bg-sage-600'
                     }`}
       >
-        {saved ? <><Check className="w-4 h-4" /> Saved!</> : 'Save changes'}
+        {saved ? <><Check className="w-4 h-4" /> Opgeslagen!</> : 'Wijzigingen opslaan'}
       </button>
+
+      {/* Export */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Exporteren</div>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => exportCSV(profile)}
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                       text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            <Download className="w-4 h-4" />
+            CSV exporteren (90 dagen)
+          </button>
+          <button
+            type="button"
+            onClick={() => exportAppleHealth(profile)}
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                       text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            <Download className="w-4 h-4" />
+            Exporteren naar Apple Health (XML)
+          </button>
+        </div>
+      </Card>
 
       {/* Danger zone */}
       <Card className="p-6 anim-fade-up">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Danger zone</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Gevarenzone</div>
         <p className="text-sm text-ink-500 mb-4 leading-relaxed">
-          Reset your profile and start fresh. Your daily logs are kept.
+          Profiel resetten en opnieuw beginnen. Dagelijkse logs blijven bewaard.
         </p>
         <button
           type="button"
@@ -1296,11 +1491,11 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
                      text-terracotta-600 py-3 text-sm font-medium
                      hover:bg-terracotta-100 active:scale-[0.98] transition"
         >
-          Reset profile
+          Profiel resetten
         </button>
       </Card>
 
-      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v0.9</div>
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.1</div>
     </div>
   );
 }
@@ -1431,10 +1626,13 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       {/* Header */}
       <header className="flex items-center justify-between mb-7 anim-fade-up">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">
-            Good day{displayName ? `, ${displayName}` : ''}
+          <div className="flex items-center gap-2">
+            <Flower2 className="w-5 h-5 text-sage-500" />
+            <h1 className="font-display text-[26px] leading-tight text-ink-700">Aura</h1>
           </div>
-          <h1 className="font-display text-[30px] leading-tight text-ink-700">Your Aura</h1>
+          {displayName && (
+            <div className="text-sm text-ink-500 mt-0.5">Hoi {displayName} 👋</div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {streak > 0 && (
@@ -1479,6 +1677,9 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
           <PhaseTimeline state={state} />
         </div>
       </Card>
+
+      {/* Goal progress rings */}
+      <GoalRings log={log} goals={profile.goals} targets={targets} />
 
       {/* Symptom tracker */}
       <SymptomTracker log={log} onUpdate={updateLog} />
@@ -1532,6 +1733,9 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
           <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
         </div>
       </Card>
+
+      {/* Tip van de dag */}
+      <TipVanDeDag phase={state.phase} log={log} goals={profile.goals} targets={targets} name={profile.name} />
 
       {/* Weekly nourishment history */}
       <WeeklyHistoryStrip profile={profile} todayLog={log} />
@@ -1593,9 +1797,11 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
 function BottomNav({ active, onSelect }) {
   const tabs = [
-    { id: 'home',     label: 'Vandaag',   icon: Flower2   },
-    { id: 'logboek',  label: 'Logboek',   icon: BookOpen  },
-    { id: 'stats',    label: 'Inzichten', icon: BarChart2 },
+    { id: 'home',      label: 'Vandaag',     icon: Flower2   },
+    { id: 'voeding',   label: 'Voeding',     icon: Salad     },
+    { id: 'logboek',   label: 'Logboek',     icon: BookOpen  },
+    { id: 'stats',     label: 'Inzichten',   icon: BarChart2 },
+    { id: 'settings',  label: 'Stel in',   icon: Settings  },
   ];
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex">
@@ -1802,7 +2008,7 @@ function LogboekView({ profile, onGoHome }) {
 
 const SYMPTOM_LABELS = { energy: 'Energy', mood: 'Mood', cramps: 'Cramps', bloating: 'Bloating' };
 
-function InsightsView({ profile }) {
+function InsightsView({ profile, onOpenCharts }) {
   const today = useMemo(() => new Date(), []);
 
   const { avgCycle, topByPhase, streakRecord, cycleHistory } = useMemo(() => {
@@ -1951,9 +2157,433 @@ function InsightsView({ profile }) {
         )}
       </Card>
 
+      {/* Open all charts */}
+      <button
+        type="button"
+        onClick={onOpenCharts}
+        className="w-full flex items-center justify-between px-5 py-4 rounded-xl bg-cream-100 border border-cream-200 hover:border-sage-200 transition mb-5 anim-fade-up"
+      >
+        <div className="text-sm font-medium text-ink-700">Alle grafieken</div>
+        <ArrowRight className="w-4 h-4 text-ink-400" />
+      </button>
+
       <div className="text-center text-[11px] text-ink-400 mt-4 mb-2">
-        Based on your last 90 days of logged data.
+        Gebaseerd op de laatste 90 dagen.
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Goal progress rings (feature 2)                                   */
+/* ------------------------------------------------------------------ */
+
+function GoalRing({ value, target, label, unit, color }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setMounted(true), 150); return () => clearTimeout(id); }, []);
+
+  const r = 26;
+  const c = 2 * Math.PI * r;
+  const ratio = target > 0 ? Math.min(1, value / target) : 0;
+  const displayRatio = mounted ? ratio : 0;
+  const pctVal = Math.round(ratio * 100);
+  const strokeColor = ratio >= 1 ? '#87A074' : ratio >= 0.5 ? '#C78264' : '#C78264';
+  const opacity = ratio >= 1 ? 1 : ratio >= 0.5 ? 0.75 : 0.5;
+
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative w-16 h-16 flex items-center justify-center">
+        <svg width="64" height="64" viewBox="0 0 64 64" className="-rotate-90 absolute inset-0">
+          <circle cx="32" cy="32" r={r} stroke="#EDE6D3" strokeWidth="5" fill="none" />
+          <circle cx="32" cy="32" r={r} stroke={strokeColor} strokeWidth="5" fill="none"
+            strokeLinecap="round" strokeOpacity={opacity}
+            strokeDasharray={c}
+            strokeDashoffset={c * (1 - displayRatio)}
+            style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22,1,0.36,1)' }} />
+        </svg>
+        <span className="text-[11px] font-medium text-ink-700 relative z-10">{pctVal}%</span>
+      </div>
+      <div className="text-center">
+        <div className="text-[10px] uppercase tracking-wider text-ink-400">{label}</div>
+        <div className="text-[10px] text-ink-500">{value}/{target}{unit}</div>
+      </div>
+    </div>
+  );
+}
+
+function GoalRings({ log, goals, targets }) {
+  const g = goals || {};
+  const proteinTarget  = g.protein   || targets.protein;
+  const hydrationTarget = g.hydration || (targets.hydrationL * 4 * 250);
+  const movementTarget = g.movement  || 30;
+  const sleepTarget    = g.sleep     || 8;
+
+  return (
+    <Card className="p-5 mb-5 anim-fade-up">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Dagelijkse doelen</div>
+      <div className="grid grid-cols-4 gap-2">
+        <GoalRing value={log.calories}          target={g.calories  || targets.calories} label="Kcal"    unit="" />
+        <GoalRing value={log.protein}           target={proteinTarget}                   label="Eiwit"   unit="g" />
+        <GoalRing value={log.hydration * 250}   target={hydrationTarget}                label="Water"   unit="ml" />
+        <GoalRing value={log.movement}          target={movementTarget}                  label="Beweging" unit="m" />
+      </div>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Smart tip of the day (feature 6)                                  */
+/* ------------------------------------------------------------------ */
+
+const TIPS = {
+  menstrual: [
+    (name) => `${name ? `${name}, i` : 'I'}n de menstruatiefase heeft je lichaam extra ijzer nodig — probeer vandaag spinazie of linzen.`,
+    () => 'Warmte helpt bij krampen — een kruik of warme thee kan echt verschil maken.',
+    () => 'Geef jezelf toestemming om het rustiger aan te doen — je lichaam werkt hard.',
+  ],
+  follicular: [
+    (name) => `In de folliculaire fase heb je ${name ? name : 'jij'} van nature meer energie — ideaal moment voor nieuwe gewoonten.`,
+    () => 'Lichte salades en zuurkool passen goed bij de stijgende oestrogeenspiegel.',
+    () => 'Je creatieve energie piek zit nu — plan iets nieuws of uitdagends.',
+  ],
+  ovulatory: [
+    (name) => `${name ? `${name}, j` : 'J'}e zit op je energiepiek — benut het!`,
+    () => 'Broccoli en bloemkool ondersteunen je lever bij het verwerken van hoge oestrogeenspiegels.',
+    () => 'Vezels helpen nu extra — denk aan lijnzaad of quinoa bij je lunch.',
+  ],
+  luteal: [
+    (name) => `${name ? `${name}, j` : 'J'}e lichaam verbrandt nu meer calorieën — extra eten is oké en zelfs goed.`,
+    () => 'Magnesium (pure chocolade, pompoenpitten) vermindert PMS-symptomen.',
+    () => 'Complexe koolhydraten stabiliseren je bloedsuiker en humeur in deze fase.',
+  ],
+};
+
+function TipVanDeDag({ phase, log, goals, targets, name }) {
+  const tips = TIPS[phase] || TIPS.follicular;
+  const dayOfWeek = new Date().getDay();
+  const tipFn = tips[dayOfWeek % tips.length];
+
+  const displayName = name ? name.split(' ')[0] : '';
+  let tip = tipFn(displayName);
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yLog = useMemo(() => loadLog(yesterday), []); // eslint-disable-line
+  const proteinTarget = goals?.protein || targets.protein;
+  const hydrationTarget = goals?.hydration || (targets.hydrationL * 4 * 250);
+
+  if (yLog.protein > 0 && yLog.protein < proteinTarget * 0.7) {
+    tip = `Je haalde gisteren minder eiwit${displayName ? `, ${displayName}` : ''} — probeer vandaag ${proteinTarget}g te bereiken 💪`;
+  } else if (yLog.hydration > 0 && yLog.hydration * 250 < hydrationTarget * 0.7) {
+    const litres = (hydrationTarget / 1000).toFixed(1);
+    tip = `Je dronk gisteren gemiddeld ${(yLog.hydration * 0.25).toFixed(1)}L — probeer vandaag ${litres}L te halen 💧`;
+  }
+
+  return (
+    <Card className="p-5 mb-5 anim-fade-up">
+      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">
+        <Sparkles className="w-3.5 h-3.5" />
+        Tip van de dag
+      </div>
+      <p className="text-sm text-ink-600 leading-relaxed">{tip}</p>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Phase recipes (feature 5)                                         */
+/* ------------------------------------------------------------------ */
+
+const PHASE_RECIPES = {
+  menstrual: [
+    { emoji: '🍲', name: 'Linzensoep', desc: 'Verwarmend en ijzerrijk', time: '30 min',
+      ingredients: ['Rode linzen', 'Wortel', 'Ui', 'Knoflook', 'Kurkuma', 'Groentebouillon'],
+      steps: ['Ui en knoflook fruiten, wortel en linzen toevoegen met bouillon.', 'Zacht koken 20 min, blenderen en op smaak brengen met kurkuma en zout.'] },
+    { emoji: '🥣', name: 'Rode bietenstoofpot', desc: 'Aardend en vol antioxidanten', time: '45 min',
+      ingredients: ['Rode bieten', 'Kikkererwten', 'Tomaten', 'Ui', 'Kaneel', 'Olijfolie'],
+      steps: ['Bieten en ui 10 min bakken in olie, dan tomaten en kikkererwten erbij.', 'Sudderen tot bieten zacht zijn, afsluiten met kaneel en verse kruiden.'] },
+    { emoji: '🍵', name: 'Gemberrijst met tofu', desc: 'Milde kruiden, verterend', time: '25 min',
+      ingredients: ['Zilvervliesrijst', 'Tofu', 'Verse gember', 'Sojasaus', 'Sesam', 'Lente-ui'],
+      steps: ['Tofu goudbruin bakken met gember en sojasaus.', 'Serveren over rijst met sesam en lente-ui.'] },
+  ],
+  follicular: [
+    { emoji: '🥗', name: 'Spinaziesalade', desc: 'Licht, fris en vol ijzer', time: '10 min',
+      ingredients: ['Spinazie', 'Avocado', 'Granaatappelzaad', 'Pompoenpitten', 'Citroendressing', 'Fetakaas'],
+      steps: ['Spinazie en avocado mengen, granaatappelzaad en pompoenpitten toevoegen.', 'Besprenkelen met citroendressing en feta.'] },
+    { emoji: '🥤', name: 'Groene smoothiebowl', desc: 'Energiek en voedingsrijk', time: '10 min',
+      ingredients: ['Bevroren banaan', 'Spinazie', 'Mango', 'Kokosmelk', 'Chiazaad', 'Granola'],
+      steps: ['Banaan, spinazie, mango en kokosmelk blenden tot glad.', 'Gieten in kom, bestrooien met chiazaad en granola.'] },
+    { emoji: '🌮', name: 'Kip-avocadowrap', desc: 'Eiwitrijk en verzadigend', time: '15 min',
+      ingredients: ['Kipstoofvlees', 'Avocado', 'Volkoren tortilla', 'Rucola', 'Limoen', 'Koriander'],
+      steps: ['Kip met limoen en koriander op smaak brengen.', 'Serveren in tortilla met avocado en rucola.'] },
+  ],
+  ovulatory: [
+    { emoji: '🥦', name: 'Broccolisalade met zalm', desc: 'Antiontsteking en eiwitrijk', time: '20 min',
+      ingredients: ['Broccoli', 'Zalm', 'Walnoten', 'Citroen', 'Olijfolie', 'Knoflook'],
+      steps: ['Broccoli 5 min stomen, zalm 10 min in de oven op 200°C.', 'Mengen met walnoten, citroen en olijfolie.'] },
+    { emoji: '🫙', name: 'Hummus met rauwkost', desc: 'Rauwe groenten, vol vezels', time: '5 min',
+      ingredients: ['Kikkererwten hummus', 'Wortel', 'Komkommer', 'Paprika', 'Selderij', 'Olijven'],
+      steps: ['Groenten in sticks snijden.', 'Serveren met hummus en olijven.'] },
+    { emoji: '🍳', name: 'Eiwitrijke omelet', desc: 'Sterk, simpel en snel', time: '10 min',
+      ingredients: ['3 eieren', 'Paprika', 'Champignons', 'Spinazie', 'Feta', 'Kruiden'],
+      steps: ['Groenten kort aanfruiten, dan eieren erover gieten.', 'Bedekken met feta en kruiden, vouwen en serveren.'] },
+  ],
+  luteal: [
+    { emoji: '🍠', name: 'Zoete aardappelcurry', desc: 'Complexe koolhydraten, troostend', time: '35 min',
+      ingredients: ['Zoete aardappel', 'Kikkererwten', 'Kokosmelk', 'Currypasta', 'Spinazie', 'Rijst'],
+      steps: ['Zoete aardappel en kikkererwten 5 min bakken met currypasta.', 'Kokosmelk toevoegen, 20 min sudderen, spinazie erbij en serveren met rijst.'] },
+    { emoji: '🍫', name: 'Haver-choco-bites', desc: 'Magnesiumrijke snack', time: '15 min',
+      ingredients: ['Havervlokken', 'Pindakaas', 'Pure chocolade 85%', 'Honing', 'Pompoenpitten', 'Zeezout'],
+      steps: ['Alles mengen, kleine balletjes rollen en 10 min in de koelkast leggen.', 'Optioneel bedekken met gesmolten chocolade.'] },
+    { emoji: '🌰', name: 'Pompoenrisotto', desc: 'Verwarmend en voedzaam', time: '40 min',
+      ingredients: ['Risottorijst', 'Pompoen', 'Parmezaan', 'Ui', 'Witte wijn', 'Bouillon'],
+      steps: ['Ui glazig fruiten, rijst toevoegen, dan wijn en bouillon schep voor schep.', 'Pompoen roerbakken en erdoor mengen met parmezaan.'] },
+  ],
+};
+
+function PhaseRecipes({ phase }) {
+  const [expanded, setExpanded] = useState(null);
+  const recipes = PHASE_RECIPES[phase] || PHASE_RECIPES.follicular;
+  const phaseLabels = { menstrual: 'Menstruatie', follicular: 'Folliculair', ovulatory: 'Ovulatie', luteal: 'Luteaal' };
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">
+        Recepten voor jouw fase · {phaseLabels[phase]}
+      </div>
+      <div className="space-y-3">
+        {recipes.map((recipe, i) => {
+          const open = expanded === i;
+          return (
+            <div key={i}>
+              <button
+                type="button"
+                onClick={() => setExpanded(open ? null : i)}
+                className={`w-full text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] ${
+                  open ? 'bg-sage-50 border-sage-200' : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{recipe.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-ink-700">{recipe.name}</div>
+                    <div className="text-xs text-ink-400 mt-0.5">{recipe.desc}</div>
+                  </div>
+                  <div className="text-[10px] text-ink-400 shrink-0">{recipe.time}</div>
+                </div>
+              </button>
+              {open && (
+                <div className="mt-1 px-4 py-4 rounded-xl bg-cream-100/60 border border-cream-200">
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2">Ingrediënten</div>
+                  <ul className="space-y-1 mb-4">
+                    {recipe.ingredients.map((ing) => (
+                      <li key={ing} className="flex items-center gap-2 text-xs text-ink-600">
+                        <span className="w-1 h-1 rounded-full bg-sage-400 shrink-0" />
+                        {ing}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2">Bereiding</div>
+                  {recipe.steps.map((step, si) => (
+                    <div key={si} className="flex gap-2 text-xs text-ink-600 mb-1.5">
+                      <span className="text-sage-500 font-medium shrink-0">{si + 1}.</span>
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Extended charts (feature 4)                                        */
+/* ------------------------------------------------------------------ */
+
+function ExtendedCharts({ profile }) {
+  const [days, setDays] = useState(30);
+  const today = useMemo(() => new Date(), []);
+
+  const data = useMemo(() => {
+    const out = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const log = loadLog(d);
+      const state = getCycleState(profile, d);
+      out.push({ date: d, log, phase: state.phase, label: d.getDate() });
+    }
+    return out;
+  }, [profile, days, today]);
+
+  const avgCal = (phase) => {
+    const rows = data.filter(d => d.phase === phase && d.log.calories > 0);
+    if (!rows.length) return 0;
+    return rows.reduce((s, d) => s + d.log.calories, 0) / rows.length;
+  };
+  const lutealAvg = avgCal('luteal');
+  const follicularAvg = avgCal('follicular');
+  const showCorrelation = lutealAvg > 0 && follicularAvg > 0 && lutealAvg > follicularAvg * 1.1;
+
+  const maxCal  = Math.max(...data.map(d => d.log.calories),  1);
+  const maxProt = Math.max(...data.map(d => d.log.protein),   1);
+  const maxSlp  = Math.max(...data.map(d => d.log.sleep),     1);
+
+  const W = 320;
+  const chartH = 80;
+  const barW = Math.max(2, Math.floor((W - 8) / data.length) - 1);
+
+  const phaseColor = { menstrual: '#C78264', follicular: '#87A074', ovulatory: '#6B8559', luteal: '#B06849' };
+
+  const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  data.forEach(d => { if (d.log.symptoms?.mood > 0) moodCounts[d.log.symptoms.mood]++; });
+  const maxMood = Math.max(...Object.values(moodCounts), 1);
+
+  return (
+    <div className="space-y-5">
+      {/* Day toggle */}
+      <div className="flex gap-2">
+        {[30, 90].map(n => (
+          <button key={n} type="button" onClick={() => setDays(n)}
+            className={`px-4 py-2 rounded-full text-sm transition ${days === n ? 'bg-sage-500 text-cream-50' : 'bg-cream-100 border border-cream-200 text-ink-600 hover:border-sage-200'}`}>
+            {n} dagen
+          </button>
+        ))}
+      </div>
+
+      {showCorrelation && (
+        <div className="px-4 py-3 rounded-xl bg-sage-50 border border-sage-200 text-sm text-sage-700">
+          🧠 Je eet meer in de Luteaal fase — normaal!
+        </div>
+      )}
+
+      {/* Calorie line chart */}
+      <Card className="p-5">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-3">Calorieën</div>
+        <svg width="100%" viewBox={`0 0 ${W} ${chartH}`} preserveAspectRatio="none">
+          {data.map((d, i) => {
+            const x = 4 + i * ((W - 8) / (data.length - 1 || 1));
+            const y = chartH - (d.log.calories / maxCal) * (chartH - 4) - 2;
+            return i === 0 ? null : (
+              <line key={i}
+                x1={4 + (i-1) * ((W-8)/(data.length-1||1))}
+                y1={chartH - (data[i-1].log.calories/maxCal)*(chartH-4)-2}
+                x2={x} y2={y}
+                stroke={phaseColor[d.phase]} strokeWidth="1.5" strokeLinecap="round" opacity="0.8" />
+            );
+          })}
+        </svg>
+      </Card>
+
+      {/* Protein bar chart */}
+      <Card className="p-5">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-3">Eiwit (g)</div>
+        <svg width="100%" viewBox={`0 0 ${W} ${chartH}`} preserveAspectRatio="none">
+          {data.map((d, i) => {
+            const h = (d.log.protein / maxProt) * (chartH - 4);
+            const x = 4 + i * (barW + 1);
+            return <rect key={i} x={x} y={chartH - h - 2} width={barW} height={Math.max(1, h)}
+              fill={phaseColor[d.phase]} opacity="0.7" rx="1" />;
+          })}
+        </svg>
+      </Card>
+
+      {/* Sleep area chart */}
+      <Card className="p-5">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-3">Slaap (uur)</div>
+        <svg width="100%" viewBox={`0 0 ${W} ${chartH}`} preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="sleep-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#87A074" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#87A074" stopOpacity="0.05" />
+            </linearGradient>
+          </defs>
+          {data.length > 1 && (() => {
+            const pts = data.map((d, i) => {
+              const x = 4 + i * ((W-8)/(data.length-1));
+              const y = chartH - (d.log.sleep / maxSlp) * (chartH-4) - 2;
+              return `${x},${y}`;
+            });
+            const areaBottom = data.map((d, i) => {
+              const x = 4 + i * ((W-8)/(data.length-1));
+              return `${x},${chartH-2}`;
+            }).reverse();
+            return <>
+              <polyline points={pts.join(' ')} fill="none" stroke="#87A074" strokeWidth="1.5" opacity="0.9" />
+              <polygon points={`${pts.join(' ')} ${areaBottom.join(' ')}`} fill="url(#sleep-grad)" />
+            </>;
+          })()}
+        </svg>
+      </Card>
+
+      {/* Mood frequency bar chart */}
+      <Card className="p-5">
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-3">Stemming frequentie</div>
+        <div className="flex items-end gap-2 h-16">
+          {[1,2,3,4,5].map(n => {
+            const emojis = ['😢','😔','😐','🙂','😄'];
+            const h = moodCounts[n] > 0 ? Math.max(8, (moodCounts[n] / maxMood) * 56) : 4;
+            return (
+              <div key={n} className="flex-1 flex flex-col items-center gap-1">
+                <div className="text-[10px] text-ink-400">{moodCounts[n]}</div>
+                <div className="w-full rounded-t-lg bg-sage-200" style={{ height: h }} />
+                <div className="text-base">{emojis[n-1]}</div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Voeding tab (stub — filled in by feature 5)                       */
+/* ------------------------------------------------------------------ */
+
+function VoedingView({ profile }) {
+  const state = useMemo(() => getCycleState(profile), [profile]);
+  const targets = useMemo(() => getDailyTargets(profile, state.phase), [profile, state.phase]);
+  return (
+    <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
+      <header className="mb-7 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Jouw fase</div>
+        <h1 className="font-display text-[30px] leading-tight text-ink-700">Voeding</h1>
+      </header>
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Nutriëntenfocus</div>
+        <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
+        <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
+        <div className="flex flex-wrap gap-2">
+          {targets.focus.foods.map((f) => (
+            <span key={f} className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200 text-ink-600">{f}</span>
+          ))}
+        </div>
+      </Card>
+      <PhaseRecipes phase={state.phase} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  All charts view (stub — filled in by feature 4)                   */
+/* ------------------------------------------------------------------ */
+
+function AllChartsView({ profile, onBack }) {
+  return (
+    <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
+      <header className="flex items-center gap-3 mb-7 anim-fade-up">
+        <button type="button" onClick={onBack}
+          className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <h1 className="font-display text-[28px] leading-tight text-ink-700">Alle grafieken</h1>
+      </header>
+      <ExtendedCharts profile={profile} />
     </div>
   );
 }
@@ -1964,8 +2594,7 @@ function InsightsView({ profile }) {
 
 function App() {
   const [profile, setProfile] = useState(() => loadProfile());
-  const [tab, setTab]   = useState('home');   // 'home' | 'logboek' | 'stats'
-  const [view, setView] = useState('main');   // 'main' | 'settings'
+  const [tab, setTab] = useState('home');
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -1984,43 +2613,41 @@ function App() {
   };
 
   const handleReset = () => {
-    if (confirm('Reset your Aura profile? Your daily logs will be kept.')) {
+    if (confirm('Aura profiel resetten? Je dagelijkse logs blijven bewaard.')) {
       clearProfile();
       setProfile(null);
-      setView('main');
       setTab('home');
     }
   };
 
-  if (view === 'settings') {
-    return (
-      <SettingsScreen
-        profile={profile}
-        onSave={updateProfile}
-        onBack={() => setView('main')}
-        onReset={handleReset}
-      />
-    );
-  }
-
   return (
     <>
-      {/* Tab content — key on tab triggers fade-in on switch */}
       <div key={tab} className="anim-tab-in">
         {tab === 'home' && (
           <Dashboard
             profile={profile}
             onUpdateProfile={updateProfile}
-            onOpenSettings={() => setView('settings')}
+            onOpenSettings={() => setTab('settings')}
           />
         )}
+        {tab === 'voeding' && <VoedingView profile={profile} />}
         {tab === 'logboek' && (
           <LogboekView profile={profile} onGoHome={() => setTab('home')} />
         )}
-        {tab === 'stats' && <InsightsView profile={profile} />}
+        {tab === 'stats' && <InsightsView profile={profile} onOpenCharts={() => setTab('charts')} />}
+        {tab === 'charts' && <AllChartsView profile={profile} onBack={() => setTab('stats')} />}
+        {tab === 'settings' && (
+          <SettingsScreen
+            profile={profile}
+            onSave={updateProfile}
+            onBack={() => setTab('home')}
+            onReset={handleReset}
+          />
+        )}
       </div>
       <BottomNav active={tab} onSelect={setTab} />
       <PWAInstallBanner />
+      <ReminderBanner profile={profile} />
     </>
   );
 }
