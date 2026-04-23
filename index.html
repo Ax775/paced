@@ -22,6 +22,7 @@
   <script>
     // Quiet Luxury palette — sage, cream, muted terracotta
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           fontFamily: {
@@ -146,6 +147,51 @@
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-thumb { background: #E2D8BE; border-radius: 999px; }
     ::-webkit-scrollbar-track { background: transparent; }
+
+    /* ─── Dark mode ─────────────────────────────────────────── */
+    :root {
+      --aura-bg-card: rgba(251,249,243,0.8);
+      --aura-border-card: rgba(237,230,211,0.6);
+    }
+    html.dark {
+      color-scheme: dark;
+      --aura-bg-card: rgba(45,32,64,0.85);
+      --aura-border-card: rgba(80,60,100,0.35);
+    }
+    html.dark body {
+      background:
+        radial-gradient(1200px 600px at 85% -10%, rgba(90,40,120,0.18) 0%, transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, rgba(30,60,90,0.12) 0%, transparent 55%),
+        #1a1025;
+      color: #EDE6D3;
+    }
+    html.dark .text-ink-700 { color: #EDE6D3 !important; }
+    html.dark .text-ink-600 { color: #D4C8B0 !important; }
+    html.dark .text-ink-500 { color: #B8A98A !important; }
+    html.dark .text-ink-400 { color: #9A8E78 !important; }
+    html.dark .bg-cream-50  { background-color: #2d2040 !important; }
+    html.dark .bg-cream-100 { background-color: #3a2a50 !important; }
+    html.dark .bg-cream-200 { background-color: #4a3a60 !important; }
+    html.dark .bg-cream-50\/80  { background-color: rgba(45,32,64,0.85) !important; }
+    html.dark .bg-cream-50\/95  { background-color: rgba(26,16,37,0.96) !important; }
+    html.dark .bg-cream-200\/60 { background-color: rgba(74,58,96,0.35) !important; }
+    html.dark .bg-cream-200\/80 { background-color: rgba(74,58,96,0.55) !important; }
+    html.dark .border-cream-200      { border-color: rgba(80,60,100,0.45) !important; }
+    html.dark .border-cream-200\/60  { border-color: rgba(80,60,100,0.3)  !important; }
+    html.dark .border-t              { border-top-color: rgba(80,60,100,0.35) !important; }
+    html.dark .bg-sage-50  { background-color: rgba(107,133,89,0.12) !important; }
+    html.dark .bg-sage-100 { background-color: rgba(107,133,89,0.2)  !important; }
+    html.dark .bg-terracotta-100      { background-color: rgba(199,130,100,0.15) !important; }
+    html.dark .bg-terracotta-100\/50  { background-color: rgba(199,130,100,0.1)  !important; }
+    html.dark input:not([type="file"]), html.dark textarea {
+      background-color: #3a2a50 !important;
+      border-color: rgba(80,60,100,0.5) !important;
+      color: #EDE6D3 !important;
+    }
+    html.dark input::placeholder, html.dark textarea::placeholder {
+      color: rgba(237,230,211,0.35) !important;
+    }
+    html.dark ::-webkit-scrollbar-thumb { background: #4a3a60; }
 
     /* Form resets that respect the palette */
     input, select, button, textarea { font-family: inherit; color: inherit; }

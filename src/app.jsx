@@ -10,7 +10,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen, Activity,
-  BarChart2, Download, X, TrendingUp,
+  BarChart2, Download, X, TrendingUp, Upload,
 } from 'lucide-react';
 
 import {
@@ -31,8 +31,8 @@ import {
 
 const Card = ({ className = '', style, children }) => (
   <div
-    className={`rounded-xl3 bg-cream-50/80 backdrop-blur-sm shadow-soft border border-cream-200/60 ${className}`}
-    style={style}
+    className={`rounded-xl3 backdrop-blur-sm shadow-soft border border-cream-200/60 ${className}`}
+    style={{ background: 'var(--aura-bg-card)', borderColor: 'var(--aura-border-card)', ...style }}
   >
     {children}
   </div>
@@ -141,6 +141,56 @@ function exportCSV(profile) {
   a.download = 'aura-log.csv';
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Settings persistence                                               */
+/* ------------------------------------------------------------------ */
+
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem('aura.settings') || '{}'); } catch { return {}; }
+}
+
+function persistSettings(s) {
+  try { localStorage.setItem('aura.settings', JSON.stringify(s)); } catch { /* no-op */ }
+}
+
+/* ------------------------------------------------------------------ */
+/*  JSON export / import                                               */
+/* ------------------------------------------------------------------ */
+
+function exportJSON() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('aura.')) {
+      try { data[key] = JSON.parse(localStorage.getItem(key)); } catch { data[key] = null; }
+    }
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'aura-backup.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function validateImportData(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  return Object.keys(data).some(k => k === 'aura.profile' || k.startsWith('aura.log.'));
+}
+
+function applyImport(data, mode) {
+  if (mode === 'replace') {
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('aura.')) toRemove.push(k);
+    }
+    toRemove.forEach(k => localStorage.removeItem(k));
+  }
+  for (const [key, value] of Object.entries(data)) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* no-op */ }
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -829,6 +879,71 @@ function PWAInstallBanner() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Toast notification                                                 */
+/* ------------------------------------------------------------------ */
+
+function Toast({ message, type = 'success', onDismiss }) {
+  useEffect(() => {
+    const id = setTimeout(onDismiss, 3200);
+    return () => clearTimeout(id);
+  }, [onDismiss]);
+
+  return (
+    <div className="fixed top-4 left-0 right-0 z-[110] flex justify-center px-4 anim-slide-up pointer-events-none">
+      <div
+        className={`px-4 py-3 rounded-xl shadow-glow flex items-center gap-2 text-sm pointer-events-auto ${
+          type === 'error'
+            ? 'bg-terracotta-100 text-terracotta-600 border border-terracotta-200'
+            : 'bg-sage-100 text-sage-700 border border-sage-200'
+        }`}
+      >
+        {type === 'error' ? <X className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
+        {message}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Confirm modal                                                       */
+/* ------------------------------------------------------------------ */
+
+function ConfirmModal({ title, message, options, onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-8"
+      style={{ background: 'rgba(42,40,35,0.45)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl shadow-glow p-6 anim-slide-up"
+        style={{ background: 'var(--aura-bg-card)', borderColor: 'var(--aura-border-card)', border: '1px solid' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-base font-medium text-ink-700 mb-2">{title}</div>
+        <p className="text-sm text-ink-500 mb-6 leading-relaxed">{message}</p>
+        <div className="flex gap-3">
+          {options.map(({ label, onClick, primary }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={onClick}
+              className={`flex-1 py-3 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                primary
+                  ? 'bg-sage-500 text-cream-50 hover:bg-sage-600'
+                  : 'bg-cream-100 border border-cream-200 text-ink-600 hover:bg-cream-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Onboarding — 3-step conversational flow                            */
 /* ------------------------------------------------------------------ */
 
@@ -1119,7 +1234,7 @@ function Onboarding({ onComplete }) {
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
-function SettingsScreen({ profile, onSave, onReset, onBack }) {
+function SettingsScreen({ profile, onSave, onReset, onBack, darkMode, onDarkModeChange, onExportJSON, onImportRequest }) {
   const [form, setForm] = useState({
     name:          profile.name          || '',
     age:           profile.age           || '',
@@ -1130,6 +1245,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
   });
   const [saved, setSaved] = useState(false);
   const timerRef = useRef(null);
+  const fileRef  = useRef(null);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
@@ -1165,6 +1281,40 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         </button>
         <h1 className="font-display text-[28px] text-ink-700 leading-tight">Settings</h1>
       </header>
+
+      {/* Appearance */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Weergave</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium text-ink-600">Donkere modus</div>
+            <div className="text-xs text-ink-400 mt-0.5">
+              {darkMode === null ? 'Automatisch (systeem)' : darkMode ? 'Aan' : 'Uit'}
+            </div>
+          </div>
+          <div className="flex bg-cream-100 rounded-lg p-0.5 gap-0.5 border border-cream-200">
+            {[
+              { val: null, emoji: '✨', label: 'Auto' },
+              { val: false, emoji: '☀️', label: 'Licht' },
+              { val: true,  emoji: '🌙', label: 'Donker' },
+            ].map(({ val, emoji, label }) => (
+              <button
+                key={String(val)}
+                type="button"
+                aria-label={label}
+                onClick={() => onDarkModeChange(val)}
+                className={`px-3 py-1.5 rounded-md text-sm transition ${
+                  darkMode === val
+                    ? 'bg-cream-50 text-ink-700 shadow-soft'
+                    : 'text-ink-400 hover:text-ink-600'
+                }`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Card>
 
       {/* Profile fields */}
       <Card className="p-6 mb-5 anim-fade-up">
@@ -1283,6 +1433,45 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         {saved ? <><Check className="w-4 h-4" /> Saved!</> : 'Save changes'}
       </button>
 
+      {/* Data backup */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Data</div>
+        <p className="text-sm text-ink-500 mb-4 leading-relaxed">
+          Maak een back-up van al je gegevens of herstel een eerder opgeslagen export.
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onExportJSON}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl
+                       border border-cream-200 bg-cream-50 text-ink-600 text-sm
+                       hover:bg-cream-100 transition active:scale-[0.98]"
+          >
+            <Download className="w-3.5 h-3.5" /> Exporteren
+          </button>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl
+                       border border-cream-200 bg-cream-50 text-ink-600 text-sm
+                       hover:bg-cream-100 transition active:scale-[0.98]"
+          >
+            <Upload className="w-3.5 h-3.5" /> Importeren
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onImportRequest(file);
+              e.target.value = '';
+            }}
+          />
+        </div>
+      </Card>
+
       {/* Danger zone */}
       <Card className="p-6 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Danger zone</div>
@@ -1300,7 +1489,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         </button>
       </Card>
 
-      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v0.9</div>
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.0</div>
     </div>
   );
 }
@@ -1549,19 +1738,44 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
       {/* Nutrient focus */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '280ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Nutrient focus</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Voeding & fase</div>
         <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
         <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
-        <div className="flex flex-wrap gap-2">
-          {targets.focus.foods.map((f) => (
+
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2.5">Eet meer</div>
+        <div className="flex flex-wrap gap-2 mb-5">
+          {(targets.focus.eatItems || []).map(({ emoji, name }) => (
             <span
-              key={f}
-              className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200 text-ink-600"
+              key={name}
+              className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200 text-ink-600 flex items-center gap-1.5"
             >
-              {f}
+              <span>{emoji}</span>{name}
             </span>
           ))}
         </div>
+
+        {(targets.focus.avoidItems?.length > 0) && (
+          <>
+            <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2.5">Verminder</div>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {targets.focus.avoidItems.map((item) => (
+                <span
+                  key={item}
+                  className="text-xs px-3 py-1.5 rounded-full bg-terracotta-100/50 border border-terracotta-200 text-terracotta-600"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+
+        {targets.focus.hydrationTip && (
+          <div className="flex gap-2.5 mt-1 pt-4 border-t border-cream-200/60">
+            <Droplet className="w-3.5 h-3.5 text-sage-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-ink-500 leading-relaxed">{targets.focus.hydrationTip}</p>
+          </div>
+        )}
       </Card>
 
       {/* Journal note */}
@@ -1581,7 +1795,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v0.9
+        Aura · v1.0
       </div>
     </div>
   );
@@ -1797,6 +2011,158 @@ function LogboekView({ profile, onGoHome }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Trend mini-charts                                                  */
+/* ------------------------------------------------------------------ */
+
+function SymptomTrendCard() {
+  const weeks = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 4 }, (_, w) => {
+      let count = 0;
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - (w * 7 + d));
+        if (Object.values(loadLog(date).symptoms || {}).some(v => v > 0)) count++;
+      }
+      return count;
+    }).reverse();
+  }, []);
+
+  if (!weeks.some(Boolean)) return null;
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '160ms' }}>
+      <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">
+        Symptomen per week
+      </div>
+      <div className="flex items-end gap-3">
+        {weeks.map((count, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+            <div className={`text-[11px] ${count > 0 ? 'text-ink-500' : 'text-ink-400/40'}`}>
+              {count > 0 ? `${count}d` : '—'}
+            </div>
+            <div className="w-full bg-cream-200/60 rounded-t-md relative overflow-hidden" style={{ height: 56 }}>
+              <div
+                className="absolute bottom-0 left-0 right-0 rounded-t-md transition-all duration-700"
+                style={{
+                  height: `${(count / 7) * 100}%`,
+                  background: 'linear-gradient(180deg, #A8BA98 0%, #6B8559 100%)',
+                }}
+              />
+            </div>
+            <div className="text-[10px] text-ink-400">{['4w', '3w', '2w', '1w'][i]}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
+        Aantal dagen per week met minstens één symptoom gelogd.
+      </p>
+    </Card>
+  );
+}
+
+const MOOD_ICONS  = ['😢', '😔', '😐', '🙂', '😄'];
+const MOOD_LABELS = ['Somber', 'Neerslachtig', 'Neutraal', 'Goed', 'Geweldig'];
+
+function MoodTrendCard() {
+  const { topMoods, totalLogged } = useMemo(() => {
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let totalLogged = 0;
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const mood = loadLog(d).symptoms?.mood;
+      if (mood > 0) { counts[mood]++; totalLogged++; }
+    }
+    const topMoods = Object.entries(counts)
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+    return { topMoods, totalLogged };
+  }, []);
+
+  if (totalLogged < 3) return null;
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '200ms' }}>
+      <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">
+        Stemming — laatste 30 dagen
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {topMoods.map(([val, count]) => {
+          const idx = Number(val) - 1;
+          return (
+            <div
+              key={val}
+              className="flex items-center gap-2 px-3 py-2 rounded-full bg-cream-100 border border-cream-200"
+            >
+              <span className="text-lg leading-none">{MOOD_ICONS[idx]}</span>
+              <span className="text-xs text-ink-600">{MOOD_LABELS[idx]}</span>
+              <span className="text-[10px] font-medium text-sage-600 bg-sage-50 border border-sage-200 px-1.5 py-0.5 rounded-full">
+                {count}×
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function EnergyTrendCard() {
+  const weeks = useMemo(() => {
+    const today = new Date();
+    return Array.from({ length: 4 }, (_, w) => {
+      const mins = [];
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() - (w * 7 + d));
+        const m = loadLog(date).movement;
+        if (m > 0) mins.push(m);
+      }
+      return mins.length > 0
+        ? Math.round(mins.reduce((a, b) => a + b, 0) / mins.length)
+        : 0;
+    }).reverse();
+  }, []);
+
+  if (!weeks.some(Boolean)) return null;
+
+  const maxVal = Math.max(...weeks, 1);
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '240ms' }}>
+      <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">
+        Gem. beweging per week
+      </div>
+      <div className="flex items-end gap-3">
+        {weeks.map((avg, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+            <div className={`text-[11px] ${avg > 0 ? 'text-ink-500' : 'text-ink-400/40'}`}>
+              {avg > 0 ? `${avg}m` : '—'}
+            </div>
+            <div className="w-full bg-cream-200/60 rounded-t-md relative overflow-hidden" style={{ height: 56 }}>
+              <div
+                className="absolute bottom-0 left-0 right-0 rounded-t-md transition-all duration-700"
+                style={{
+                  height: `${(avg / maxVal) * 100}%`,
+                  background: 'linear-gradient(180deg, #D9A188 0%, #B06849 100%)',
+                }}
+              />
+            </div>
+            <div className="text-[10px] text-ink-400">{['4w', '3w', '2w', '1w'][i]}</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
+        Gemiddelde activiteitstijd op dagen dat je bewogen hebt.
+      </p>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Insights / Statistics tab                                          */
 /* ------------------------------------------------------------------ */
 
@@ -1951,8 +2317,13 @@ function InsightsView({ profile }) {
         )}
       </Card>
 
+      {/* Trend charts */}
+      <SymptomTrendCard />
+      <MoodTrendCard />
+      <EnergyTrendCard />
+
       <div className="text-center text-[11px] text-ink-400 mt-4 mb-2">
-        Based on your last 90 days of logged data.
+        Gebaseerd op je laatste 90 dagen.
       </div>
     </div>
   );
@@ -1964,8 +2335,59 @@ function InsightsView({ profile }) {
 
 function App() {
   const [profile, setProfile] = useState(() => loadProfile());
-  const [tab, setTab]   = useState('home');   // 'home' | 'logboek' | 'stats'
-  const [view, setView] = useState('main');   // 'main' | 'settings'
+  const [tab, setTab]         = useState('home');
+  const [view, setView]       = useState('main');
+
+  // Settings (dark mode etc.)
+  const [settings, setSettings] = useState(() => loadSettings());
+  const darkMode = settings.darkMode ?? null; // null = follow system
+
+  useEffect(() => {
+    const apply = (isDark) => document.documentElement.classList.toggle('dark', isDark);
+    if (darkMode !== null) { apply(darkMode); return; }
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    apply(mq.matches);
+    const handler = (e) => apply(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [darkMode]);
+
+  const handleDarkModeChange = (val) => {
+    const next = { ...settings, darkMode: val };
+    setSettings(next);
+    persistSettings(next);
+  };
+
+  // Toast
+  const [toast, setToast] = useState(null); // { message, type }
+  const showToast = (message, type = 'success') => setToast({ message, type });
+
+  // JSON import
+  const [importPending, setImportPending] = useState(null); // parsed JSON data
+
+  const handleImportRequest = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!validateImportData(data)) {
+          showToast('Ongeldig bestandsformaat', 'error');
+          return;
+        }
+        setImportPending(data);
+      } catch {
+        showToast('Kon het bestand niet lezen', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportConfirm = (mode) => {
+    applyImport(importPending, mode);
+    setImportPending(null);
+    setProfile(loadProfile());
+    showToast(mode === 'replace' ? 'Gegevens vervangen ✓' : 'Gegevens samengevoegd ✓');
+  };
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -1994,18 +2416,35 @@ function App() {
 
   if (view === 'settings') {
     return (
-      <SettingsScreen
-        profile={profile}
-        onSave={updateProfile}
-        onBack={() => setView('main')}
-        onReset={handleReset}
-      />
+      <>
+        <SettingsScreen
+          profile={profile}
+          onSave={updateProfile}
+          onBack={() => setView('main')}
+          onReset={handleReset}
+          darkMode={darkMode}
+          onDarkModeChange={handleDarkModeChange}
+          onExportJSON={exportJSON}
+          onImportRequest={handleImportRequest}
+        />
+        {importPending && (
+          <ConfirmModal
+            title="Gegevens importeren"
+            message="Wil je de bestaande gegevens vervangen of samenvoegen met het importbestand?"
+            onClose={() => setImportPending(null)}
+            options={[
+              { label: 'Samenvoegen', onClick: () => handleImportConfirm('merge') },
+              { label: 'Vervangen', onClick: () => handleImportConfirm('replace'), primary: true },
+            ]}
+          />
+        )}
+        {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
+      </>
     );
   }
 
   return (
     <>
-      {/* Tab content — key on tab triggers fade-in on switch */}
       <div key={tab} className="anim-tab-in">
         {tab === 'home' && (
           <Dashboard
@@ -2021,6 +2460,7 @@ function App() {
       </div>
       <BottomNav active={tab} onSelect={setTab} />
       <PWAInstallBanner />
+      {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
     </>
   );
 }
