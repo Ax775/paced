@@ -92,12 +92,12 @@ function pct(value, target) {
 }
 
 function formatNextPeriod(daysUntil) {
-  if (!daysUntil || daysUntil <= 0) return 'Soon';
-  if (daysUntil === 1) return 'Tomorrow';
+  if (!daysUntil || daysUntil <= 0) return 'Binnenkort';
+  if (daysUntil === 1) return 'Morgen';
   const d = new Date();
   d.setDate(d.getDate() + daysUntil);
-  const month = d.toLocaleDateString('en', { month: 'short' });
-  return `${month} ${d.getDate()} · in ${daysUntil} days`;
+  const month = d.toLocaleDateString('nl', { month: 'short' });
+  return `${month} ${d.getDate()} · over ${daysUntil} dagen`;
 }
 
 function shortMonth(iso) {
@@ -337,10 +337,10 @@ function HydrationRow({ glasses, target, onChange }) {
 /* ------------------------------------------------------------------ */
 
 const SYMPTOM_META = [
-  { id: 'energy',   label: 'Energy',   icons: ['😴','🥱','😐','🙂','⚡'], hint: '1 = exhausted, 5 = energised' },
-  { id: 'mood',     label: 'Mood',     icons: ['😢','😔','😐','🙂','😄'], hint: '1 = low, 5 = great' },
-  { id: 'cramps',   label: 'Cramps',   icons: ['🔥','😣','😐','🙂','✨'], hint: '1 = intense, 5 = none' },
-  { id: 'bloating', label: 'Bloating', icons: ['🎈','😮','😐','🙂','✨'], hint: '1 = heavy, 5 = none' },
+  { id: 'energy',   label: 'Energie',    icons: ['😴','🥱','😐','🙂','⚡'], hint: '1 = uitgeput, 5 = energiek' },
+  { id: 'mood',     label: 'Stemming',   icons: ['😢','😔','😐','🙂','😄'], hint: '1 = slecht, 5 = geweldig' },
+  { id: 'cramps',   label: 'Krampen',    icons: ['🔥','😣','😐','🙂','✨'], hint: '1 = intens, 5 = geen' },
+  { id: 'bloating', label: 'Opgeblazen', icons: ['🎈','😮','😐','🙂','✨'], hint: '1 = ernstig, 5 = geen' },
 ];
 
 function SymptomTracker({ log, onUpdate }) {
@@ -350,10 +350,10 @@ function SymptomTracker({ log, onUpdate }) {
   return (
     <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '80ms' }}>
       <div className="flex items-center justify-between mb-5">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">How are you feeling?</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Hoe voel je je?</div>
         {anyLogged && (
           <div className="text-[11px] text-sage-600 bg-sage-50 border border-sage-200 px-2 py-0.5 rounded-full">
-            Logged
+            Gelogd
           </div>
         )}
       </div>
@@ -419,9 +419,9 @@ function CycleHistoryStrip({ profile }) {
   return (
     <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '120ms' }}>
       <div className="flex items-center justify-between mb-5">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Recent cycles</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Recente cycli</div>
         <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
-          avg {avg} days
+          gem. {avg} dagen
         </div>
       </div>
 
@@ -438,7 +438,7 @@ function CycleHistoryStrip({ profile }) {
                 height: `${barHeight(gap.length)}px`,
                 background: 'linear-gradient(180deg, #C6D3BB 0%, #87A074 60%, #C78264 100%)',
               }}
-              aria-label={`${gap.length} day cycle starting ${gap.start}`}
+              aria-label={`${gap.length} dagen cyclus gestart op ${gap.start}`}
             />
             <div className="text-[10px] text-ink-400 uppercase tracking-wider mt-2">
               {shortMonth(gap.end)}
@@ -448,7 +448,7 @@ function CycleHistoryStrip({ profile }) {
       </div>
 
       <p className="text-[11px] text-ink-400 text-center mt-4 leading-relaxed">
-        Cycle length naturally varies — Aura uses your rhythm, not a textbook 28.
+        Cycluslengte varieert van nature — Aura gebruikt jouw ritme, niet een standaard van 28.
       </p>
     </Card>
   );
@@ -492,14 +492,14 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
     <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '200ms' }}>
       <div className="flex items-center justify-between mb-5">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">
-          This week's nourishment
+          Voeding deze week
         </div>
-        <div className="text-[11px] text-ink-400">Last 7 days</div>
+        <div className="text-[11px] text-ink-400">Afgelopen 7 dagen</div>
       </div>
 
-      <WeekBarRow label="Calories" values={days.map((d) => d.pctCalories)} />
-      <WeekBarRow label="Protein"  values={days.map((d) => d.pctProtein)}  />
-      <WeekBarRow label="Water"    values={days.map((d) => d.pctWater)}    />
+      <WeekBarRow label="Calorieën" values={days.map((d) => d.pctCalories)} />
+      <WeekBarRow label="Eiwitten"  values={days.map((d) => d.pctProtein)}  />
+      <WeekBarRow label="Water"     values={days.map((d) => d.pctWater)}    />
 
       <div className="flex gap-1.5 mt-4">
         {days.map((d, i) => (
@@ -597,14 +597,14 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
       <div className={`mt-6 flex flex-col items-center gap-2 ${justLogged ? 'anim-pop' : ''}`}>
         <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-terracotta-100 border border-terracotta-200 text-terracotta-600 text-sm">
           <Check className="w-4 h-4" />
-          Period logged today
+          Menstruatie gelogd vandaag
         </div>
         <button
           type="button"
           onClick={handleUndo}
           className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition"
         >
-          undo
+          ongedaan maken
         </button>
       </div>
     );
@@ -620,11 +620,11 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
         style={{ background: 'linear-gradient(135deg, #C78264 0%, #B06849 100%)' }}
       >
         <span className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
-        My period started today
+        Mijn menstruatie begon vandaag
       </button>
       {cyclesTracked > 0 && (
         <div className="text-[10px] uppercase tracking-wider text-ink-400/80">
-          {cyclesTracked} {cyclesTracked === 1 ? 'cycle' : 'cycles'} tracked
+          {cyclesTracked} {cyclesTracked === 1 ? 'cyclus' : 'cycli'} bijgehouden
         </div>
       )}
     </div>
@@ -637,9 +637,9 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
 
 function GutChecklist({ gut, onToggle }) {
   const items = [
-    { id: 'probiotics', label: 'Probiotics',     hint: 'Yogurt, kefir, capsule…',           icon: Sparkles },
-    { id: 'fiber',      label: 'Fibre-rich meal', hint: 'Veg, legumes, whole grains',        icon: Wheat },
-    { id: 'fermented',  label: 'Fermented food', hint: 'Sauerkraut, kimchi, miso, kombucha', icon: Salad },
+    { id: 'probiotics', label: 'Probiotica',      hint: 'Yoghurt, kefir, capsule…',              icon: Sparkles },
+    { id: 'fiber',      label: 'Vezelrijke maaltijd', hint: 'Groenten, peulvruchten, volkoren',  icon: Wheat },
+    { id: 'fermented',  label: 'Gefermenteerd',  hint: 'Zuurkool, kimchi, miso, kombucha',      icon: Salad },
   ];
   return (
     <div className="space-y-2">
@@ -690,11 +690,11 @@ function SleepTracker({ hours, onChange }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Moon className="w-3.5 h-3.5 text-ink-400" />
-          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Sleep last night</div>
+          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Slaap gisteravond</div>
         </div>
         {hours > 0 && (
           <div className="font-display text-ink-700 text-[20px] leading-none">
-            {hours}<span className="text-ink-400 text-sm">h</span>
+            {hours}<span className="text-ink-400 text-sm">u</span>
           </div>
         )}
       </div>
@@ -705,7 +705,7 @@ function SleepTracker({ hours, onChange }) {
             <button
               key={h}
               type="button"
-              aria-label={`${h} hours sleep`}
+              aria-label={`${h} uur slaap`}
               onClick={() => onChange(active ? 0 : h)}
               className={`flex-1 py-2.5 rounded-xl border text-sm transition active:scale-95 ${
                 active
@@ -719,7 +719,7 @@ function SleepTracker({ hours, onChange }) {
         })}
       </div>
       <div className="text-[11px] text-ink-400 mt-2">
-        Quality sleep supports hormone balance and recovery.
+        Goede slaap ondersteunt hormonale balans en herstel.
       </div>
     </div>
   );
@@ -733,10 +733,10 @@ const MOVEMENT_SLOTS = [15, 30, 45, 60, 90];
 
 function MovementTracker({ minutes, onChange, phase }) {
   const phaseHints = {
-    menstrual:  'Gentle walk or stretching is plenty.',
-    follicular: 'Great time to ramp up intensity.',
-    ovulatory:  'Peak energy — go for it.',
-    luteal:     'Listen to your body; moderate is ideal.',
+    menstrual:  'Een rustige wandeling of stretching is genoeg.',
+    follicular: 'Goed moment om de intensiteit op te bouwen.',
+    ovulatory:  'Piekenergie — ga ervoor!',
+    luteal:     'Luister naar je lichaam; matig is ideaal.',
   };
 
   return (
@@ -744,7 +744,7 @@ function MovementTracker({ minutes, onChange, phase }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5 text-ink-400" />
-          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Movement today</div>
+          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Beweging vandaag</div>
         </div>
         {minutes > 0 && (
           <div className="font-display text-ink-700 text-[20px] leading-none">
@@ -759,7 +759,7 @@ function MovementTracker({ minutes, onChange, phase }) {
             <button
               key={m}
               type="button"
-              aria-label={`${m} minutes movement`}
+              aria-label={`${m} minuten bewegen`}
               onClick={() => onChange(active ? 0 : m)}
               className={`px-3 py-2.5 rounded-xl border text-sm transition active:scale-95 ${
                 active
@@ -777,7 +777,7 @@ function MovementTracker({ minutes, onChange, phase }) {
             onClick={() => onChange(0)}
             className="px-3 py-2.5 rounded-xl border border-cream-200 bg-cream-50 text-ink-400 text-sm transition hover:border-sage-200"
           >
-            reset
+            wis
           </button>
         )}
       </div>
@@ -795,11 +795,11 @@ function MovementTracker({ minutes, onChange, phase }) {
 function JournalNote({ note, onChange }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2.5">Today's note</div>
+      <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2.5">Notitie van vandaag</div>
       <textarea
         value={note}
         onChange={(e) => onChange(e.target.value.slice(0, 280))}
-        placeholder="Anything worth remembering about today…"
+        placeholder="Iets wat je wilt onthouden over vandaag…"
         rows={3}
         className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm
                    text-ink-700 placeholder:text-ink-400/60 focus:outline-none
@@ -857,15 +857,15 @@ function PWAInstallBanner() {
           <Flower2 className="w-5 h-5 text-sage-600" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-ink-700">Add Aura to home screen</div>
-          <div className="text-xs text-ink-400 mt-0.5">Works offline, feels like an app.</div>
+          <div className="text-sm font-medium text-ink-700">Aura aan beginscherm toevoegen</div>
+          <div className="text-xs text-ink-400 mt-0.5">Werkt offline, voelt als een app.</div>
         </div>
         <button
           type="button"
           onClick={handleInstall}
           className="px-4 py-2 rounded-xl bg-sage-500 text-cream-50 text-xs font-medium hover:bg-sage-600 transition shrink-0 min-h-[44px]"
         >
-          Install
+          Installeer
         </button>
         <button
           type="button"
@@ -930,6 +930,10 @@ function Onboarding({ onComplete }) {
     cycleLength:     28,
     mensDuration:    5,
     lastPeriodStart: new Date().toISOString().slice(0, 10),
+    age:             '',
+    weightKg:        '',
+    heightCm:        '',
+    activityLevel:   'moderate',
   });
 
   const setF  = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -946,10 +950,10 @@ function Onboarding({ onComplete }) {
       cycleLength:     Number(form.cycleLength),
       mensDuration:    Number(form.mensDuration) || 5,
       lastPeriodStart: form.lastPeriodStart,
-      age:             28,
-      weightKg:        62,
-      heightCm:        168,
-      activityLevel:   'moderate',
+      age:             Number(form.age)      || 28,
+      weightKg:        Number(form.weightKg) || 62,
+      heightCm:        Number(form.heightCm) || 168,
+      activityLevel:   form.activityLevel,
       onboardingDone:  true,
       createdAt:       new Date().toISOString(),
     };
@@ -959,7 +963,7 @@ function Onboarding({ onComplete }) {
 
   const dots = (
     <div className="flex justify-center gap-2 mb-8">
-      {[0, 1, 2].map(i => (
+      {[0, 1, 2, 3].map(i => (
         <div
           key={i}
           className="rounded-full transition-all duration-400"
@@ -1126,8 +1130,101 @@ function Onboarding({ onComplete }) {
           </Card>
         )}
 
-        {/* Step 2 — Welkomstscherm */}
+        {/* Step 2 — Lichaam & activiteit */}
         {step === 2 && (
+          <Card key={animKey} className={cardCx}>
+            <h2 className="font-display text-[28px] text-ink-700 leading-tight mb-2">
+              Jouw lichaam.
+            </h2>
+            <p className="text-sm text-ink-500 mb-7 leading-relaxed">
+              Dit bepaalt je calorie- en voedingsdoelen. Laat leeg om de standaardwaarden te gebruiken.
+            </p>
+
+            <div className="space-y-5">
+              <div className="grid grid-cols-3 gap-3">
+                <Field>
+                  <Label htmlFor="onboard-age">Leeftijd</Label>
+                  <input
+                    id="onboard-age"
+                    className={inputCx}
+                    type="number" min="14" max="70"
+                    value={form.age}
+                    onChange={setFE('age')}
+                    placeholder="28"
+                  />
+                </Field>
+                <Field>
+                  <Label htmlFor="onboard-weight">Gewicht kg</Label>
+                  <input
+                    id="onboard-weight"
+                    className={inputCx}
+                    type="number" min="30" max="200"
+                    value={form.weightKg}
+                    onChange={setFE('weightKg')}
+                    placeholder="62"
+                  />
+                </Field>
+                <Field>
+                  <Label htmlFor="onboard-height">Lengte cm</Label>
+                  <input
+                    id="onboard-height"
+                    className={inputCx}
+                    type="number" min="120" max="220"
+                    value={form.heightCm}
+                    onChange={setFE('heightCm')}
+                    placeholder="168"
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <Label>Activiteitsniveau</Label>
+                <div className="grid grid-cols-1 gap-2 mt-1">
+                  {ACTIVITY_LEVELS.map((lvl) => {
+                    const active = form.activityLevel === lvl.id;
+                    return (
+                      <button
+                        type="button"
+                        key={lvl.id}
+                        onClick={() => setF('activityLevel', lvl.id)}
+                        className={`text-left px-4 py-3 rounded-xl border transition ${
+                          active
+                            ? 'bg-sage-100 border-sage-300 text-sage-700'
+                            : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+                        }`}
+                      >
+                        <div className="text-sm font-medium">{lvl.label}</div>
+                        <div className="text-xs text-ink-400 mt-0.5">{lvl.hint}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </Field>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button
+                type="button"
+                onClick={() => goTo(1)}
+                className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
+                           hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
+              >
+                <ChevronLeft className="w-4 h-4" /> Terug
+              </button>
+              <button
+                type="button"
+                onClick={() => goTo(3)}
+                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
+                           hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+              >
+                Volgende <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </Card>
+        )}
+
+        {/* Step 3 — Welkomstscherm */}
+        {step === 3 && (
           <Card key={animKey} className={cardCx}>
             <div className="flex justify-center mb-5">
               <div className="text-5xl">🌸</div>
@@ -1158,7 +1255,7 @@ function Onboarding({ onComplete }) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => goTo(1)}
+                onClick={() => goTo(2)}
                 className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
                            hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
               >
@@ -1495,7 +1592,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         </button>
       </Card>
 
-      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.1</div>
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.2</div>
     </div>
   );
 }
@@ -1637,7 +1734,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
         <div className="flex items-center gap-2">
           {streak > 0 && (
             <div className="text-[11px] text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1.5 rounded-full whitespace-nowrap anim-streak-pulse">
-              🌿 {streak} {streak === 1 ? 'day' : 'days'}
+              🌿 {streak} {streak === 1 ? 'dag' : 'dagen'}
             </div>
           )}
           <button
@@ -1665,7 +1762,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
           </p>
           {state.hasData && (
             <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-cream-100 border border-cream-200">
-              <span className="text-[11px] text-ink-400">Next period</span>
+              <span className="text-[11px] text-ink-400">Volgende periode</span>
               <span className="text-[11px] font-medium text-ink-600">
                 {formatNextPeriod(state.daysUntilNext)}
               </span>
@@ -1690,16 +1787,16 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       {/* Today's nourishment */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '160ms' }}>
         <div className="flex items-center justify-between mb-5">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Today's nourishment</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Voeding vandaag</div>
           {targets.calorieDelta > 0 && (
             <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
-              +{targets.calorieDelta} kcal for {state.phaseMeta.label.toLowerCase()}
+              +{targets.calorieDelta} kcal voor {state.phaseMeta.label.toLowerCase()}
             </div>
           )}
         </div>
         <div className="space-y-6">
           <TrackerRow
-            label="Calories"
+            label="Calorieën"
             value={log.calories}
             target={targets.calories}
             unit="kcal"
@@ -1708,7 +1805,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
             onSet={setCalories}
           />
           <TrackerRow
-            label="Protein"
+            label="Eiwitten"
             value={log.protein}
             target={targets.protein}
             unit="g"
@@ -1726,7 +1823,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
       {/* Wellbeing — sleep + movement */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '200ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Wellbeing</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Welzijn</div>
         <div className="space-y-6">
           <SleepTracker hours={log.sleep} onChange={setSleep} />
           <div className="h-px bg-cream-200/70" />
@@ -1743,7 +1840,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       {/* Gut health checklist */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '240ms' }}>
         <div className="flex items-center justify-between mb-4">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Gut health</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Darmgezondheid</div>
           <div className="text-[11px] text-ink-400">
             {Object.values(log.gut).filter(Boolean).length} of 3
           </div>
@@ -1753,7 +1850,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
       {/* Nutrient focus */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '280ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Nutrient focus</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Nutriëntenfocus</div>
         <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
         <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
         <div className="flex flex-wrap gap-2">
@@ -1777,7 +1874,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       <Card className="p-6 anim-fade-up" style={{ animationDelay: '380ms' }}>
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">
           <Sparkles className="w-3.5 h-3.5" />
-          Daily insight
+          Dagelijks inzicht
         </div>
         <p className="font-display text-[19px] leading-snug text-ink-700">
           {insight.text}
@@ -1785,7 +1882,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v0.9
+        Aura · v1.2
       </div>
     </div>
   );
@@ -1861,7 +1958,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: state.phaseMeta.hue }} />
             <div className="text-[11px] text-ink-500">{state.phaseMeta.label}</div>
             {isToday && (
-              <div className="text-[10px] bg-sage-100 text-sage-700 px-1.5 py-0.5 rounded-full">Today</div>
+              <div className="text-[10px] bg-sage-100 text-sage-700 px-1.5 py-0.5 rounded-full">Vandaag</div>
             )}
           </div>
 
@@ -1869,7 +1966,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
             <div className="space-y-1.5">
               {log.calories > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="text-[11px] text-ink-400 w-14 shrink-0">Calories</div>
+                  <div className="text-[11px] text-ink-400 w-14 shrink-0">Cal.</div>
                   <div className="flex-1 h-1.5 bg-cream-200 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full bg-sage-300"
@@ -1881,7 +1978,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
               )}
               {log.protein > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="text-[11px] text-ink-400 w-14 shrink-0">Protein</div>
+                  <div className="text-[11px] text-ink-400 w-14 shrink-0">Eiwit</div>
                   <div className="flex-1 h-1.5 bg-cream-200 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full"
@@ -1937,19 +2034,19 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
             </div>
           ) : isToday ? (
             <div className="flex items-center gap-3">
-              <div className="text-[11px] text-ink-400/70 italic">Nothing logged yet today.</div>
+              <div className="text-[11px] text-ink-400/70 italic">Nog niets gelogd vandaag.</div>
               {onGoToToday && (
                 <button
                   type="button"
                   onClick={onGoToToday}
                   className="text-[11px] text-sage-600 underline decoration-dotted underline-offset-2 hover:text-sage-700 transition"
                 >
-                  Start tracking
+                  Begin met loggen
                 </button>
               )}
             </div>
           ) : (
-            <div className="text-[11px] text-ink-400/60 italic">Nothing logged</div>
+            <div className="text-[11px] text-ink-400/60 italic">Niets gelogd</div>
           )}
         </div>
       </div>
@@ -1976,7 +2073,7 @@ function LogboekView({ profile, onGoHome }) {
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
       <header className="flex items-center justify-between mb-7 anim-fade-up">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Your journal</div>
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Jouw dagboek</div>
           <h1 className="font-display text-[30px] leading-tight text-ink-700">Logboek</h1>
         </div>
         <button
@@ -1984,10 +2081,10 @@ function LogboekView({ profile, onGoHome }) {
           onClick={() => exportCSV(profile)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cream-100 border border-cream-200
                      text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 transition min-h-[44px]"
-          aria-label="Export CSV"
+          aria-label="Exporteer CSV"
         >
           <Download className="w-3.5 h-3.5" />
-          Export
+          Exporteer
         </button>
       </header>
       <div className="space-y-3">
@@ -1996,7 +2093,7 @@ function LogboekView({ profile, onGoHome }) {
         ))}
       </div>
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Showing last 14 days · Export includes 90 days
+        Laatste 14 dagen · Export omvat 90 dagen
       </div>
     </div>
   );
@@ -2006,7 +2103,7 @@ function LogboekView({ profile, onGoHome }) {
 /*  Insights / Statistics tab                                          */
 /* ------------------------------------------------------------------ */
 
-const SYMPTOM_LABELS = { energy: 'Energy', mood: 'Mood', cramps: 'Cramps', bloating: 'Bloating' };
+const SYMPTOM_LABELS = { energy: 'Energie', mood: 'Stemming', cramps: 'Krampen', bloating: 'Opgeblazen' };
 
 function InsightsView({ profile, onOpenCharts }) {
   const today = useMemo(() => new Date(), []);
@@ -2065,19 +2162,19 @@ function InsightsView({ profile, onOpenCharts }) {
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
       <header className="mb-7 anim-fade-up">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Your patterns</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Jouw patronen</div>
         <h1 className="font-display text-[30px] leading-tight text-ink-700">Inzichten</h1>
       </header>
 
       {/* Streak card */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Logging streak</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Log-reeks</div>
         <div className="flex items-end gap-8">
           <div>
             <div className="font-display text-[52px] text-ink-700 leading-none">
               {currentStreak}
             </div>
-            <div className="text-xs text-ink-400 mt-1">Current (days)</div>
+            <div className="text-xs text-ink-400 mt-1">Huidig (dagen)</div>
           </div>
           {streakRecord > 0 && (
             <div>
@@ -2093,32 +2190,32 @@ function InsightsView({ profile, onOpenCharts }) {
         </div>
         {currentStreak === 0 && (
           <p className="text-xs text-ink-400 mt-3 leading-relaxed">
-            Log anything today to start your streak — even just a mood check counts.
+            Log vandaag iets om je reeks te starten — zelfs een stemmingscheck telt mee.
           </p>
         )}
       </Card>
 
       {/* Cycle stats */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '80ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Cycle overview</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Cyclusoverzicht</div>
         {cycleHistory.length >= 1 ? (
           <div className="grid grid-cols-2 gap-6">
             <div>
               <div className="font-display text-[38px] text-ink-700 leading-none">
                 {avgCycle ?? '—'}
               </div>
-              <div className="text-xs text-ink-400 mt-1">Avg cycle (days)</div>
+              <div className="text-xs text-ink-400 mt-1">Gem. cyclus (dagen)</div>
             </div>
             <div>
               <div className="font-display text-[38px] text-ink-700 leading-none">
                 {cycleHistory.length}
               </div>
-              <div className="text-xs text-ink-400 mt-1">Cycles tracked</div>
+              <div className="text-xs text-ink-400 mt-1">Cycli bijgehouden</div>
             </div>
           </div>
         ) : (
           <p className="text-xs text-ink-400 leading-relaxed">
-            Log your period start on the home tab to unlock cycle statistics.
+            Log je menstruatiestart op het tabblad Vandaag om cyclusstatistieken te ontgrendelen.
           </p>
         )}
       </Card>
@@ -2126,7 +2223,7 @@ function InsightsView({ profile, onOpenCharts }) {
       {/* Symptoms per phase */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '120ms' }}>
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">
-          Most logged symptom per phase
+          Meest gelogd symptoom per fase
         </div>
         {hasSymptomData ? (
           <div className="space-y-3.5">
@@ -2144,7 +2241,7 @@ function InsightsView({ profile, onOpenCharts }) {
                       {SYMPTOM_LABELS[top]}
                     </div>
                   ) : (
-                    <div className="text-xs text-ink-400/60 italic">not enough data</div>
+                    <div className="text-xs text-ink-400/60 italic">te weinig data</div>
                   )}
                 </div>
               );
@@ -2152,7 +2249,7 @@ function InsightsView({ profile, onOpenCharts }) {
           </div>
         ) : (
           <p className="text-xs text-ink-400 leading-relaxed">
-            Track your symptoms daily to see patterns emerge across your cycle phases.
+            Log dagelijks je symptomen om patronen te ontdekken in je cyclusfasen.
           </p>
         )}
       </Card>
@@ -2187,8 +2284,8 @@ function GoalRing({ value, target, label, unit, color }) {
   const ratio = target > 0 ? Math.min(1, value / target) : 0;
   const displayRatio = mounted ? ratio : 0;
   const pctVal = Math.round(ratio * 100);
-  const strokeColor = ratio >= 1 ? '#87A074' : ratio >= 0.5 ? '#C78264' : '#C78264';
-  const opacity = ratio >= 1 ? 1 : ratio >= 0.5 ? 0.75 : 0.5;
+  const strokeColor = ratio >= 1 ? '#6B8559' : ratio >= 0.5 ? '#C78264' : '#D9A188';
+  const opacity = ratio >= 1 ? 1 : 0.85;
 
   return (
     <div className="flex flex-col items-center gap-1.5">
@@ -2266,9 +2363,11 @@ function TipVanDeDag({ phase, log, goals, targets, name }) {
   const displayName = name ? name.split(' ')[0] : '';
   let tip = tipFn(displayName);
 
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yLog = useMemo(() => loadLog(yesterday), []); // eslint-disable-line
+  const yLog = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return loadLog(d);
+  }, []); // loaded once — yesterday's log doesn't change during a session
   const proteinTarget = goals?.protein || targets.protein;
   const hydrationTarget = goals?.hydration || (targets.hydrationL * 4 * 250);
 
@@ -2522,7 +2621,7 @@ function ExtendedCharts({ profile }) {
 
       {/* Mood frequency bar chart */}
       <Card className="p-5">
-        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-3">Stemming frequentie</div>
+        <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-3">Stemmingsfrequentie</div>
         <div className="flex items-end gap-2 h-16">
           {[1,2,3,4,5].map(n => {
             const emojis = ['😢','😔','😐','🙂','😄'];
