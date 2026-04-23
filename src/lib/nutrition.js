@@ -34,11 +34,11 @@ export function calcBMR({ weightKg, heightCm, age }) {
 
 /** Activity multiplier table (mirrors the onboarding selector labels). */
 export const ACTIVITY_LEVELS = [
-  { id: 'sedentary',   label: 'Sedentary',     hint: 'Mostly desk-bound',        mult: 1.2 },
-  { id: 'light',       label: 'Lightly active', hint: '1–3 gentle sessions / wk', mult: 1.375 },
-  { id: 'moderate',    label: 'Moderate',      hint: '3–5 sessions / wk',         mult: 1.55 },
-  { id: 'active',      label: 'Active',        hint: '6–7 sessions / wk',         mult: 1.725 },
-  { id: 'very_active', label: 'Very active',   hint: 'Athlete-level load',        mult: 1.9 },
+  { id: 'sedentary',   label: 'Sedentair',        hint: 'Voornamelijk zittend werk',        mult: 1.2 },
+  { id: 'light',       label: 'Licht actief',     hint: '1–3 lichte sessies / week',        mult: 1.375 },
+  { id: 'moderate',    label: 'Matig actief',     hint: '3–5 sessies / week',               mult: 1.55 },
+  { id: 'active',      label: 'Actief',           hint: '6–7 sessies / week',               mult: 1.725 },
+  { id: 'very_active', label: 'Zeer actief',      hint: 'Atletenniveau',                    mult: 1.9 },
 ];
 
 export function activityMultiplier(id) {
@@ -79,28 +79,28 @@ const PHASE_DELTAS = {
  */
 export const NUTRIENT_FOCUS = {
   [PHASES.MENSTRUAL]: {
-    headline: 'Iron & warmth',
-    foods:    ['Red lentils', 'Dark leafy greens', 'Beetroot', 'Grass-fed beef', 'Pumpkin seeds'],
-    avoid:    [], // Aura never shames — "avoid" is intentionally empty
-    why:      'Replenishing iron lost during menstruation supports steady energy and mood.',
+    headline: 'IJzer & warmte',
+    foods:    ['Rode linzen', 'Donkere bladgroenten', 'Rode bieten', 'Grasgevoerd vlees', 'Pompoenpitten'],
+    avoid:    [], // Aura beschaamt nooit — "vermijden" is bewust leeg
+    why:      'Het aanvullen van ijzer verloren tijdens de menstruatie ondersteunt stabiele energie en stemming.',
   },
   [PHASES.FOLLICULAR]: {
-    headline: 'Fresh & fermented',
-    foods:    ['Sauerkraut', 'Kefir', 'Sprouted grains', 'Citrus', 'Leafy salads'],
+    headline: 'Fris & gefermenteerd',
+    foods:    ['Zuurkool', 'Kefir', 'Gekiemd graan', 'Citrus', 'Bladgroentesalades'],
     avoid:    [],
-    why:      'Rising estrogen pairs beautifully with light, probiotic-rich foods that gently support detox pathways.',
+    why:      'Stijgend oestrogeen past prachtig bij lichte, probiotica-rijke voeding die zachtjes ontgiftingspaden ondersteunt.',
   },
   [PHASES.OVULATORY]: {
-    headline: 'Fibre & antioxidants',
-    foods:    ['Berries', 'Cruciferous veg', 'Flaxseed', 'Quinoa', 'Green tea'],
+    headline: 'Vezels & antioxidanten',
+    foods:    ['Bessen', 'Koolsoorten', 'Lijnzaad', 'Quinoa', 'Groene thee'],
     avoid:    [],
-    why:      'Fibre and cruciferous veg help your liver metabolise peak estrogen smoothly.',
+    why:      'Vezels en koolsoorten helpen je lever om piek-oestrogeen soepel te metaboliseren.',
   },
   [PHASES.LUTEAL]: {
-    headline: 'Gut health & magnesium',
-    foods:    ['Fermented foods', 'Sweet potato', 'Dark chocolate (70%+)', 'Pumpkin seeds', 'Oats'],
+    headline: 'Darmgezondheid & magnesium',
+    foods:    ['Gefermenteerde voeding', 'Zoete aardappel', 'Pure chocolade (70%+)', 'Pompoenpitten', 'Haver'],
     avoid:    [],
-    why:      'Progesterone slows digestion — fibre, fermented foods and magnesium keep your gut calm and cravings balanced.',
+    why:      'Progesteron vertraagt de spijsvertering — vezels, gefermenteerde voeding en magnesium houden je darm kalm en trek in balans.',
   },
 };
 

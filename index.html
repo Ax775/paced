@@ -85,6 +85,30 @@
   </script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+  <!-- Fix: Babel compiles external files to blob: URLs, which breaks
+       relative imports (./lib/cycle.js resolves against blob: not the
+       original file URL). This plugin rewrites relative imports to
+       absolute URLs so the blob module can resolve them correctly. -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      Babel.registerPlugin('absolute-imports', ({ types: t }) => ({
+        visitor: {
+          'ImportDeclaration|ExportNamedDeclaration|ExportAllDeclaration'(path) {
+            const src = path.node.source;
+            if (!src) return;
+            const val = src.value;
+            if (val.startsWith('./') || val.startsWith('../')) {
+              // Resolve relative to the origin so blob: URLs can fetch them
+              const base = new URL('./src/', window.location.href).href;
+              const abs = new URL(val.replace(/^\.\//, ''), base).href;
+              path.node.source = t.stringLiteral(abs);
+            }
+          }
+        }
+      }));
+    });
+  </script>
+
   <style>
     *, *::before, *::after {
       box-sizing: border-box;
@@ -161,7 +185,7 @@
 
   <!-- React app. Babel standalone transforms JSX in-browser and walks
        the import graph to pull in ./src/lib/*.js as real ES modules. -->
-  <script type="text/babel" data-type="module" data-presets="react" src="./src/app.jsx"></script>
+  <script type="text/babel" data-type="module" data-presets="react" data-plugins="absolute-imports" src="./src/app.jsx"></script>
 
   <!-- Service worker registration -->
   <script>

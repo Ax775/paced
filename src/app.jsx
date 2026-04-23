@@ -300,10 +300,10 @@ function HydrationRow({ glasses, target, onChange }) {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Droplet className="w-3.5 h-3.5 text-ink-400" />
-          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Hydration</div>
+          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">Water</div>
         </div>
         <div className="font-display text-ink-700 text-[20px] leading-none">
-          {glasses}<span className="text-ink-400 text-sm"> / {target} glasses</span>
+          {glasses}<span className="text-ink-400 text-sm"> / {target} glazen</span>
         </div>
       </div>
       <div className="flex gap-1.5 flex-wrap">
@@ -313,7 +313,7 @@ function HydrationRow({ glasses, target, onChange }) {
             <button
               key={slot}
               type="button"
-              aria-label={`Set hydration to ${slot} glasses`}
+              aria-label={`Stel water in op ${slot} glazen`}
               onClick={() => onChange(filled && slot === glasses ? slot - 1 : slot)}
               className={`w-7 h-9 rounded-b-full rounded-t-md border transition
                           active:scale-95 ${
@@ -326,7 +326,7 @@ function HydrationRow({ glasses, target, onChange }) {
         })}
       </div>
       <div className="text-[11px] text-ink-400 mt-2">
-        Each glass ≈ 250 ml · tap to fill, tap the last filled to clear.
+        Elk glas ≈ 250 ml · tik om te vullen, tik het laatste gevulde glas om te wissen.
       </div>
     </div>
   );
@@ -528,7 +528,7 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
       </div>
 
       <p className="text-[11px] text-ink-400 text-center mt-4 leading-relaxed">
-        Targets shift with your cycle — these bars measure against each day's own phase.
+        Doelen verschuiven met je cyclus — de balken meten per fase.
       </p>
     </Card>
   );
