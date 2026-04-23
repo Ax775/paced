@@ -145,7 +145,7 @@ function Chip({ children, onClick, ariaLabel }) {
       type="button"
       aria-label={ariaLabel}
       onClick={onClick}
-      className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200
+      className="text-xs px-3 py-2 rounded-full bg-cream-100 border border-cream-200
                  text-ink-600 hover:bg-sage-100 hover:border-sage-200 hover:text-sage-700
                  active:scale-95 transition"
     >
@@ -222,7 +222,7 @@ function HydrationRow({ glasses, target, onChange }) {
               type="button"
               aria-label={`Set hydration to ${slot} glasses`}
               onClick={() => onChange(filled && slot === glasses ? slot - 1 : slot)}
-              className={`w-7 h-9 rounded-b-full rounded-t-md border transition
+              className={`w-8 h-10 rounded-b-full rounded-t-md border transition
                           active:scale-95 ${
                             filled
                               ? 'bg-sage-200 border-sage-300'
