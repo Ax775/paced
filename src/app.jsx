@@ -19,7 +19,7 @@ import {
   getCycleHistory,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
-import { getDailyInsight } from './lib/insights.js';
+import { getDailyInsight, TIPS } from './lib/insights.js';
 import {
   loadProfile, saveProfile, clearProfile,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
@@ -147,7 +147,7 @@ function exportCSV(profile) {
 /*  Apple Health XML export (feature 7)                               */
 /* ------------------------------------------------------------------ */
 
-function exportAppleHealth(profile) {
+function exportAppleHealth(profile, onEmpty) {
   const today = new Date();
   const records = [];
 
@@ -174,6 +174,11 @@ function exportAppleHealth(profile) {
       const est = Math.round(log.movement * 5);
       records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T08:${String(log.movement).padStart(2,'0')}:00" value="${est}"/>`);
     }
+  }
+
+  if (records.length === 0) {
+    onEmpty?.();
+    return;
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1301,16 +1306,21 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
   const [notifTime, setNotifTime]       = useState(profile.notifTime    || '20:00');
   const [toast, setToast]     = useState('');
   const [saved, setSaved]     = useState(false);
-  const timerRef = useRef(null);
+  const timerRef      = useRef(null);
+  const toastTimerRef = useRef(null);
 
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  useEffect(() => () => {
+    clearTimeout(timerRef.current);
+    clearTimeout(toastTimerRef.current);
+  }, []);
 
   const setF  = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const setG  = (k, v) => setGoals((g) => ({ ...g, [k]: v }));
 
   const showToast = (msg) => {
     setToast(msg);
-    setTimeout(() => setToast(''), 3000);
+    clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(''), 3000);
   };
 
   const handleNotifToggle = async () => {
@@ -1565,7 +1575,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
           </button>
           <button
             type="button"
-            onClick={() => exportAppleHealth(profile)}
+            onClick={() => exportAppleHealth(profile, () => showToast('Geen data om te exporteren'))}
             className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
                        text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
           >
@@ -1697,7 +1707,7 @@ function PhaseTimeline({ state }) {
 function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   const state   = useMemo(() => getCycleState(profile), [profile]);
   const targets = useMemo(() => getDailyTargets(profile, state.phase), [profile, state.phase]);
-  const insight = useMemo(() => getDailyInsight(state.phase), [state.phase]);
+  const insight = useMemo(() => getDailyInsight(state.phase, new Date(), profile.name ? profile.name.split(' ')[0] : ''), [state.phase, profile.name]);
   const PhaseIcon = PHASE_ICONS[state.phase];
 
   const [log, updateLog] = useDailyLog();
@@ -1926,15 +1936,21 @@ function BottomNav({ active, onSelect }) {
 /*  Logboek                                                            */
 /* ------------------------------------------------------------------ */
 
-const SYMPTOM_EMOJIS = {
-  energy:   ['😴','🥱','😐','🙂','⚡'],
-  mood:     ['😢','😔','😐','🙂','😄'],
-  cramps:   ['🔥','😣','😐','🙂','✨'],
-  bloating: ['🎈','😮','😐','🙂','✨'],
-};
+const SYMPTOM_ICONS = Object.fromEntries(SYMPTOM_META.map(s => [s.id, s.icons]));
+
+const DAY_NAMES   = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+const MONTH_NAMES = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+
+function formatLogDate(date, isToday) {
+  if (isToday) return 'Vandaag';
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) return 'Gisteren';
+  return `${DAY_NAMES[date.getDay()]} ${date.getDate()} ${MONTH_NAMES[date.getMonth()]}`;
+}
 
 function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, onGoToToday }) {
-  const weekday = date.toLocaleDateString(undefined, { weekday: 'short' });
+  const dateLabel = formatLogDate(date, isToday);
   const syms = log.symptoms || {};
   const symptomsLogged = Object.entries(syms).filter(([, v]) => v > 0);
   const waterTarget = Math.max(6, Math.round(targets.hydrationL * 4));
@@ -1945,11 +1961,9 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
       style={{ animationDelay: `${animDelay}ms` }}
     >
       <div className="flex items-start gap-3">
-        <div className="shrink-0 flex flex-col items-center w-10">
-          <div className="text-[10px] uppercase tracking-wider text-ink-400">{weekday}</div>
-          <div className="font-display text-[22px] text-ink-700 leading-none">{date.getDate()}</div>
-          <div className="text-[10px] text-ink-400">
-            {date.toLocaleDateString(undefined, { month: 'short' })}
+        <div className="shrink-0 flex flex-col items-center w-16">
+          <div className={`text-[11px] font-medium leading-tight text-center ${isToday ? 'text-sage-600' : 'text-ink-500'}`}>
+            {dateLabel}
           </div>
         </div>
 
@@ -2023,7 +2037,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                 <div className="flex items-center gap-1 mt-2 pt-2 border-t border-cream-200/60">
                   {symptomsLogged.map(([id, val]) => (
                     <span key={id} className="text-base leading-none" title={id}>
-                      {SYMPTOM_EMOJIS[id]?.[val - 1] ?? ''}
+                      {SYMPTOM_ICONS[id]?.[val - 1] ?? ''}
                     </span>
                   ))}
                 </div>
@@ -2087,11 +2101,28 @@ function LogboekView({ profile, onGoHome }) {
           Exporteer
         </button>
       </header>
-      <div className="space-y-3">
-        {days.map((entry, i) => (
-          <LogboekEntry key={i} {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
-        ))}
-      </div>
+      {days.every(d => !d.hasData) ? (
+        <div className="text-center py-16 text-ink-400 anim-fade-up">
+          <p className="text-4xl mb-3">🌱</p>
+          <p className="text-sm mb-1">Nog geen logs bijgehouden.</p>
+          <p className="text-xs text-ink-400/70">Log je eerste dag om je voortgang te zien.</p>
+          {onGoHome && (
+            <button
+              type="button"
+              onClick={onGoHome}
+              className="mt-5 px-5 py-2.5 rounded-full bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition"
+            >
+              Begin met loggen
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {days.map((entry, i) => (
+            <LogboekEntry key={i} {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
+          ))}
+        </div>
+      )}
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
         Laatste 14 dagen · Export omvat 90 dagen
       </div>
@@ -2298,7 +2329,10 @@ function GoalRing({ value, target, label, unit, color }) {
             strokeDashoffset={c * (1 - displayRatio)}
             style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22,1,0.36,1)' }} />
         </svg>
-        <span className="text-[11px] font-medium text-ink-700 relative z-10">{pctVal}%</span>
+        {ratio >= 1
+          ? <span className="text-[14px] font-semibold relative z-10" style={{ color: '#6B8559' }}>✓</span>
+          : <span className="text-[11px] font-medium text-ink-700 relative z-10">{pctVal}%</span>
+        }
       </div>
       <div className="text-center">
         <div className="text-[10px] uppercase tracking-wider text-ink-400">{label}</div>
@@ -2332,28 +2366,6 @@ function GoalRings({ log, goals, targets }) {
 /*  Smart tip of the day (feature 6)                                  */
 /* ------------------------------------------------------------------ */
 
-const TIPS = {
-  menstrual: [
-    (name) => `${name ? `${name}, i` : 'I'}n de menstruatiefase heeft je lichaam extra ijzer nodig — probeer vandaag spinazie of linzen.`,
-    () => 'Warmte helpt bij krampen — een kruik of warme thee kan echt verschil maken.',
-    () => 'Geef jezelf toestemming om het rustiger aan te doen — je lichaam werkt hard.',
-  ],
-  follicular: [
-    (name) => `In de folliculaire fase heb je ${name ? name : 'jij'} van nature meer energie — ideaal moment voor nieuwe gewoonten.`,
-    () => 'Lichte salades en zuurkool passen goed bij de stijgende oestrogeenspiegel.',
-    () => 'Je creatieve energie piek zit nu — plan iets nieuws of uitdagends.',
-  ],
-  ovulatory: [
-    (name) => `${name ? `${name}, j` : 'J'}e zit op je energiepiek — benut het!`,
-    () => 'Broccoli en bloemkool ondersteunen je lever bij het verwerken van hoge oestrogeenspiegels.',
-    () => 'Vezels helpen nu extra — denk aan lijnzaad of quinoa bij je lunch.',
-  ],
-  luteal: [
-    (name) => `${name ? `${name}, j` : 'J'}e lichaam verbrandt nu meer calorieën — extra eten is oké en zelfs goed.`,
-    () => 'Magnesium (pure chocolade, pompoenpitten) vermindert PMS-symptomen.',
-    () => 'Complexe koolhydraten stabiliseren je bloedsuiker en humeur in deze fase.',
-  ],
-};
 
 function TipVanDeDag({ phase, log, goals, targets, name }) {
   const tips = TIPS[phase] || TIPS.follicular;
@@ -2694,6 +2706,7 @@ function AllChartsView({ profile, onBack }) {
 function App() {
   const [profile, setProfile] = useState(() => loadProfile());
   const [tab, setTab] = useState('home');
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -2711,16 +2724,43 @@ function App() {
     setProfile(next);
   };
 
-  const handleReset = () => {
-    if (confirm('Aura profiel resetten? Je dagelijkse logs blijven bewaard.')) {
-      clearProfile();
-      setProfile(null);
-      setTab('home');
-    }
+  const handleReset = () => setShowResetConfirm(true);
+
+  const confirmReset = () => {
+    clearProfile();
+    setProfile(null);
+    setTab('home');
+    setShowResetConfirm(false);
   };
 
   return (
     <>
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up">
+            <h2 className="font-display text-[22px] text-ink-700 mb-2">Profiel resetten?</h2>
+            <p className="text-sm text-ink-500 leading-relaxed mb-6">
+              Weet je het zeker? Alle profieldata wordt gewist. Je dagelijkse logs blijven bewaard.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 transition"
+              >
+                Annuleren
+              </button>
+              <button
+                type="button"
+                onClick={confirmReset}
+                className="flex-1 py-3 rounded-xl bg-terracotta-400 text-cream-50 text-sm font-medium hover:bg-terracotta-500 transition active:scale-[0.98]"
+              >
+                Ja, reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div key={tab} className="anim-tab-in">
         {tab === 'home' && (
           <Dashboard

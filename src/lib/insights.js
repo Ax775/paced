@@ -9,37 +9,36 @@
  *   3. No network call required — fully offline / PWA-friendly.
  */
 
-import { PHASES } from './cycle.js';
+import { PHASES, toISODate } from './cycle.js';
 
-const TIPS = {
+export const TIPS = {
   [PHASES.MENSTRUAL]: [
-    'A warm bowl of lentil soup today — iron plus comfort in one.',
-    'Rest is a nutrient too. Permission granted.',
-    'Swap your afternoon coffee for ginger tea; easier on a sensitive system.',
-    'Dark leafy greens with a squeeze of lemon boosts iron absorption ~3×.',
-    'Cramps? Magnesium-rich cacao and pumpkin seeds are a quiet remedy.',
+    (name) => `${name ? `${name}, i` : 'I'}n de menstruatiefase heeft je lichaam extra ijzer nodig — probeer vandaag spinazie of linzen.`,
+    () => 'Warmte helpt bij krampen — een kruik of warme thee kan echt verschil maken.',
+    () => 'Geef jezelf toestemming om het rustiger aan te doen — je lichaam werkt hard.',
+    () => 'Donkere bladgroenten met een scheutje citroen verbeteren ijzeropname flink.',
+    () => 'Krampen? Magnesiumrijke cacao en pompoenpitten zijn een stille remedie.',
   ],
   [PHASES.FOLLICULAR]: [
-    'Try one fermented food today — a spoon of sauerkraut counts.',
-    'Estrogen is rising. Your creative brain is too — capture an idea.',
-    'Sprouted grains digest more gently and suit rising energy.',
-    'Add a handful of bitter greens; they gently support liver clearance.',
-    'This is a great phase to try a new recipe — your gut tolerates novelty best now.',
+    (name) => `In de folliculaire fase heb je ${name ? name : 'jij'} van nature meer energie — ideaal moment voor nieuwe gewoonten.`,
+    () => 'Lichte salades en zuurkool passen goed bij de stijgende oestrogeenspiegel.',
+    () => 'Je creatieve energie piek zit nu — plan iets nieuws of uitdagends.',
+    () => 'Gefermenteerd voedsel ondersteunt je darm — een lepel zuurkool telt al mee.',
+    () => 'Ontkiemde granen verteren zachter en passen bij de stijgende energie.',
   ],
   [PHASES.OVULATORY]: [
-    'Cruciferous veg + healthy fat supports smooth estrogen metabolism.',
-    'Hydrate generously — you may notice a natural warmth today.',
-    'Peak energy: schedule the harder workout, then refuel with protein.',
-    'A tablespoon of ground flax supports hormone balance — stir it into anything.',
-    'Berries with breakfast — antioxidants love ovulation.',
+    (name) => `${name ? `${name}, j` : 'J'}e zit op je energiepiek — benut het!`,
+    () => 'Broccoli en bloemkool ondersteunen je lever bij het verwerken van hoge oestrogeenspiegels.',
+    () => 'Vezels helpen nu extra — denk aan lijnzaad of quinoa bij je lunch.',
+    () => 'Piekenergie: plan de zwaardere training en herstel daarna met eiwitten.',
+    () => 'Bessen bij het ontbijt — antioxidanten zijn dol op de ovulatiefase.',
   ],
   [PHASES.LUTEAL]: [
-    'Cravings are data, not weakness. Reach for sweet potato before sweet snacks.',
-    'Your body burns ~250 extra calories now. Eat to match, without guilt.',
-    'Dark chocolate (70%+) genuinely helps — magnesium, not marketing.',
-    'Slow down and add fibre: oats, chia, or a baked apple.',
-    'Salt a little extra today — progesterone thins sodium more than you think.',
-    'Fermented foods now will thank you through your next bleed.',
+    (name) => `${name ? `${name}, j` : 'J'}e lichaam verbrandt nu meer calorieën — extra eten is oké en zelfs goed.`,
+    () => 'Magnesium (pure chocolade, pompoenpitten) vermindert PMS-symptomen.',
+    () => 'Complexe koolhydraten stabiliseren je bloedsuiker en humeur in deze fase.',
+    () => 'Gefermenteerd voedsel nu is een cadeau voor je volgende menstruatie.',
+    () => 'Extra zout vandaag is oké — progesteron zorgt dat je meer natrium verliest.',
   ],
 };
 
@@ -54,26 +53,19 @@ function seedFromDate(date) {
   return Math.abs(h);
 }
 
-function toISODate(d) {
-  const date = d instanceof Date ? d : new Date(d);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
 /**
  * Get the tip of the day for the given phase + date.
  * Same inputs always produce the same tip.
+ * @param {string} phase
+ * @param {Date} [date]
+ * @param {string} [name]
  */
-export function getDailyInsight(phase, date = new Date()) {
+export function getDailyInsight(phase, date = new Date(), name = '') {
   const pool = TIPS[phase] ?? TIPS[PHASES.FOLLICULAR];
   const idx  = seedFromDate(date) % pool.length;
   return {
-    text:  pool[idx],
+    text:  pool[idx](name),
     phase,
     date:  toISODate(date),
   };
 }
-
-export { TIPS as _TIPS_FOR_TESTS };
