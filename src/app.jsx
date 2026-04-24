@@ -924,21 +924,16 @@ function ReminderBanner({ profile }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Onboarding — 3-step conversational flow                            */
+/*  Onboarding — 3-staps welkomstscherm                               */
 /* ------------------------------------------------------------------ */
 
 function Onboarding({ onComplete }) {
   const [step, setStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [form, setForm] = useState({
-    name:            '',
     cycleLength:     28,
     mensDuration:    5,
     lastPeriodStart: new Date().toISOString().slice(0, 10),
-    age:             '',
-    weightKg:        '',
-    heightCm:        '',
-    activityLevel:   'moderate',
   });
 
   const setF  = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -951,14 +946,10 @@ function Onboarding({ onComplete }) {
 
   const complete = () => {
     const profile = {
-      name:            form.name.trim(),
       cycleLength:     Number(form.cycleLength),
       mensDuration:    Number(form.mensDuration) || 5,
       lastPeriodStart: form.lastPeriodStart,
-      age:             Number(form.age)      || 28,
-      weightKg:        Number(form.weightKg) || 62,
-      heightCm:        Number(form.heightCm) || 168,
-      activityLevel:   form.activityLevel,
+      activityLevel:   'moderate',
       onboardingDone:  true,
       createdAt:       new Date().toISOString(),
     };
@@ -968,14 +959,14 @@ function Onboarding({ onComplete }) {
 
   const dots = (
     <div className="flex justify-center gap-2 mb-8">
-      {[0, 1, 2, 3].map(i => (
+      {[0, 1, 2].map(i => (
         <div
           key={i}
           className="rounded-full transition-all duration-400"
           style={{
             width:      i === step ? 24 : 8,
             height:     8,
-            background: i === step ? '#6B8559' : i < step ? '#A8BA98' : '#EDE6D3',
+            background: i === step ? '#C9698A' : i < step ? '#DFA0B4' : '#EDE6D3',
           }}
         />
       ))}
@@ -985,91 +976,80 @@ function Onboarding({ onComplete }) {
   const cardCx = `p-8 anim-fade-up`;
 
   return (
-    <div className="min-h-dvh flex items-center justify-center px-5 py-10">
+    <div className="min-h-dvh flex items-center justify-center px-5 py-10"
+      style={{ background: 'linear-gradient(160deg, #FDF0F5 0%, #F5EEF8 100%)' }}
+    >
       <div className="w-full max-w-md">
         {dots}
 
-        {/* Step 0 — Naam */}
+        {/* Stap 0 — Welkom */}
         {step === 0 && (
           <Card key={animKey} className={cardCx}>
             <div className="flex justify-center mb-6">
               <div
-                className="w-16 h-16 rounded-[22px] flex items-center justify-center shadow-soft"
-                style={{ background: 'linear-gradient(135deg, #E2E9DC 0%, #F4E2D8 100%)' }}
+                className="w-20 h-20 rounded-[28px] flex items-center justify-center shadow-soft"
+                style={{ background: 'linear-gradient(135deg, #F4D6E4 0%, #E8D0F0 100%)' }}
               >
-                <Flower2 className="w-7 h-7 text-sage-600" />
+                <span className="text-4xl">🌸</span>
               </div>
             </div>
-            <h1 className="font-display text-[34px] text-ink-700 text-center leading-tight mb-2">
-              Hoi, ik ben Aura.
+            <h1 className="font-display text-[34px] text-ink-700 text-center leading-tight mb-3">
+              Welkom bij Aura 🌸
             </h1>
             <p className="text-sm text-ink-500 text-center leading-relaxed mb-8">
-              Jouw rustige gids voor cyclus-bewuste voeding, energie en welzijn.
+              Aura helpt je jouw cyclus, voeding, slaap en beweging bij te houden —
+              afgestemd op elke fase van jouw maand.
             </p>
-            <div className="mb-6">
-              <label className="block text-sm text-ink-600 mb-2.5" htmlFor="onboard-name">
-                Hoe heet je?
-              </label>
-              <input
-                id="onboard-name"
-                className={inputCx}
-                value={form.name}
-                onChange={setFE('name')}
-                placeholder="Jouw naam (optioneel)"
-                autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && goTo(1)}
-              />
+            <div className="space-y-3 mb-8">
+              {[
+                { emoji: '🔄', text: 'Cyclus bijhouden & voorspellen' },
+                { emoji: '🥗', text: 'Voeding afgestemd op je fase' },
+                { emoji: '😴', text: 'Slaap & energie loggen' },
+                { emoji: '🏃', text: 'Beweging en symptomen volgen' },
+              ].map(({ emoji, text }) => (
+                <div key={text} className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                  style={{ background: 'rgba(201,105,138,0.07)' }}
+                >
+                  <span className="text-lg">{emoji}</span>
+                  <span className="text-sm text-ink-600">{text}</span>
+                </div>
+              ))}
             </div>
             <button
               type="button"
               onClick={() => goTo(1)}
-              className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
-                         hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2"
+              className="w-full rounded-2xl text-cream-50 py-4 font-semibold text-base
+                         active:scale-[0.98] transition flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #C9698A 0%, #A86AAD 100%)', minHeight: 56 }}
             >
-              {form.name.trim()
-                ? `Fijn je te ontmoeten, ${form.name.trim().split(' ')[0]} ✓`
-                : 'Laten we beginnen'}
-              <ArrowRight className="w-4 h-4" />
+              Aan de slag <ArrowRight className="w-5 h-5" />
             </button>
           </Card>
         )}
 
-        {/* Step 1 — Cyclus instellen */}
+        {/* Stap 1 — Jouw cyclus */}
         {step === 1 && (
           <Card key={animKey} className={cardCx}>
             <h2 className="font-display text-[28px] text-ink-700 leading-tight mb-2">
-              {form.name.trim()
-                ? `${form.name.trim().split(' ')[0]}, vertel over je cyclus.`
-                : 'Vertel over je cyclus.'}
+              Jouw cyclus
             </h2>
             <p className="text-sm text-ink-500 mb-7 leading-relaxed">
-              Hier begint de personalisatie — alles komt hieruit voort.
+              Dit is de basis voor alle berekeningen — je kunt het later altijd aanpassen.
             </p>
 
             <div className="space-y-6">
               <Field>
-                <Label htmlFor="onboard-last-period">Wanneer begon je laatste menstruatie?</Label>
-                <input
-                  id="onboard-last-period"
-                  className={inputCx}
-                  type="date"
-                  value={form.lastPeriodStart}
-                  onChange={setFE('lastPeriodStart')}
-                />
-              </Field>
-
-              <Field>
-                <Label>Typische cycluslengte</Label>
+                <Label>Cycluslengte</Label>
                 <div className="flex items-center gap-4 mt-1">
                   <button
                     type="button"
                     onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
-                    className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
-                               text-ink-600 hover:bg-sage-100 hover:border-sage-200
-                               transition text-xl flex items-center justify-center"
+                    className="w-12 h-12 rounded-full border text-ink-600 transition
+                               text-2xl flex items-center justify-center"
+                    style={{ background: 'rgba(201,105,138,0.08)', borderColor: 'rgba(201,105,138,0.25)' }}
                   >−</button>
                   <div className="flex-1 text-center">
-                    <span className="font-display text-[36px] text-ink-700 leading-none">
+                    <span className="font-display text-[40px] text-ink-700 leading-none">
                       {form.cycleLength}
                     </span>
                     <span className="text-sm text-ink-400 ml-1.5">dagen</span>
@@ -1077,28 +1057,28 @@ function Onboarding({ onComplete }) {
                   <button
                     type="button"
                     onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
-                    className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
-                               text-ink-600 hover:bg-sage-100 hover:border-sage-200
-                               transition text-xl flex items-center justify-center"
+                    className="w-12 h-12 rounded-full border text-ink-600 transition
+                               text-2xl flex items-center justify-center"
+                    style={{ background: 'rgba(201,105,138,0.08)', borderColor: 'rgba(201,105,138,0.25)' }}
                   >+</button>
                 </div>
                 <div className="text-[11px] text-ink-400 text-center mt-2">
-                  28 dagen is gemiddeld — pas aan naar jouw ritme (21–45)
+                  Gemiddeld 28 dagen · aanpasbaar van 21–45
                 </div>
               </Field>
 
               <Field>
-                <Label>Hoe lang duurt je menstruatie?</Label>
+                <Label>Menstruatieduur</Label>
                 <div className="flex items-center gap-4 mt-1">
                   <button
                     type="button"
-                    onClick={() => setF('mensDuration', Math.max(2, form.mensDuration - 1))}
-                    className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
-                               text-ink-600 hover:bg-sage-100 hover:border-sage-200
-                               transition text-xl flex items-center justify-center"
+                    onClick={() => setF('mensDuration', Math.max(1, form.mensDuration - 1))}
+                    className="w-12 h-12 rounded-full border text-ink-600 transition
+                               text-2xl flex items-center justify-center"
+                    style={{ background: 'rgba(201,105,138,0.08)', borderColor: 'rgba(201,105,138,0.25)' }}
                   >−</button>
                   <div className="flex-1 text-center">
-                    <span className="font-display text-[36px] text-ink-700 leading-none">
+                    <span className="font-display text-[40px] text-ink-700 leading-none">
                       {form.mensDuration}
                     </span>
                     <span className="text-sm text-ink-400 ml-1.5">dagen</span>
@@ -1106,11 +1086,26 @@ function Onboarding({ onComplete }) {
                   <button
                     type="button"
                     onClick={() => setF('mensDuration', Math.min(10, form.mensDuration + 1))}
-                    className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
-                               text-ink-600 hover:bg-sage-100 hover:border-sage-200
-                               transition text-xl flex items-center justify-center"
+                    className="w-12 h-12 rounded-full border text-ink-600 transition
+                               text-2xl flex items-center justify-center"
+                    style={{ background: 'rgba(201,105,138,0.08)', borderColor: 'rgba(201,105,138,0.25)' }}
                   >+</button>
                 </div>
+                <div className="text-[11px] text-ink-400 text-center mt-2">
+                  Gemiddeld 5 dagen · aanpasbaar van 1–10
+                </div>
+              </Field>
+
+              <Field>
+                <Label htmlFor="onboard-last-period">Eerste dag laatste menstruatie</Label>
+                <input
+                  id="onboard-last-period"
+                  className={inputCx}
+                  type="date"
+                  value={form.lastPeriodStart}
+                  onChange={setFE('lastPeriodStart')}
+                  style={{ minHeight: 48 }}
+                />
               </Field>
             </div>
 
@@ -1120,14 +1115,16 @@ function Onboarding({ onComplete }) {
                 onClick={() => goTo(0)}
                 className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
                            hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
+                style={{ minHeight: 48 }}
               >
                 <ChevronLeft className="w-4 h-4" /> Terug
               </button>
               <button
                 type="button"
                 onClick={() => goTo(2)}
-                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
-                           hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+                className="flex-1 rounded-2xl text-cream-50 py-3 font-semibold
+                           active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+                style={{ background: 'linear-gradient(135deg, #C9698A 0%, #A86AAD 100%)', minHeight: 48 }}
               >
                 Volgende <ArrowRight className="w-4 h-4" />
               </button>
@@ -1135,144 +1132,59 @@ function Onboarding({ onComplete }) {
           </Card>
         )}
 
-        {/* Step 2 — Lichaam & activiteit */}
+        {/* Stap 2 — Klaar */}
         {step === 2 && (
           <Card key={animKey} className={cardCx}>
-            <h2 className="font-display text-[28px] text-ink-700 leading-tight mb-2">
-              Jouw lichaam.
-            </h2>
-            <p className="text-sm text-ink-500 mb-7 leading-relaxed">
-              Dit bepaalt je calorie- en voedingsdoelen. Laat leeg om de standaardwaarden te gebruiken.
-            </p>
-
-            <div className="space-y-5">
-              <div className="grid grid-cols-3 gap-3">
-                <Field>
-                  <Label htmlFor="onboard-age">Leeftijd</Label>
-                  <input
-                    id="onboard-age"
-                    className={inputCx}
-                    type="number" min="14" max="70"
-                    value={form.age}
-                    onChange={setFE('age')}
-                    placeholder="28"
-                  />
-                </Field>
-                <Field>
-                  <Label htmlFor="onboard-weight">Gewicht kg</Label>
-                  <input
-                    id="onboard-weight"
-                    className={inputCx}
-                    type="number" min="30" max="200"
-                    value={form.weightKg}
-                    onChange={setFE('weightKg')}
-                    placeholder="62"
-                  />
-                </Field>
-                <Field>
-                  <Label htmlFor="onboard-height">Lengte cm</Label>
-                  <input
-                    id="onboard-height"
-                    className={inputCx}
-                    type="number" min="120" max="220"
-                    value={form.heightCm}
-                    onChange={setFE('heightCm')}
-                    placeholder="168"
-                  />
-                </Field>
+            <div className="flex justify-center mb-6">
+              <div
+                className="w-20 h-20 rounded-[28px] flex items-center justify-center shadow-soft"
+                style={{ background: 'linear-gradient(135deg, #D4F0C4 0%, #C4EAD4 100%)' }}
+              >
+                <Check className="w-10 h-10 text-sage-600" />
               </div>
-
-              <Field>
-                <Label>Activiteitsniveau</Label>
-                <div className="grid grid-cols-1 gap-2 mt-1">
-                  {ACTIVITY_LEVELS.map((lvl) => {
-                    const active = form.activityLevel === lvl.id;
-                    return (
-                      <button
-                        type="button"
-                        key={lvl.id}
-                        onClick={() => setF('activityLevel', lvl.id)}
-                        className={`text-left px-4 py-3 rounded-xl border transition ${
-                          active
-                            ? 'bg-sage-100 border-sage-300 text-sage-700'
-                            : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
-                        }`}
-                      >
-                        <div className="text-sm font-medium">{lvl.label}</div>
-                        <div className="text-xs text-ink-400 mt-0.5">{lvl.hint}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Field>
             </div>
-
-            <div className="flex gap-3 mt-8">
+            <h2 className="font-display text-[28px] text-ink-700 text-center leading-tight mb-3">
+              Alles ingesteld!
+            </h2>
+            <p className="text-sm text-ink-500 text-center leading-relaxed mb-8">
+              Je kunt nu beginnen met het bijhouden van je cyclus, voeding, slaap en beweging.
+            </p>
+            <div className="space-y-2 mb-8 px-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-400">Cycluslengte</span>
+                <span className="font-medium text-ink-700">{form.cycleLength} dagen</span>
+              </div>
+              <div className="h-px bg-cream-200" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-400">Menstruatieduur</span>
+                <span className="font-medium text-ink-700">{form.mensDuration} dagen</span>
+              </div>
+              <div className="h-px bg-cream-200" />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-400">Laatste menstruatie</span>
+                <span className="font-medium text-ink-700">
+                  {new Date(`${form.lastPeriodStart}T00:00:00`).toLocaleDateString('nl', { day: 'numeric', month: 'long' })}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => goTo(1)}
                 className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
                            hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
-              >
-                <ChevronLeft className="w-4 h-4" /> Terug
-              </button>
-              <button
-                type="button"
-                onClick={() => goTo(3)}
-                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
-                           hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
-              >
-                Volgende <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </Card>
-        )}
-
-        {/* Step 3 — Welkomstscherm */}
-        {step === 3 && (
-          <Card key={animKey} className={cardCx}>
-            <div className="flex justify-center mb-5">
-              <div className="text-5xl">🌸</div>
-            </div>
-            <h2 className="font-display text-[28px] text-ink-700 text-center leading-tight mb-2">
-              {form.name.trim() ? `Welkom, ${form.name.trim().split(' ')[0]}!` : 'Welkom bij Aura!'}
-            </h2>
-            <p className="text-sm text-ink-500 text-center leading-relaxed mb-6">
-              Dit vind je in de app:
-            </p>
-            <div className="space-y-2 mb-7">
-              {[
-                { emoji: '🌸', label: 'Vandaag', desc: 'Volg voeding, slaap en symptomen' },
-                { emoji: '🥗', label: 'Voeding', desc: 'Recepten afgestemd op je fase' },
-                { emoji: '📓', label: 'Logboek', desc: 'Jouw dagelijkse geschiedenis' },
-                { emoji: '📊', label: 'Inzichten', desc: 'Patronen in je cyclus en data' },
-                { emoji: '⚙️', label: 'Instellingen', desc: 'Doelen, herinneringen en meer' },
-              ].map(({ emoji, label, desc }) => (
-                <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-cream-100/70">
-                  <span className="text-xl">{emoji}</span>
-                  <div>
-                    <div className="text-sm font-medium text-ink-700">{label}</div>
-                    <div className="text-xs text-ink-400">{desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => goTo(2)}
-                className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
-                           hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
+                style={{ minHeight: 56 }}
               >
                 <ChevronLeft className="w-4 h-4" /> Terug
               </button>
               <button
                 type="button"
                 onClick={complete}
-                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
-                           hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+                className="flex-1 rounded-2xl text-cream-50 font-bold text-lg
+                           active:scale-[0.98] transition flex items-center justify-center gap-2"
+                style={{ background: 'linear-gradient(135deg, #C9698A 0%, #A86AAD 100%)', minHeight: 56 }}
               >
-                Begin <ArrowRight className="w-4 h-4" />
+                Start 🌸
               </button>
             </div>
           </Card>
@@ -2716,7 +2628,7 @@ function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  if (!profile) return <Onboarding onComplete={setProfile} />;
+  if (!profile?.lastPeriodStart) return <Onboarding onComplete={setProfile} />;
 
   const updateProfile = (next) => {
     if (!next || next === profile) return;
