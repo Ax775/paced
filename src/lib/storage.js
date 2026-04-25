@@ -57,6 +57,7 @@ export function emptyLog() {
     protein:   0,
     calories:  0,
     hydration: 0,         // in glasses (250 ml each)
+    meals:     [],        // [{ time: 'HH:MM', kcal: 0, protein: 0 }]
     gut: {
       probiotics: false,
       fiber:      false,
@@ -81,6 +82,7 @@ export function loadLog(date = new Date()) {
     return {
       ...base,
       ...parsed,
+      meals:    Array.isArray(parsed.meals) ? parsed.meals : [],
       gut:      { ...base.gut,      ...(parsed.gut      || {}) },
       symptoms: { ...base.symptoms, ...(parsed.symptoms || {}) },
     };
