@@ -1913,13 +1913,15 @@ function BottomNav({ active, onSelect }) {
     { id: 'settings',  label: 'Stel in',   icon: Settings  },
   ];
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex">
+    <nav role="tablist" aria-label="Hoofdnavigatie" className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex">
       {tabs.map(({ id, label, icon: Icon }) => {
         const on = active === id;
         return (
           <button
             key={id}
             type="button"
+            role="tab"
+            aria-current={on ? 'page' : undefined}
             onClick={() => onSelect(id)}
             className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] ${
               on ? 'text-sage-600' : 'text-ink-400 hover:text-ink-600'
