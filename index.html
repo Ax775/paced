@@ -2,6 +2,7 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' blob: https://cdn.tailwindcss.com https://unpkg.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#c9768f" />
   <meta name="description" content="Persoonlijke gezondheids- en cyclus-tracker voor vrouwen." />
@@ -80,14 +81,14 @@
   <script type="importmap">
     {
       "imports": {
-        "react":             "https://esm.sh/react@18",
-        "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
-        "react-dom/client":  "https://esm.sh/react-dom@18/client",
-        "lucide-react":      "https://esm.sh/lucide-react@0.441.0?deps=react@18"
+        "react":             "https://esm.sh/react@18.3.1",
+        "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+        "react-dom/client":  "https://esm.sh/react-dom@18.3.1/client",
+        "lucide-react":      "https://esm.sh/lucide-react@0.441.0?deps=react@18.3.1"
       }
     }
   </script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.10/babel.min.js"></script>
 
   <!-- Fix: Babel compiles external files to blob: URLs, which breaks
        relative imports (./lib/cycle.js resolves against blob: not the
