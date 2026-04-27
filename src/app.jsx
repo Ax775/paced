@@ -2736,9 +2736,16 @@ function App() {
   return (
     <>
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reset-dialog-title"
+          className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm"
+          onKeyDown={(e) => e.key === 'Escape' && setShowResetConfirm(false)}
+          onClick={(e) => e.target === e.currentTarget && setShowResetConfirm(false)}
+        >
           <div className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up">
-            <h2 className="font-display text-[22px] text-ink-700 mb-2">Profiel resetten?</h2>
+            <h2 id="reset-dialog-title" className="font-display text-[22px] text-ink-700 mb-2">Profiel resetten?</h2>
             <p className="text-sm text-ink-500 leading-relaxed mb-6">
               Weet je het zeker? Alle profieldata wordt gewist. Je dagelijkse logs blijven bewaard.
             </p>
