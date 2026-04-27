@@ -131,7 +131,7 @@ function exportCSV(profile) {
       log.hydration || '',
       log.sleep     || '',
       log.movement  || '',
-      `"${(log.note || '').replace(/"/g, '""')}"`,
+      `"${(log.note || '').replace(/[\r\n]/g, ' ').replace(/"/g, '""')}"`,
     ].join(','));
   }
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
@@ -147,6 +147,14 @@ function exportCSV(profile) {
 /*  Apple Health XML export (feature 7)                               */
 /* ------------------------------------------------------------------ */
 
+function xmlAttr(v) {
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function exportAppleHealth(profile, onEmpty) {
   const today = new Date();
   const records = [];
@@ -159,20 +167,22 @@ function exportAppleHealth(profile, onEmpty) {
     const dateStr = d.toISOString().slice(0, 10);
 
     if (log.calories > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.calories}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.calories)}"/>`);
     }
     if (log.protein > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.protein}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.protein)}"/>`);
     }
     if (log.hydration > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.hydration * 250}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.hydration * 250)}"/>`);
     }
     if (log.sleep > 0) {
-      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${iso}" startDate="${dateStr}T22:00:00" endDate="${dateStr}T0${log.sleep}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
+      const sleepHours = Math.min(23, Math.max(0, Math.floor(Number(log.sleep))));
+      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${iso}" startDate="${dateStr}T22:00:00" endDate="${dateStr}T${String(sleepHours).padStart(2,'0')}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
     }
     if (log.movement > 0) {
-      const est = Math.round(log.movement * 5);
-      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T08:${String(log.movement).padStart(2,'0')}:00" value="${est}"/>`);
+      const moveMins = Math.min(59, Math.max(0, Math.floor(Number(log.movement))));
+      const est = Math.round(moveMins * 5);
+      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T08:${String(moveMins).padStart(2,'0')}:00" value="${xmlAttr(est)}"/>`);
     }
   }
 
