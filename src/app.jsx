@@ -1668,11 +1668,11 @@ function CycleRing({ state }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Day</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Dag</div>
         <div className="font-display text-[54px] leading-none text-ink-700">
           {state.cycleDay ?? '—'}
         </div>
-        <div className="text-xs text-ink-400 mt-1">of {state.cycleLength}</div>
+        <div className="text-xs text-ink-400 mt-1">van {state.cycleLength}</div>
       </div>
     </div>
   );
