@@ -1339,7 +1339,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
       setNotifEnabled(true);
       showToast('Notificaties ingeschakeld ✓');
     } else {
-      showToast('Notificaties geblokkeerd');
+      showToast('Notificaties geblokkeerd — zet ze aan via Instellingen van je browser');
     }
   };
 
