@@ -382,6 +382,8 @@ function SymptomTracker({ log, onUpdate }) {
                     <button
                       key={n}
                       type="button"
+                      aria-label={`${label} ${n}`}
+                      aria-pressed={active}
                       onClick={() =>
                         onUpdate({ symptoms: { ...syms, [id]: active ? 0 : n } })
                       }
