@@ -31,7 +31,7 @@ import {
 
 const Card = ({ className = '', style, children }) => (
   <div
-    className={`rounded-xl3 bg-cream-50/80 backdrop-blur-sm shadow-soft border border-cream-200/60 ${className}`}
+    className={`rounded-3xl bg-cream-50/80 backdrop-blur-sm shadow-soft border border-cream-200/60 ${className}`}
     style={style}
   >
     {children}
@@ -64,17 +64,17 @@ function useDailyLog(date = new Date()) {
   const key = isoDate(date);
   const [log, setLog] = useState(() => loadLog(date));
 
-  useEffect(() => { setLog(loadLog(date)); }, [key]); // eslint-disable-line
+  useEffect(() => { setLog(loadLog(key)); }, [key]);
 
   const update = useCallback((patch) => {
     setLog((current) => {
       const next = { ...current, ...patch };
       if (patch.gut)      next.gut      = { ...current.gut,      ...patch.gut };
       if (patch.symptoms) next.symptoms = { ...current.symptoms, ...patch.symptoms };
-      saveLog(date, next);
+      saveLog(key, next);
       return next;
     });
-  }, [key]); // eslint-disable-line
+  }, [key]);
 
   return [log, update];
 }
@@ -156,7 +156,7 @@ function exportAppleHealth(profile, onEmpty) {
     d.setDate(today.getDate() - i);
     const log = loadLog(d);
     const iso = d.toISOString();
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = iso.slice(0, 10);
 
     if (log.calories > 0) {
       records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.calories}"/>`);
@@ -168,11 +168,18 @@ function exportAppleHealth(profile, onEmpty) {
       records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.hydration * 250}"/>`);
     }
     if (log.sleep > 0) {
-      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${iso}" startDate="${dateStr}T22:00:00" endDate="${dateStr}T0${log.sleep}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
+      const sleepEndTotalH = 22 + Math.round(log.sleep);
+      const wakeH = String(sleepEndTotalH % 24).padStart(2, '0');
+      const nextD = new Date(d); nextD.setDate(d.getDate() + 1);
+      const endDateStr = sleepEndTotalH >= 24 ? nextD.toISOString().slice(0, 10) : dateStr;
+      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${iso}" startDate="${dateStr}T22:00:00" endDate="${endDateStr}T${wakeH}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
     }
     if (log.movement > 0) {
       const est = Math.round(log.movement * 5);
-      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T08:${String(log.movement).padStart(2,'0')}:00" value="${est}"/>`);
+      const endTotalMin = 8 * 60 + log.movement;
+      const endH = String(Math.floor(endTotalMin / 60)).padStart(2, '0');
+      const endM = String(endTotalMin % 60).padStart(2, '0');
+      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T${endH}:${endM}:00" value="${est}"/>`);
     }
   }
 
@@ -839,8 +846,10 @@ function PWAInstallBanner() {
 
   const handleInstall = async () => {
     if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
+    try {
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+    } catch { /* ignore — prompt may only be called once */ }
     setDeferredPrompt(null);
     setVisible(false);
   };
@@ -1332,12 +1341,16 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
       showToast('Notificaties worden niet ondersteund in deze browser');
       return;
     }
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      setNotifEnabled(true);
-      showToast('Notificaties ingeschakeld ✓');
-    } else {
-      showToast('Notificaties geblokkeerd');
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        setNotifEnabled(true);
+        showToast('Notificaties ingeschakeld ✓');
+      } else {
+        showToast('Notificaties geblokkeerd');
+      }
+    } catch {
+      showToast('Notificaties konden niet worden ingeschakeld');
     }
   };
 
