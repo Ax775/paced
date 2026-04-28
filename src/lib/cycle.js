@@ -92,7 +92,10 @@ export function atMidnight(input) {
 export function daysBetween(a, b) {
   const aM = atMidnight(a).getTime();
   const bM = atMidnight(b).getTime();
-  return Math.floor((bM - aM) / MS_PER_DAY);
+  // Math.round (not floor): on DST spring-forward, local midnight-to-
+  // midnight is 23 hours instead of 24, so floor would silently lose a
+  // day. Rounding tolerates the ±1 h drift from either DST transition.
+  return Math.round((bM - aM) / MS_PER_DAY);
 }
 
 /** ISO yyyy-mm-dd from a Date or parseable date string. Local-tz, not UTC. */
@@ -173,6 +176,10 @@ export function phaseForCycleDay(cycleDay, cycleLength) {
 
 /** Clamp a user-provided cycle length into a physiologically sensible range. */
 export function clampCycleLength(n) {
+  // Treat null / undefined as "no value" → fall back to the 28-day default.
+  // (Without this, Number(null) === 0 sneaks through Number.isFinite and
+  // gets clamped to 21, which silently corrupts a malformed profile.)
+  if (n == null) return 28;
   const v = Number(n);
   if (!Number.isFinite(v)) return 28;
   return Math.min(45, Math.max(21, Math.round(v)));
