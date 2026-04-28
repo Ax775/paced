@@ -1057,6 +1057,11 @@ function Onboarding({ onComplete }) {
                 : 'Laten we beginnen'}
               <ArrowRight className="w-4 h-4" />
             </button>
+            <p className="text-[11px] text-ink-400 text-center leading-relaxed mt-5">
+              Aura bewaart alles uitsluitend lokaal op je apparaat — geen accounts, geen tracking.
+              <br />
+              Volledige privacyverklaring &amp; medische disclaimer vind je in Instellingen.
+            </p>
           </Card>
         )}
 
@@ -1312,7 +1317,7 @@ function Onboarding({ onComplete }) {
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
-function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onThemeChange }) {
+function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onThemeChange, onOpenLegal }) {
   const [form, setForm] = useState({
     name:          profile.name          || '',
     age:           profile.age           || '',
@@ -1668,7 +1673,126 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         </button>
       </Card>
 
+      {/* Legal */}
+      <button
+        type="button"
+        onClick={() => onOpenLegal && onOpenLegal()}
+        className="w-full mt-5 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                   text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition
+                   flex items-center justify-center gap-2"
+      >
+        Privacy &amp; disclaimer
+      </button>
+
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.2</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Legal: privacy + medical disclaimer + imprint                      */
+/* ------------------------------------------------------------------ */
+
+function LegalView({ onBack }) {
+  return (
+    <div className="min-h-dvh px-5 py-8 pb-28 max-w-md mx-auto">
+      <header className="flex items-center gap-3 mb-8 anim-fade-up">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Terug"
+          className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
+                     flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <h1 className="font-display text-[28px] text-ink-700 leading-tight">Privacy &amp; disclaimer</h1>
+      </header>
+
+      {/* Medische disclaimer */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Medische disclaimer</div>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Aura is een hulpmiddel voor zelfreflectie en bewustwording — geen medisch hulpmiddel.
+          De app vervangt geen consult bij een (huis)arts, gynaecoloog, voedingsdeskundige of andere zorgverlener.
+        </p>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Berekeningen voor cyclus, calorieën en eiwitten zijn schattingen op basis van algemene formules.
+          Ze kunnen afwijken van jouw persoonlijke situatie en zijn niet bedoeld als diagnose of behandeling.
+        </p>
+        <p className="text-sm text-ink-600 leading-relaxed">
+          Maak je je zorgen over je gezondheid, je menstruatiecyclus, je voeding of je welzijn?
+          Neem dan altijd contact op met een gekwalificeerde zorgverlener.
+        </p>
+      </Card>
+
+      {/* Wat slaan we op */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Wat slaan we op</div>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Alle gegevens die je in Aura invoert blijven <strong>uitsluitend op dit apparaat</strong>,
+          opgeslagen in de lokale opslag van je browser:
+        </p>
+        <ul className="text-sm text-ink-600 leading-relaxed list-disc pl-5 space-y-1 mb-3">
+          <li>Profiel: naam, leeftijd, gewicht, lengte, activiteitsniveau</li>
+          <li>Cyclus: lengte, duur menstruatie, datums die je logt</li>
+          <li>Dagelijks logboek: voeding, water, slaap, beweging, symptomen, notities</li>
+          <li>Voorkeuren: thema (licht/donker), herinneringstijd</li>
+        </ul>
+        <p className="text-sm text-ink-600 leading-relaxed">
+          Er wordt <strong>geen data naar servers gestuurd</strong>. We zien je gegevens niet, niemand anders ook.
+        </p>
+      </Card>
+
+      {/* Wat doen we niet */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Wat we niet doen</div>
+        <ul className="text-sm text-ink-600 leading-relaxed space-y-2">
+          <li>✗ Geen accounts, geen inlog, geen wachtwoorden</li>
+          <li>✗ Geen tracking-cookies of -pixels</li>
+          <li>✗ Geen analytics-diensten</li>
+          <li>✗ Geen advertenties</li>
+          <li>✗ Geen verkoop, verhuur of delen van data met derden</li>
+          <li>✗ Geen synchronisatie tussen apparaten (data blijft op dit apparaat)</li>
+        </ul>
+      </Card>
+
+      {/* Externe diensten */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Externe diensten</div>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Om de app in je browser te laden worden enkele publieke diensten gebruikt:
+        </p>
+        <ul className="text-sm text-ink-600 leading-relaxed list-disc pl-5 space-y-1 mb-3">
+          <li>Google Fonts — voor de lettertypes Inter en Fraunces</li>
+          <li>esm.sh — voor React</li>
+          <li>cdn.tailwindcss.com — voor de styling-bibliotheek</li>
+          <li>unpkg.com — voor de JSX-compiler</li>
+        </ul>
+        <p className="text-sm text-ink-600 leading-relaxed">
+          Deze diensten zien tijdens het laden je IP-adres (zoals bij elke website),
+          maar krijgen <strong>geen toegang</strong> tot je profiel of logboek.
+          In een toekomstige versie hosten we deze bestanden zelf zodat ook deze externe verbinding verdwijnt.
+        </p>
+      </Card>
+
+      {/* Jouw rechten */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Jouw rechten (AVG / GDPR)</div>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Onder de Europese privacywet heb je recht op inzage, correctie en verwijdering van je gegevens.
+          Omdat alle data alleen op dit apparaat staat, heb je dit volledig zelf in handen:
+        </p>
+        <ul className="text-sm text-ink-600 leading-relaxed list-disc pl-5 space-y-1">
+          <li>Inzage en correctie: open Instellingen om alles te zien en aan te passen</li>
+          <li>Verwijdering profiel: Instellingen → Profiel resetten</li>
+          <li>Verwijdering álles: wis de site-data via je browserinstellingen</li>
+        </ul>
+      </Card>
+
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
+        Aura · v1.2 · laatst bijgewerkt 28 april 2026
+      </div>
     </div>
   );
 }
@@ -2868,7 +2992,11 @@ function App() {
             onReset={handleReset}
             theme={theme}
             onThemeChange={handleThemeChange}
+            onOpenLegal={() => setTab('legal')}
           />
+        )}
+        {tab === 'legal' && (
+          <LegalView onBack={() => setTab('settings')} />
         )}
       </div>
       <BottomNav active={tab} onSelect={setTab} />

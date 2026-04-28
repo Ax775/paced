@@ -1,0 +1,40 @@
+# Cloudflare Pages headers
+# Format: path on its own line, indented header lines beneath it.
+# Specific paths override the catch-all `/*`.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  # CSP — currently permissive because Babel-standalone needs eval and the
+  # inline <style>/<script> blocks need 'unsafe-inline'. Tighten once we ship
+  # a real build (esbuild + Tailwind CLI), at which point most directives can
+  # drop to 'self' only.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.tailwindcss.com https://unpkg.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://esm.sh https://unpkg.com https://cdn.tailwindcss.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+
+# Shell + service worker — never cache so updates land on next reload.
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+  Service-Worker-Allowed: /
+
+# Manifest can have a short cache.
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600
+  Content-Type: application/manifest+json; charset=utf-8
+
+# App source — short cache because users may pull updates frequently.
+# The SW also uses network-first for these so a stale browser cache won't
+# stick around long.
+/src/*
+  Cache-Control: public, max-age=300, must-revalidate
+
+# Static assets — long cache, content-hashed in a future build step.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
