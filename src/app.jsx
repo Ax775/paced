@@ -60,6 +60,11 @@ const inputCx =
 /*  Daily log hook                                                     */
 /* ------------------------------------------------------------------ */
 
+// Loads and persists the log for a given calendar day.
+// `key` (ISO date string) is the stable dependency — two `new Date()` calls on
+// the same calendar day share the same key but are different object references,
+// so we key effects on the string rather than the Date object to avoid spurious
+// re-fetches. Currently only called with today's date (Dashboard), so this is safe.
 function useDailyLog(date = new Date()) {
   const key = isoDate(date);
   const [log, setLog] = useState(() => loadLog(date));
@@ -525,8 +530,8 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
       <WeekBarRow label="Water"     values={days.map((d) => d.pctWater)}    />
 
       <div className="flex gap-1.5 mt-4">
-        {days.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center">
+        {days.map((d) => (
+          <div key={isoDate(d.date)} className="flex-1 flex flex-col items-center">
             <div
               className={`text-[10px] uppercase tracking-wider ${
                 d.isToday ? 'text-sage-700 font-semibold' : 'text-ink-400'
@@ -540,9 +545,9 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
       </div>
 
       <div className="flex gap-1.5 mt-3" aria-label="Cycle phase per day">
-        {days.map((d, i) => (
+        {days.map((d) => (
           <div
-            key={i}
+            key={`phase-${isoDate(d.date)}`}
             className="flex-1 h-[3px] rounded-full"
             style={{ background: d.phaseHue, opacity: 0.55 }}
             title={PHASE_META[d.phase].label}
@@ -2524,13 +2529,13 @@ function PhaseRecipes({ phase }) {
         Recepten voor jouw fase · {phaseLabels[phase]}
       </div>
       <div className="space-y-3">
-        {recipes.map((recipe, i) => {
-          const open = expanded === i;
+        {recipes.map((recipe) => {
+          const open = expanded === recipe.name;
           return (
-            <div key={i}>
+            <div key={recipe.name}>
               <button
                 type="button"
-                onClick={() => setExpanded(open ? null : i)}
+                onClick={() => setExpanded(open ? null : recipe.name)}
                 className={`w-full text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] ${
                   open ? 'bg-sage-50 border-sage-200' : 'bg-cream-50 border-cream-200 hover:border-sage-200'
                 }`}

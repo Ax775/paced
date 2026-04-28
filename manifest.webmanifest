@@ -1,4 +1,5 @@
 {
+  "id": "/aura/",
   "name": "Aura — Vrouwelijke Gezondheid",
   "short_name": "Aura",
   "description": "Persoonlijke gezondheids- en cyclus-tracker voor vrouwen",
@@ -6,7 +7,7 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#fdf8f6",
+  "background_color": "#FBF9F3",
   "theme_color": "#c9768f",
   "lang": "nl",
   "dir": "ltr",
@@ -17,6 +18,22 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Log vandaag",
+      "short_name": "Vandaag",
+      "description": "Open de dagelijkse tracker",
+      "url": "./?tab=home",
+      "icons": [{ "src": "./assets/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Instellingen",
+      "short_name": "Stel in",
+      "description": "Open de profielinstellingen",
+      "url": "./?tab=settings",
+      "icons": [{ "src": "./assets/icon.svg", "sizes": "any" }]
     }
   ]
 }

@@ -1,10 +1,18 @@
-/* Aura service worker — simple offline cache-first shell. */
-const CACHE = 'aura-shell-v1';
-const ASSETS = [
+/* Aura service worker — offline cache with smart update strategy. */
+
+// Bump this version whenever you deploy changes so old caches are evicted.
+const CACHE = 'aura-shell-v3';
+
+const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './assets/icon.svg',
+];
+
+// Source files are cached separately and served with network-first so that
+// updates reach users on the next page load without a hard refresh.
+const SOURCE_FILES = [
   './src/app.jsx',
   './src/lib/cycle.js',
   './src/lib/nutrition.js',
@@ -16,7 +24,9 @@ const OFFLINE_HTML = `<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).catch(() => null)
+    caches.open(CACHE)
+      .then((cache) => cache.addAll([...STATIC_ASSETS, ...SOURCE_FILES]))
+      .catch(() => null)
   );
   self.skipWaiting();
 });
@@ -34,20 +44,40 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-  // Network-first for navigation so updates land quickly; offline fallback.
+  const url = new URL(req.url);
+  const path = url.pathname;
+
+  // ── Navigation: network-first, offline fallback to cached shell ──────
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
-        .catch(() =>
-          caches.match('./index.html').then(
-            (cached) => cached || new Response(OFFLINE_HTML, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
-          )
+      fetch(req).catch(() =>
+        caches.match('./index.html').then(
+          (cached) => cached || new Response(OFFLINE_HTML, {
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          })
         )
+      )
     );
     return;
   }
 
-  // Cache-first for static assets.
+  // ── App source files (.jsx / .js): network-first so updates propagate ─
+  // Falls back to cache when offline so the app still works.
+  const isSource = path.endsWith('.jsx') || (path.endsWith('.js') && path.includes('/src/'));
+  if (isSource) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => null);
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // ── Static assets: cache-first, populate on miss ─────────────────────
   event.respondWith(
     caches.match(req).then((hit) => {
       if (hit) return hit;
@@ -55,7 +85,7 @@ self.addEventListener('fetch', (event) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => null);
         return res;
-      }).catch(() => hit);
+      }).catch(() => null);
     })
   );
 });
