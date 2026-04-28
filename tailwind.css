@@ -1,0 +1,6 @@
+/* Tailwind entry — only the directives. All bespoke styles (animations,
+ * dark-mode overrides, scrollbar, body background) live in the inline
+ * <style> block in index.html so they apply in both dev and prod modes. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

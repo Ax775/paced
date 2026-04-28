@@ -10,11 +10,13 @@
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
-  # CSP — currently permissive because Babel-standalone needs eval and the
-  # inline <style>/<script> blocks need 'unsafe-inline'. Tighten once we ship
-  # a real build (esbuild + Tailwind CLI), at which point most directives can
-  # drop to 'self' only.
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://cdn.tailwindcss.com https://unpkg.com https://esm.sh; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://esm.sh https://unpkg.com https://cdn.tailwindcss.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  # CSP — tight policy for the production build. No more unsafe-eval (Babel
+  # is gone), no more CDN script sources (Tailwind & React are bundled).
+  # 'unsafe-inline' for script-src remains because of the two short inline
+  # scripts (theme init + SW registration); switching to sha256 hashes is a
+  # nice future tightening but those hashes have to be recomputed on every
+  # edit, which doesn't pay off for ~350 bytes of static code.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
 
 # Shell + service worker — never cache so updates land on next reload.
 /index.html
