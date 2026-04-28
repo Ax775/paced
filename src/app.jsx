@@ -131,7 +131,7 @@ function exportCSV(profile) {
       log.hydration || '',
       log.sleep     || '',
       log.movement  || '',
-      `"${(log.note || '').replace(/"/g, '""')}"`,
+      `"${(log.note || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`,
     ].join(','));
   }
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
@@ -147,6 +147,15 @@ function exportCSV(profile) {
 /*  Apple Health XML export (feature 7)                               */
 /* ------------------------------------------------------------------ */
 
+/* Escape a value for use inside an XML double-quoted attribute. */
+function xmlAttr(v) {
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function exportAppleHealth(profile, onEmpty) {
   const today = new Date();
   const records = [];
@@ -158,21 +167,30 @@ function exportAppleHealth(profile, onEmpty) {
     const iso = d.toISOString();
     const dateStr = d.toISOString().slice(0, 10);
 
+    // Next calendar day — used as the end date for overnight records.
+    const nextD = new Date(d);
+    nextD.setDate(d.getDate() + 1);
+    const nextStr = nextD.toISOString().slice(0, 10);
+
     if (log.calories > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.calories}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.calories)}"/>`);
     }
     if (log.protein > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.protein}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.protein)}"/>`);
     }
     if (log.hydration > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.hydration * 250}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.hydration * 250)}"/>`);
     }
     if (log.sleep > 0) {
-      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${iso}" startDate="${dateStr}T22:00:00" endDate="${dateStr}T0${log.sleep}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
+      // Sleep starts previous evening (22:00) and ends next morning.
+      const sleepHH = String(log.sleep).padStart(2, '0');
+      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T22:00:00" endDate="${nextStr}T${sleepHH}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
     }
     if (log.movement > 0) {
       const est = Math.round(log.movement * 5);
-      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T08:${String(log.movement).padStart(2,'0')}:00" value="${est}"/>`);
+      const movMM = String(log.movement % 60).padStart(2, '0');
+      const movHH = String(Math.floor(log.movement / 60)).padStart(2, '0');
+      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T${movHH}:${movMM}:00" value="${xmlAttr(est)}"/>`);
     }
   }
 
@@ -915,6 +933,7 @@ function ReminderBanner({ profile }) {
           <div className="text-xs text-ink-400 mt-0.5">Je hebt vandaag nog niets bijgehouden.</div>
         </div>
         <button type="button" onClick={() => setVisible(false)}
+          aria-label="Herinnering sluiten"
           className="p-1 text-ink-400 hover:text-ink-600 min-h-[44px] min-w-[44px] flex items-center justify-center">
           <X className="w-4 h-4" />
         </button>
@@ -950,11 +969,13 @@ function Onboarding({ onComplete }) {
   };
 
   const complete = () => {
+    const parsedDate  = new Date(form.lastPeriodStart);
+    const validDate   = form.lastPeriodStart && !isNaN(parsedDate.getTime());
     const profile = {
       name:            form.name.trim(),
       cycleLength:     Number(form.cycleLength),
       mensDuration:    Number(form.mensDuration) || 5,
-      lastPeriodStart: form.lastPeriodStart,
+      lastPeriodStart: validDate ? form.lastPeriodStart : new Date().toISOString().slice(0, 10),
       age:             Number(form.age)      || 28,
       weightKg:        Number(form.weightKg) || 62,
       heightCm:        Number(form.heightCm) || 168,
@@ -975,7 +996,7 @@ function Onboarding({ onComplete }) {
           style={{
             width:      i === step ? 24 : 8,
             height:     8,
-            background: i === step ? '#6B8559' : i < step ? '#A8BA98' : '#EDE6D3',
+            background: i === step ? '#6B8559' : i < step ? '#A8BA98' : 'var(--progress-track)',
           }}
         />
       ))}
@@ -1286,7 +1307,7 @@ function Onboarding({ onComplete }) {
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
-function SettingsScreen({ profile, onSave, onReset, onBack }) {
+function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onThemeChange }) {
   const [form, setForm] = useState({
     name:          profile.name          || '',
     age:           profile.age           || '',
@@ -1342,14 +1363,22 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
   };
 
   const handleSave = () => {
+    const age      = Number(form.age)      || profile.age;
+    const weightKg = Number(form.weightKg) || profile.weightKg;
+    const heightCm = Number(form.heightCm) || profile.heightCm;
+
+    if (age      && (age      < 12  || age      > 80 )) { showToast('Leeftijd moet tussen 12 en 80 jaar liggen');      return; }
+    if (weightKg && (weightKg < 30  || weightKg > 250)) { showToast('Gewicht moet tussen 30 en 250 kg liggen');        return; }
+    if (heightCm && (heightCm < 120 || heightCm > 220)) { showToast('Lengte moet tussen 120 en 220 cm liggen');        return; }
+
     const cleanGoals = {};
     Object.entries(goals).forEach(([k, v]) => { if (Number(v) > 0) cleanGoals[k] = Number(v); });
     onSave({
       ...profile,
       name:          form.name,
-      age:           Number(form.age)      || profile.age,
-      weightKg:      Number(form.weightKg) || profile.weightKg,
-      heightCm:      Number(form.heightCm) || profile.heightCm,
+      age,
+      weightKg,
+      heightCm,
       activityLevel: form.activityLevel,
       cycleLength:   Number(form.cycleLength),
       goals:         cleanGoals,
@@ -1546,6 +1575,38 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         )}
       </Card>
 
+      {/* Weergave */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Weergave</div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: 'auto',  label: 'Automatisch', Icon: null },
+            { id: 'light', label: 'Licht',        Icon: Sun  },
+            { id: 'dark',  label: 'Donker',       Icon: Moon },
+          ].map(({ id, label, Icon }) => {
+            const active = theme === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onThemeChange && onThemeChange(id)}
+                className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition ${
+                  active
+                    ? 'bg-sage-100 border-sage-300 text-sage-700'
+                    : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+                }`}
+              >
+                {Icon
+                  ? <Icon className="w-4 h-4" />
+                  : <span className="w-4 h-4 rounded-full border-2 border-current" style={{ borderStyle: 'dashed' }} />
+                }
+                <span className="text-[11px] font-medium leading-none">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+
       {/* Save */}
       <button
         type="button"
@@ -1692,7 +1753,7 @@ function PhaseTimeline({ state }) {
           >
             <div
               className={`h-1.5 w-full rounded-full transition ${active ? 'anim-breathe' : ''}`}
-              style={{ background: active ? meta.hue : '#EDE6D3' }}
+              style={{ background: active ? meta.hue : 'var(--progress-track)' }}
             />
             <div className={`text-[10px] uppercase tracking-wider ${active ? 'text-ink-600' : 'text-ink-400/70'}`}>
               {meta.label}
@@ -2322,7 +2383,7 @@ function GoalRing({ value, target, label, unit, color }) {
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative w-16 h-16 flex items-center justify-center">
         <svg width="64" height="64" viewBox="0 0 64 64" className="-rotate-90 absolute inset-0">
-          <circle cx="32" cy="32" r={r} stroke="#EDE6D3" strokeWidth="5" fill="none" />
+          <circle cx="32" cy="32" r={r} className="goal-ring-track" stroke="#EDE6D3" strokeWidth="5" fill="none" />
           <circle cx="32" cy="32" r={r} stroke={strokeColor} strokeWidth="5" fill="none"
             strokeLinecap="round" strokeOpacity={opacity}
             strokeDasharray={c}
@@ -2330,7 +2391,7 @@ function GoalRing({ value, target, label, unit, color }) {
             style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22,1,0.36,1)' }} />
         </svg>
         {ratio >= 1
-          ? <span className="text-[14px] font-semibold relative z-10" style={{ color: '#6B8559' }}>✓</span>
+          ? <span className="text-[14px] font-semibold relative z-10 text-sage-600">✓</span>
           : <span className="text-[11px] font-medium text-ink-700 relative z-10">{pctVal}%</span>
         }
       </div>
@@ -2707,6 +2768,15 @@ function App() {
   const [profile, setProfile] = useState(() => loadProfile());
   const [tab, setTab] = useState('home');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('aura.theme') || 'auto');
+
+  const handleThemeChange = useCallback((newTheme) => {
+    setTheme(newTheme);
+    localStorage.setItem('aura.theme', newTheme);
+    const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const dark = newTheme === 'dark' || (newTheme === 'auto' && sysDark);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  }, []);
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -2736,15 +2806,25 @@ function App() {
   return (
     <>
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up">
-            <h2 className="font-display text-[22px] text-ink-700 mb-2">Profiel resetten?</h2>
-            <p className="text-sm text-ink-500 leading-relaxed mb-6">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm"
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up"
+            role="alertdialog"
+            aria-labelledby="reset-dialog-title"
+            aria-describedby="reset-dialog-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="reset-dialog-title" className="font-display text-[22px] text-ink-700 mb-2">Profiel resetten?</h2>
+            <p id="reset-dialog-desc" className="text-sm text-ink-500 leading-relaxed mb-6">
               Weet je het zeker? Alle profieldata wordt gewist. Je dagelijkse logs blijven bewaard.
             </p>
             <div className="flex gap-3">
               <button
                 type="button"
+                autoFocus
                 onClick={() => setShowResetConfirm(false)}
                 className="flex-1 py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 transition"
               >
@@ -2781,6 +2861,8 @@ function App() {
             onSave={updateProfile}
             onBack={() => setTab('home')}
             onReset={handleReset}
+            theme={theme}
+            onThemeChange={handleThemeChange}
           />
         )}
       </div>
