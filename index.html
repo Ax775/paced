@@ -15,13 +15,6 @@
   <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
   <link rel="apple-touch-icon" href="./assets/icon.svg" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
-
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     // Quiet Luxury palette — sage, cream, muted terracotta
@@ -116,6 +109,24 @@
   </script>
 
   <style>
+    /* ── Self-hosted variable fonts (no external CDN) ──────────────── */
+    /* Inter: variable wght axis, Latin subset. ~48 KB. */
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 300 700;
+      font-display: swap;
+      src: url('./assets/fonts/inter-latin-wght-normal.woff2') format('woff2');
+    }
+    /* Fraunces: full variable axes (wght + opsz + soft), Latin subset. ~120 KB. */
+    @font-face {
+      font-family: 'Fraunces';
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url('./assets/fonts/fraunces-latin-full-normal.woff2') format('woff2');
+    }
+
     *, *::before, *::after {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;

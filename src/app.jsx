@@ -1760,19 +1760,11 @@ function LegalView({ onBack }) {
       {/* Externe diensten */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Externe diensten</div>
-        <p className="text-sm text-ink-600 leading-relaxed mb-3">
-          Om de app in je browser te laden worden enkele publieke diensten gebruikt:
-        </p>
-        <ul className="text-sm text-ink-600 leading-relaxed list-disc pl-5 space-y-1 mb-3">
-          <li>Google Fonts — voor de lettertypes Inter en Fraunces</li>
-          <li>esm.sh — voor React</li>
-          <li>cdn.tailwindcss.com — voor de styling-bibliotheek</li>
-          <li>unpkg.com — voor de JSX-compiler</li>
-        </ul>
         <p className="text-sm text-ink-600 leading-relaxed">
-          Deze diensten zien tijdens het laden je IP-adres (zoals bij elke website),
-          maar krijgen <strong>geen toegang</strong> tot je profiel of logboek.
-          In een toekomstige versie hosten we deze bestanden zelf zodat ook deze externe verbinding verdwijnt.
+          De productieversie van Aura laadt <strong>geen externe scripts, lettertypes of CDN's</strong>
+          tijdens gebruik. Alle code, stijlen en lettertypes worden samen met de app meegestuurd
+          en vanuit dezelfde host geserveerd. Tijdens het bezoeken van Aura wordt dus alleen
+          verbinding gemaakt met de Aura-host zelf — niet met Google, niet met derde partijen.
         </p>
       </Card>
 
@@ -2890,6 +2882,144 @@ function AllChartsView({ profile, onBack }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Error boundary + crash screen                                      */
+/* ------------------------------------------------------------------ */
+/*                                                                     */
+/*  Privacy-first crash handling: errors stay on the device. Nothing   */
+/*  is auto-sent. The user gets a calm fallback UI with a reload       */
+/*  button and an opt-in "copy details" action so they can paste the   */
+/*  report into an email if they want help debugging.                  */
+/*                                                                     */
+/* ------------------------------------------------------------------ */
+
+function buildErrorReport(error, errorInfo) {
+  const lines = [
+    `Aura crash report — ${new Date().toISOString()}`,
+    `URL:      ${typeof location !== 'undefined' ? location.href : '?'}`,
+    `Theme:    ${document?.documentElement?.getAttribute('data-theme') || '?'}`,
+    `UA:       ${navigator?.userAgent || '?'}`,
+    `Language: ${navigator?.language || '?'}`,
+    '',
+    `Message:  ${error?.message || String(error)}`,
+    '',
+    'Stack:',
+    error?.stack || '(no stack)',
+  ];
+  if (errorInfo?.componentStack) {
+    lines.push('', 'Component stack:', errorInfo.componentStack.trim());
+  }
+  return lines.join('\n');
+}
+
+function CrashScreen({ error, errorInfo }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [copied,      setCopied]      = useState(false);
+
+  const report = useMemo(() => buildErrorReport(error, errorInfo), [error, errorInfo]);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for browsers without clipboard API: select the <pre> text.
+      const pre = document.getElementById('aura-crash-report');
+      if (pre) {
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+  };
+
+  const handleReload = () => window.location.reload();
+
+  return (
+    <div className="min-h-dvh px-5 py-10 flex flex-col items-center justify-center max-w-md mx-auto">
+      <div className="w-16 h-16 rounded-[22px] mb-6 flex items-center justify-center shadow-soft"
+           style={{ background: 'linear-gradient(135deg, #F4E2D8 0%, #E2E9DC 100%)' }}>
+        <Flower2 className="w-7 h-7 text-terracotta-500" />
+      </div>
+      <h1 className="font-display text-[28px] text-ink-700 text-center leading-tight mb-3">
+        Aura is even uit balans
+      </h1>
+      <p className="text-sm text-ink-500 text-center leading-relaxed mb-6">
+        Er ging iets mis bij het tekenen van het scherm. Je gegevens zijn veilig — alles staat
+        nog steeds lokaal op je apparaat. Probeer Aura opnieuw te laden.
+      </p>
+
+      <button
+        type="button"
+        onClick={handleReload}
+        className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
+                   hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 mb-3"
+      >
+        Probeer opnieuw
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setShowDetails((v) => !v)}
+        className="w-full rounded-xl border border-cream-200 bg-cream-50 text-ink-600 py-3 text-sm
+                   hover:border-sage-200 hover:bg-sage-50 transition mb-2"
+      >
+        {showDetails ? 'Verberg foutgegevens' : 'Toon foutgegevens'}
+      </button>
+
+      {showDetails && (
+        <div className="w-full mt-2 anim-fade-up">
+          <pre
+            id="aura-crash-report"
+            className="text-[10px] leading-relaxed text-ink-500 bg-cream-100 border border-cream-200
+                       rounded-xl p-3 max-h-64 overflow-auto whitespace-pre-wrap"
+          >
+            {report}
+          </pre>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="w-full mt-2 rounded-xl border border-cream-200 bg-cream-50 text-ink-600 py-2.5 text-xs
+                       hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            {copied ? 'Gekopieerd ✓' : 'Kopieer foutgegevens'}
+          </button>
+          <p className="text-[10px] text-ink-400 text-center mt-3 leading-relaxed">
+            Aura stuurt nooit automatisch foutgegevens. Alleen als jij ze zelf kopieert en deelt.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+    // eslint-disable-next-line no-console
+    console.error('[Aura] render error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.error) {
+      return <CrashScreen error={this.state.error} errorInfo={this.state.errorInfo} />;
+    }
+    return this.props.children;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Root                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -2911,8 +3041,21 @@ function App() {
     const onStorage = (e) => {
       if (e.key === 'aura.profile') setProfile(loadProfile());
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    // Quiet logging for async errors that the React boundary can't see
+    // (event handlers, setTimeout callbacks, unhandled promise rejections).
+    // We don't surface these to the user — most don't break the UI — but
+    // they're tagged so anyone copying the console for support can find
+    // them quickly. Nothing leaves the device.
+    const onError    = (e) => console.error('[Aura] uncaught:',  e.error || e.message || e);
+    const onRejected = (e) => console.error('[Aura] rejection:', e.reason);
+    window.addEventListener('storage',            onStorage);
+    window.addEventListener('error',              onError);
+    window.addEventListener('unhandledrejection', onRejected);
+    return () => {
+      window.removeEventListener('storage',            onStorage);
+      window.removeEventListener('error',              onError);
+      window.removeEventListener('unhandledrejection', onRejected);
+    };
   }, []);
 
   if (!profile) return <Onboarding onComplete={setProfile} />;
@@ -3006,4 +3149,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);

@@ -16,7 +16,7 @@
   # scripts (theme init + SW registration); switching to sha256 hashes is a
   # nice future tightening but those hashes have to be recomputed on every
   # edit, which doesn't pay off for ~350 bytes of static code.
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
 
 # Shell + service worker — never cache so updates land on next reload.
 /index.html
@@ -37,6 +37,11 @@
 /src/*
   Cache-Control: public, max-age=300, must-revalidate
 
-# Static assets — long cache, content-hashed in a future build step.
+# Static assets — long cache. The font files are unlikely to change, the
+# icon never does. Content-hashed filenames are a follow-up.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+/assets/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
