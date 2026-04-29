@@ -2332,7 +2332,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
 
   return (
     <Card
-      className={`p-4 anim-fade-up transition-opacity ${!hasData ? 'opacity-40' : ''}`}
+      className={`p-5 anim-fade-up transition-opacity ${!hasData ? 'opacity-40' : ''}`}
       style={{ animationDelay: `${animDelay}ms` }}
     >
       <div className="flex items-start gap-3">
@@ -2508,10 +2508,10 @@ function LogboekView({ profile, onGoHome }) {
           type="button"
           onClick={() => exportCSV(profile)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cream-100 border border-cream-200
-                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 transition min-h-[44px]"
+                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 active:scale-95 transition min-h-[44px]"
           aria-label="Exporteer CSV"
         >
-          <Download className="w-3.5 h-3.5" />
+          <Download aria-hidden="true" className="w-4 h-4" />
           Exporteer
         </button>
       </header>
@@ -2522,10 +2522,10 @@ function LogboekView({ profile, onGoHome }) {
           type="button"
           onClick={goPrevMonth}
           className="flex items-center gap-1 px-3 py-2 rounded-xl bg-cream-100 border border-cream-200
-                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 transition min-h-[44px]"
+                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 active:scale-95 transition min-h-[44px]"
           aria-label={`Ga naar ${prevMonthLabel}`}
         >
-          <ChevronLeft className="w-3.5 h-3.5" />
+          <ChevronLeft aria-hidden="true" className="w-4 h-4" />
           {prevMonthLabel}
         </button>
         <div className="font-display text-lg text-ink-700 truncate px-1" aria-live="polite">
@@ -2538,12 +2538,12 @@ function LogboekView({ profile, onGoHome }) {
           className={`flex items-center gap-1 px-3 py-2 rounded-xl border text-xs transition min-h-[44px] ${
             isCurrentMonth
               ? 'bg-cream-50 border-cream-100 text-ink-400/40 cursor-not-allowed'
-              : 'bg-cream-100 border-cream-200 text-ink-500 hover:bg-cream-200 hover:text-ink-700'
+              : 'bg-cream-100 border-cream-200 text-ink-500 hover:bg-cream-200 hover:text-ink-700 active:scale-95'
           }`}
           aria-label={isCurrentMonth ? 'Geen toekomstige maanden' : `Ga naar ${nextMonthLabel}`}
         >
           {nextMonthLabel}
-          <ChevronRight className="w-3.5 h-3.5" />
+          <ChevronRight aria-hidden="true" className="w-4 h-4" />
         </button>
       </div>
 
