@@ -246,13 +246,18 @@
     [data-theme="dark"] .bg-terracotta-100 { background-color: #3A2520 !important; }
 
     /* Opacity variants */
+    [data-theme="dark"] .bg-cream-50\/60  { background-color: rgba(37,34,32,0.6)  !important; }
     [data-theme="dark"] .bg-cream-50\/80  { background-color: rgba(37,34,32,0.9)  !important; }
     [data-theme="dark"] .bg-cream-50\/95  { background-color: rgba(28,26,23,0.97) !important; }
+    [data-theme="dark"] .bg-cream-100\/40 { background-color: rgba(46,43,40,0.5)  !important; }
+    [data-theme="dark"] .bg-cream-100\/60 { background-color: rgba(46,43,40,0.6)  !important; }
+    [data-theme="dark"] .bg-cream-100\/70 { background-color: rgba(46,43,40,0.7)  !important; }
     [data-theme="dark"] .bg-cream-200\/60 { background-color: rgba(58,55,51,0.6)  !important; }
     [data-theme="dark"] .bg-cream-200\/70 { background-color: rgba(58,55,51,0.7)  !important; }
     [data-theme="dark"] .bg-cream-200\/80 { background-color: rgba(58,55,51,0.8)  !important; }
     [data-theme="dark"] .bg-sage-50\/95   { background-color: rgba(30,38,32,0.97) !important; }
     [data-theme="dark"] .bg-terracotta-100\/50 { background-color: rgba(58,37,32,0.5) !important; }
+    [data-theme="dark"] .bg-ink-700\/95   { background-color: rgba(61,58,54,0.97) !important; }
 
     /* ── Text ── */
     [data-theme="dark"] .text-ink-700   { color: #F0EBE1 !important; }
@@ -286,8 +291,18 @@
     [data-theme="dark"] .focus\:border-sage-300:focus  { border-color: #4A6B42 !important; }
     [data-theme="dark"] .focus\:ring-sage-200\/60:focus { --tw-ring-color: rgba(74,107,66,0.5) !important; }
 
+    /* Text opacity variants — Tailwind bakes opacity into a separate class
+       per modifier, so each one needs its own dark override. */
+    [data-theme="dark"] .text-ink-400\/40 { color: rgba(110,106,98,0.4) !important; }
+    [data-theme="dark"] .text-ink-400\/60 { color: rgba(110,106,98,0.6) !important; }
+    [data-theme="dark"] .text-ink-400\/80 { color: rgba(110,106,98,0.8) !important; }
+
+    /* Border opacity variants */
+    [data-theme="dark"] .border-cream-200\/50 { border-color: rgba(58,55,51,0.5) !important; }
+
     /* ── Placeholders ── */
     [data-theme="dark"] .placeholder\:text-ink-400\/70::placeholder { color: rgba(110,106,98,0.6) !important; }
+    [data-theme="dark"] .placeholder\:text-ink-400\/60::placeholder { color: rgba(110,106,98,0.5) !important; }
 
     /* ── SVG: goal ring background track ── */
     [data-theme="dark"] .goal-ring-track { stroke: #3A3733 !important; }
