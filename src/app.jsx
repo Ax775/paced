@@ -340,7 +340,7 @@ function Chip({ children, onClick, ariaLabel }) {
   );
 }
 
-function NumberValue({ value, unit, target, onChange }) {
+function NumberValue({ value, unit, target, label, onChange }) {
   return (
     <div className="flex items-baseline gap-1 font-display text-ink-700">
       <input
@@ -352,7 +352,7 @@ function NumberValue({ value, unit, target, onChange }) {
         }}
         className="w-[3.4rem] text-right bg-transparent text-[26px] leading-none
                    focus:outline-none focus:text-sage-700"
-        aria-label={`${unit} entered`}
+        aria-label={label ? `${label} in ${unit}` : `${unit} ingevoerd`}
       />
       <span className="text-ink-400 text-sm">/ {target} {unit}</span>
     </div>
@@ -367,18 +367,18 @@ function TrackerRow({ icon: Icon, label, value, target, unit, increments, onAdd,
           {Icon && <Icon className="w-3.5 h-3.5 text-ink-400" />}
           <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">{label}</div>
         </div>
-        <NumberValue value={value} unit={unit} target={target} onChange={onSet} />
+        <NumberValue value={value} unit={unit} target={target} label={label} onChange={onSet} />
       </div>
       <SoftProgress value={value} target={target} />
       <div className="flex flex-wrap gap-2 mt-3">
         {increments.map((inc) => (
-          <Chip key={inc} onClick={() => onAdd(inc)} ariaLabel={`Add ${inc} ${unit}`}>
+          <Chip key={inc} onClick={() => onAdd(inc)} ariaLabel={`Voeg ${inc} ${unit} toe`}>
             +{inc} {unit}
           </Chip>
         ))}
         {value > 0 && (
-          <Chip onClick={() => onSet(0)} ariaLabel={`Reset ${label}`}>
-            reset
+          <Chip onClick={() => onSet(0)} ariaLabel={`Wis ${label}`}>
+            wis
           </Chip>
         )}
       </div>
@@ -609,7 +609,7 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
         ))}
       </div>
 
-      <div className="flex gap-1.5 mt-3" aria-label="Cycle phase per day">
+      <div className="flex gap-1.5 mt-3" aria-label="Cyclusfase per dag">
         {days.map((d) => (
           <div
             key={`phase-${isoDate(d.date)}`}
@@ -641,7 +641,7 @@ function WeekBarRow({ label, values }) {
             <div
               key={i}
               className="flex-1 h-full rounded-md bg-cream-200/60 relative overflow-hidden"
-              aria-label={`${label} day ${i + 1}: ${Math.round(v)}% of target`}
+              aria-label={`${label} dag ${i + 1}: ${Math.round(v)}% van doel`}
             >
               <div
                 className="absolute bottom-0 left-0 right-0 rounded-md transition-all duration-500"
@@ -763,7 +763,7 @@ function GutChecklist({ gut, onToggle }) {
               <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
             </div>
             {on && (
-              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">Done</div>
+              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">Klaar</div>
             )}
           </button>
         );
@@ -968,7 +968,7 @@ function PWAInstallBanner() {
           type="button"
           onClick={handleDismiss}
           className="p-1 text-ink-400 hover:text-ink-600 transition shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
-          aria-label="Dismiss install prompt"
+          aria-label="Installatie-prompt sluiten"
         >
           <X className="w-4 h-4" />
         </button>
@@ -1931,11 +1931,11 @@ function CycleRing({ state }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Day</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Dag</div>
         <div className="font-display text-[54px] leading-none text-ink-700">
           {state.cycleDay ?? '—'}
         </div>
-        <div className="text-xs text-ink-400 mt-1">of {state.cycleLength}</div>
+        <div className="text-xs text-ink-400 mt-1">van {state.cycleLength}</div>
       </div>
     </div>
   );
@@ -2795,7 +2795,7 @@ function MiniRing({ value, target, label }) {
   return (
     <div className="flex flex-col items-center gap-1">
       <svg width="32" height="32" viewBox="0 0 32 32" className="-rotate-90">
-        <circle cx="16" cy="16" r={r} stroke="#EDE6D3" strokeWidth="3" fill="none" />
+        <circle cx="16" cy="16" r={r} className="goal-ring-track" stroke="#EDE6D3" strokeWidth="3" fill="none" />
         <circle
           cx="16" cy="16" r={r}
           stroke={stroke} strokeWidth="3" fill="none"
@@ -2805,7 +2805,7 @@ function MiniRing({ value, target, label }) {
           style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22,1,0.36,1)' }}
         />
       </svg>
-      <div className="text-[9px] uppercase tracking-wider text-ink-400">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-ink-500 font-medium">{label}</div>
     </div>
   );
 }
