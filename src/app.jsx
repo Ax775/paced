@@ -408,13 +408,18 @@ function HydrationRow({ glasses, target, onChange }) {
               type="button"
               aria-label={`Stel water in op ${slot} glazen`}
               onClick={() => onChange(filled && slot === glasses ? slot - 1 : slot)}
-              className={`w-7 h-9 rounded-b-full rounded-t-md border transition
-                          active:scale-95 ${
-                            filled
-                              ? 'bg-sage-200 border-sage-300'
-                              : 'bg-cream-50 border-cream-200 hover:border-sage-200'
-                          }`}
-            />
+              className="relative grid place-items-center min-w-[44px] min-h-[44px] active:scale-95 transition"
+            >
+              {/* Visible glass — sits inside a 44×44 invisible hit area for touch */}
+              <span
+                aria-hidden="true"
+                className={`block w-7 h-9 rounded-b-full rounded-t-md border transition ${
+                  filled
+                    ? 'bg-sage-200 border-sage-300'
+                    : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+                }`}
+              />
+            </button>
           );
         })}
       </div>
@@ -473,11 +478,13 @@ function SymptomTracker({ log, onUpdate }) {
                       onClick={() =>
                         onUpdate({ symptoms: { ...syms, [id]: active ? 0 : n } })
                       }
-                      className={`flex-1 py-2.5 rounded-xl border transition active:scale-95 text-lg leading-none ${
+                      className={`flex-1 min-h-[44px] py-3 rounded-xl border transition active:scale-95 text-lg leading-none ${
                         active
                           ? 'bg-sage-100 border-sage-300 shadow-soft'
                           : 'bg-cream-50 border-cream-200 hover:border-sage-200'
                       }`}
+                      aria-label={`${label}: ${n} van 5`}
+                      aria-pressed={active}
                     >
                       {icons[n - 1]}
                     </button>
@@ -695,7 +702,8 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
         <button
           type="button"
           onClick={handleUndo}
-          className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition"
+          aria-label="Menstruatie-log ongedaan maken"
+          className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
         >
           ongedaan maken
         </button>
@@ -801,7 +809,7 @@ function SleepTracker({ hours, onChange }) {
               type="button"
               aria-label={`${h} uur slaap`}
               onClick={() => onChange(active ? 0 : h)}
-              className={`flex-1 py-2.5 rounded-xl border text-sm transition active:scale-95 ${
+              className={`flex-1 min-h-[44px] py-3 rounded-xl border text-sm transition active:scale-95 ${
                 active
                   ? 'bg-sage-100 border-sage-300 text-sage-700 font-medium shadow-soft'
                   : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
@@ -855,7 +863,7 @@ function MovementTracker({ minutes, onChange, phase }) {
               type="button"
               aria-label={`${m} minuten bewegen`}
               onClick={() => onChange(active ? 0 : m)}
-              className={`px-3 py-2.5 rounded-xl border text-sm transition active:scale-95 ${
+              className={`min-h-[44px] min-w-[56px] px-3 py-3 rounded-xl border text-sm transition active:scale-95 ${
                 active
                   ? 'bg-sage-100 border-sage-300 text-sage-700 font-medium shadow-soft'
                   : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
@@ -868,8 +876,9 @@ function MovementTracker({ minutes, onChange, phase }) {
         {minutes > 0 && (
           <button
             type="button"
+            aria-label="Wis bewegingstijd"
             onClick={() => onChange(0)}
-            className="px-3 py-2.5 rounded-xl border border-cream-200 bg-cream-50 text-ink-400 text-sm transition hover:border-sage-200"
+            className="min-h-[44px] px-4 py-3 rounded-xl border border-cream-200 bg-cream-50 text-ink-400 text-sm transition hover:border-sage-200 active:scale-95"
           >
             wis
           </button>
@@ -2412,13 +2421,13 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
               ) : null}
             </div>
           ) : isToday ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="text-[11px] text-ink-400/70 italic">Nog niets gelogd vandaag.</div>
               {onGoToToday && (
                 <button
                   type="button"
                   onClick={onGoToToday}
-                  className="text-[11px] text-sage-600 underline decoration-dotted underline-offset-2 hover:text-sage-700 transition"
+                  className="text-[11px] text-sage-600 underline decoration-dotted underline-offset-2 hover:text-sage-700 active:scale-95 transition px-2 py-2 min-h-[44px] inline-flex items-center"
                 >
                   Begin met loggen
                 </button>
@@ -3060,7 +3069,8 @@ function ExtendedCharts({ profile }) {
       <div className="flex gap-2">
         {[30, 90].map(n => (
           <button key={n} type="button" onClick={() => setDays(n)}
-            className={`px-4 py-2 rounded-full text-sm transition ${days === n ? 'bg-sage-500 text-cream-50' : 'bg-cream-100 border border-cream-200 text-ink-600 hover:border-sage-200'}`}>
+            aria-pressed={days === n}
+            className={`min-h-[44px] px-5 py-2.5 rounded-full text-sm transition active:scale-95 ${days === n ? 'bg-sage-500 text-cream-50' : 'bg-cream-100 border border-cream-200 text-ink-600 hover:border-sage-200'}`}>
             {n} dagen
           </button>
         ))}
@@ -3424,14 +3434,14 @@ function App() {
                 type="button"
                 autoFocus
                 onClick={() => setShowResetConfirm(false)}
-                className="flex-1 py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 transition"
+                className="flex-1 min-h-[44px] py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 active:scale-[0.98] transition"
               >
                 Annuleren
               </button>
               <button
                 type="button"
                 onClick={confirmReset}
-                className="flex-1 py-3 rounded-xl bg-terracotta-400 text-cream-50 text-sm font-medium hover:bg-terracotta-500 transition active:scale-[0.98]"
+                className="flex-1 min-h-[44px] py-3 rounded-xl bg-terracotta-400 text-cream-50 text-sm font-medium hover:bg-terracotta-500 transition active:scale-[0.98]"
               >
                 Ja, reset
               </button>
