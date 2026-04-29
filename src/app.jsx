@@ -9,8 +9,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
-  Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, BookOpen, Activity,
-  BarChart2, Download, X, TrendingUp, Undo2,
+  Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
+  BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
 } from 'lucide-react';
 
 import {
@@ -37,6 +37,61 @@ const Card = ({ className = '', style, children }) => (
     {children}
   </div>
 );
+
+const COLLAPSED_KEY = 'aura_card_collapsed';
+
+function readCollapsedMap() {
+  try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '{}') || {}; }
+  catch { return {}; }
+}
+
+function CollapsibleCard({ id, title, headerExtra, className = '', style, children }) {
+  const [collapsed, setCollapsed] = useState(() => !!readCollapsedMap()[id]);
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        const map = readCollapsedMap();
+        map[id] = next;
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify(map));
+      } catch { /* storage unavailable — state still updates in memory */ }
+      return next;
+    });
+  };
+
+  return (
+    <Card className={`overflow-hidden anim-fade-up ${className}`} style={style}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={!collapsed}
+        className="w-full flex items-center justify-between gap-3 px-6 py-4 min-h-[44px] text-left hover:bg-cream-100/40 transition"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className="text-[11px] uppercase tracking-[0.18em] text-ink-400">{title}</span>
+          {headerExtra && <div className="ml-auto">{headerExtra}</div>}
+        </div>
+        <ChevronDown
+          className="w-4 h-4 text-ink-400 shrink-0 transition-transform duration-300"
+          style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}
+        />
+      </button>
+      <div
+        aria-hidden={collapsed}
+        style={{
+          display: 'grid',
+          gridTemplateRows: collapsed ? '0fr' : '1fr',
+          transition: 'grid-template-rows 300ms cubic-bezier(0.22,1,0.36,1)',
+        }}
+      >
+        <div style={{ overflow: 'hidden' }}>
+          <div className="px-6 pb-6">{children}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 const Label = ({ children, htmlFor }) => (
   <label
@@ -2075,14 +2130,18 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       </Card>
 
       {/* Wellbeing — sleep + movement */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '200ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Welzijn</div>
+      <CollapsibleCard
+        id="wellbeing"
+        title="Welzijn"
+        className="mb-5"
+        style={{ animationDelay: '200ms' }}
+      >
         <div className="space-y-6">
           <SleepTracker hours={log.sleep} onChange={setSleep} />
           <div className="h-px bg-cream-200/70" />
           <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
         </div>
-      </Card>
+      </CollapsibleCard>
 
       {/* Tip van de dag */}
       <TipVanDeDag phase={state.phase} log={log} goals={profile.goals} targets={targets} name={profile.name} />
@@ -2091,19 +2150,27 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       <WeeklyHistoryStrip profile={profile} todayLog={log} />
 
       {/* Gut health checklist */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '240ms' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Darmgezondheid</div>
-          <div className="text-[11px] text-ink-400">
+      <CollapsibleCard
+        id="gut"
+        title="Darmgezondheid"
+        headerExtra={
+          <span className="text-[11px] text-ink-400">
             {Object.values(log.gut).filter(Boolean).length} of 3
-          </div>
-        </div>
+          </span>
+        }
+        className="mb-5"
+        style={{ animationDelay: '240ms' }}
+      >
         <GutChecklist gut={log.gut} onToggle={toggleGut} />
-      </Card>
+      </CollapsibleCard>
 
       {/* Nutrient focus */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '280ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Nutriëntenfocus</div>
+      <CollapsibleCard
+        id="focus"
+        title="Nutriëntenfocus"
+        className="mb-5"
+        style={{ animationDelay: '280ms' }}
+      >
         <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
         <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
         <div className="flex flex-wrap gap-2">
@@ -2116,7 +2183,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
             </span>
           ))}
         </div>
-      </Card>
+      </CollapsibleCard>
 
       {/* Journal note */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '340ms' }}>
