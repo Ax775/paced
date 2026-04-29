@@ -2018,7 +2018,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
         setToast(null);
         setToastDismissing(false);
         toastSnapshotRef.current = null;
-      }, 220);
+      }, 320);
     }, 5000);
   }, [log, commitLog]);
 
@@ -2246,9 +2246,10 @@ function UndoToast({ visible, dismissing, onUndo }) {
   return (
     <div
       className={`fixed left-0 right-0 bottom-20 z-50 px-4 pointer-events-none
+                  transition-all duration-300 ease-out
                   ${dismissing
-                    ? 'opacity-0 transition-opacity duration-200'
-                    : 'opacity-100 anim-slide-up'}`}
+                    ? 'opacity-0 translate-y-2'
+                    : 'opacity-100 translate-y-0 anim-slide-up'}`}
       role="status"
       aria-live="polite"
     >
@@ -2256,11 +2257,12 @@ function UndoToast({ visible, dismissing, onUndo }) {
         <button
           type="button"
           onClick={onUndo}
+          aria-label="Laatste wijziging ongedaan maken"
           className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl
                      bg-ink-700/95 text-cream-50 text-sm font-medium shadow-lg backdrop-blur-md
                      hover:bg-ink-700 active:scale-[0.99] transition min-h-[44px]"
         >
-          <Undo2 className="w-4 h-4" />
+          <Undo2 aria-hidden="true" className="w-4 h-4" />
           Ongedaan maken
         </button>
       </div>
@@ -2835,16 +2837,16 @@ function DaySummaryStrip({ log, goals, targets, waterGlassTarget }) {
 
   return (
     <div
-      className="flex items-center gap-3 mb-5 px-4 py-3 rounded-xl3 bg-cream-50/60 border border-cream-200/50 anim-fade-up"
+      className="flex items-center gap-3 mb-5 px-4 py-4 rounded-xl3 bg-cream-50/80 backdrop-blur-sm border border-cream-200/60 shadow-soft anim-fade-up"
       aria-label="Voortgang vandaag"
     >
-      <div className="flex flex-1 items-start justify-between">
+      <div className="flex flex-1 items-start justify-between gap-2">
         {items.map((it) => (
           <MiniRing key={it.label} value={it.value} target={it.target} label={it.label} />
         ))}
       </div>
       {allHit && (
-        <div className="text-[10px] text-sage-700 bg-sage-50 border border-sage-200 px-2 py-1 rounded-full whitespace-nowrap shrink-0">
+        <div className="text-[10px] font-medium text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
           🌿 Goede dag!
         </div>
       )}
