@@ -302,11 +302,15 @@
     [data-theme="dark"] .text-terracotta-400      { color: #D0856A !important; }
   </style>
 
-  <!-- Theme init: apply data-theme before first paint to avoid flash -->
+  <!-- Theme init: apply data-theme before first paint to avoid flash.
+       Wrapped in try/catch so a localStorage SecurityError (private mode,
+       sandboxed iframe, third-party-cookie blocking) can't crash the whole
+       page before React mounts. -->
   <script>
     (function () {
       function applyTheme() {
-        var pref    = localStorage.getItem('aura.theme');
+        var pref = null;
+        try { pref = localStorage.getItem('aura.theme'); } catch (_) {}
         var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         var dark    = pref === 'dark' || (pref !== 'light' && sysDark);
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');

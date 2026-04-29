@@ -213,11 +213,14 @@ function exportCSV(profile) {
 /*  Apple Health XML export (feature 7)                               */
 /* ------------------------------------------------------------------ */
 
-/* Escape a value for use inside an XML double-quoted attribute. */
+/* Escape a value for safe use inside an XML attribute.
+   Covers both single- and double-quoted attribute contexts so the helper
+   stays correct if a caller ever switches quote style. */
 function xmlAttr(v) {
   return String(v)
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
@@ -911,7 +914,9 @@ function PWAInstallBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem('aura.pwa.dismissed')) return;
+    try {
+      if (localStorage.getItem('aura.pwa.dismissed')) return;
+    } catch { /* storage unavailable — show the prompt anyway */ }
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -930,7 +935,8 @@ function PWAInstallBanner() {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('aura.pwa.dismissed', '1');
+    try { localStorage.setItem('aura.pwa.dismissed', '1'); }
+    catch { /* private mode — banner just won't persist its dismissal */ }
     setVisible(false);
   };
 
@@ -1038,7 +1044,7 @@ function Onboarding({ onComplete }) {
     const parsedDate  = new Date(form.lastPeriodStart);
     const validDate   = form.lastPeriodStart && !isNaN(parsedDate.getTime());
     const profile = {
-      name:            form.name.trim(),
+      name:            String(form.name || '').trim().slice(0, 60),
       cycleLength:     Number(form.cycleLength),
       mensDuration:    Number(form.mensDuration) || 5,
       lastPeriodStart: validDate ? form.lastPeriodStart : new Date().toISOString().slice(0, 10),
@@ -1444,9 +1450,12 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
 
     const cleanGoals = {};
     Object.entries(goals).forEach(([k, v]) => { if (Number(v) > 0) cleanGoals[k] = Number(v); });
+    // Trim + cap the name so a runaway paste can't bloat the profile blob.
+    // React already escapes everything we render, so no HTML stripping needed.
+    const cleanName = String(form.name || '').trim().slice(0, 60);
     onSave({
       ...profile,
-      name:          form.name,
+      name:          cleanName,
       age,
       weightKg,
       heightCm,
@@ -3319,11 +3328,15 @@ function App() {
   const [profile, setProfile] = useState(() => loadProfile());
   const [tab, setTab] = useState('home');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('aura.theme') || 'auto');
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('aura.theme') || 'auto'; }
+    catch { return 'auto'; }
+  });
 
   const handleThemeChange = useCallback((newTheme) => {
     setTheme(newTheme);
-    localStorage.setItem('aura.theme', newTheme);
+    try { localStorage.setItem('aura.theme', newTheme); }
+    catch { /* private mode / quota — theme still applies in-memory */ }
     const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const dark = newTheme === 'dark' || (newTheme === 'auto' && sysDark);
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');

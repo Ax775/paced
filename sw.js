@@ -1,7 +1,7 @@
 /* Aura service worker — offline cache with smart update strategy. */
 
 // Bump this version whenever you deploy changes so old caches are evicted.
-const CACHE = 'aura-shell-v4';
+const CACHE = 'aura-shell-v5';
 
 // Pre-cached on install. Everything else is cached on-demand by the fetch
 // handler. This keeps the install step identical between the dev mode
@@ -33,11 +33,37 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Only persist responses that are (a) same-origin, (b) a real HTTP success,
+// and (c) of a basic CORS type. This blocks cache-poisoning vectors where a
+// transient redirect, error page, or opaque cross-origin response would
+// otherwise be persisted under a trusted URL key.
+function isCacheable(req, res) {
+  if (!res || !res.ok) return false;
+  if (res.status !== 200) return false;
+  if (res.type !== 'basic') return false;
+  try {
+    const reqOrigin = new URL(req.url).origin;
+    if (reqOrigin !== self.location.origin) return false;
+  } catch { return false; }
+  return true;
+}
+
+function safeCachePut(req, res) {
+  if (!isCacheable(req, res)) return;
+  caches.open(CACHE).then((c) => c.put(req, res)).catch(() => null);
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-  const url = new URL(req.url);
+  // Only handle same-origin requests. Cross-origin (analytics, fonts, ...)
+  // bypass the SW entirely so we never accidentally cache a third-party
+  // response under our origin.
+  let url;
+  try { url = new URL(req.url); } catch { return; }
+  if (url.origin !== self.location.origin) return;
+
   const path = url.pathname;
 
   // ── Navigation: network-first, offline fallback to cached shell ──────
@@ -63,8 +89,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => null);
+          safeCachePut(req, res.clone());
           return res;
         })
         .catch(() => caches.match(req))
@@ -77,8 +102,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(req).then((hit) => {
       if (hit) return hit;
       return fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => null);
+        safeCachePut(req, res.clone());
         return res;
       }).catch(() => null);
     })

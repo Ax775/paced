@@ -8,6 +8,16 @@
  *
  * Keeping each day in its own key makes it trivial to read "today" and
  * to scan back over recent history without parsing one giant blob.
+ *
+ * --- Privacy posture ---
+ * Health data (cycle, symptoms, weight, notes) is stored in plain JSON.
+ * This is a deliberate trade-off: Aura is offline-only, has no server,
+ * no accounts, and no key-management story — adding at-rest encryption
+ * would either require a user passphrase (real friction, real lockout
+ * risk) or a key kept in the same localStorage origin (security theatre).
+ * The threat model assumes the device itself is trusted; the privacy
+ * disclosure in LegalView communicates this to the user. See
+ * SECURITY.md / the Privacy & Disclaimer screen for the full statement.
  */
 
 const PROFILE_KEY = 'aura.profile';
