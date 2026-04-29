@@ -66,6 +66,7 @@ function CollapsibleCard({ id, title, headerExtra, className = '', style, childr
         type="button"
         onClick={toggle}
         aria-expanded={!collapsed}
+        aria-label={`${title} ${collapsed ? 'uitklappen' : 'inklappen'}`}
         className="w-full flex items-center justify-between gap-3 px-6 py-4 min-h-[44px] text-left hover:bg-cream-100/40 transition"
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -707,11 +708,12 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
       <button
         type="button"
         onClick={handleLog}
+        aria-label="Log dat mijn menstruatie vandaag begon"
         className="w-full max-w-[260px] px-6 py-3.5 rounded-2xl font-medium text-sm text-cream-50
                    active:scale-[0.97] transition-transform flex items-center justify-center gap-3"
         style={{ background: 'linear-gradient(135deg, #C78264 0%, #B06849 100%)' }}
       >
-        <span className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
+        <span aria-hidden="true" className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
         Mijn menstruatie begon vandaag
       </button>
       {cyclesTracked > 0 && (
@@ -1161,12 +1163,13 @@ function Onboarding({ onComplete }) {
                 <div className="flex items-center gap-4 mt-1">
                   <button
                     type="button"
+                    aria-label="Cycluslengte verlagen"
                     onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
                     className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
                                transition text-xl flex items-center justify-center"
                   >−</button>
-                  <div className="flex-1 text-center">
+                  <div className="flex-1 text-center" aria-live="polite">
                     <span className="font-display text-[36px] text-ink-700 leading-none">
                       {form.cycleLength}
                     </span>
@@ -1174,6 +1177,7 @@ function Onboarding({ onComplete }) {
                   </div>
                   <button
                     type="button"
+                    aria-label="Cycluslengte verhogen"
                     onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
                     className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
@@ -1190,12 +1194,13 @@ function Onboarding({ onComplete }) {
                 <div className="flex items-center gap-4 mt-1">
                   <button
                     type="button"
+                    aria-label="Menstruatieduur verlagen"
                     onClick={() => setF('mensDuration', Math.max(2, form.mensDuration - 1))}
                     className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
                                transition text-xl flex items-center justify-center"
                   >−</button>
-                  <div className="flex-1 text-center">
+                  <div className="flex-1 text-center" aria-live="polite">
                     <span className="font-display text-[36px] text-ink-700 leading-none">
                       {form.mensDuration}
                     </span>
@@ -1203,6 +1208,7 @@ function Onboarding({ onComplete }) {
                   </div>
                   <button
                     type="button"
+                    aria-label="Menstruatieduur verhogen"
                     onClick={() => setF('mensDuration', Math.min(10, form.mensDuration + 1))}
                     className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
@@ -1549,12 +1555,13 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
             <div className="flex items-center gap-4 mt-1">
               <button
                 type="button"
+                aria-label="Cycluslengte verlagen"
                 onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
                 className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                            text-ink-600 hover:bg-sage-100 hover:border-sage-200
                            transition text-xl flex items-center justify-center"
               >−</button>
-              <div className="flex-1 text-center">
+              <div className="flex-1 text-center" aria-live="polite">
                 <span className="font-display text-[36px] text-ink-700 leading-none">
                   {form.cycleLength}
                 </span>
@@ -1562,6 +1569,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
               </div>
               <button
                 type="button"
+                aria-label="Cycluslengte verhogen"
                 onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
                 className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                            text-ink-600 hover:bg-sage-100 hover:border-sage-200
@@ -1636,10 +1644,13 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
           </div>
           <button
             type="button"
+            role="switch"
+            aria-checked={notifEnabled}
+            aria-label="Dagelijkse herinnering inschakelen"
             onClick={handleNotifToggle}
             className={`relative w-12 h-6 rounded-full transition ${notifEnabled ? 'bg-sage-500' : 'bg-cream-300'}`}
           >
-            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${notifEnabled ? 'left-7' : 'left-1'}`} />
+            <div aria-hidden="true" className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${notifEnabled ? 'left-7' : 'left-1'}`} />
           </button>
         </div>
         {notifEnabled && (
@@ -2047,11 +2058,12 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
             </div>
           )}
           <button
+            type="button"
             onClick={onOpenSettings}
-            aria-label="Settings"
+            aria-label="Instellingen openen"
             className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
           >
-            <Settings className="w-4 h-4" />
+            <Settings aria-hidden="true" className="w-4 h-4" />
           </button>
         </div>
       </header>
@@ -2259,7 +2271,10 @@ function BottomNav({ active, onSelect }) {
     { id: 'settings',  label: 'Stel in',   icon: Settings  },
   ];
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex">
+    <nav
+      aria-label="Hoofdnavigatie"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex"
+    >
       {tabs.map(({ id, label, icon: Icon }) => {
         const on = active === id;
         return (
@@ -2267,11 +2282,13 @@ function BottomNav({ active, onSelect }) {
             key={id}
             type="button"
             onClick={() => onSelect(id)}
+            aria-label={label}
+            aria-current={on ? 'page' : undefined}
             className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] ${
               on ? 'text-sage-600' : 'text-ink-400 hover:text-ink-600'
             }`}
           >
-            <Icon className="w-5 h-5" strokeWidth={on ? 2 : 1.5} />
+            <Icon aria-hidden="true" className="w-5 h-5" strokeWidth={on ? 2 : 1.5} />
             <span className="text-[10px] uppercase tracking-wider font-medium">{label}</span>
           </button>
         );
@@ -3171,9 +3188,13 @@ function AllChartsView({ profile, onBack }) {
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
       <header className="flex items-center gap-3 mb-7 anim-fade-up">
-        <button type="button" onClick={onBack}
-          className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition">
-          <ChevronLeft className="w-4 h-4" />
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Terug naar inzichten"
+          className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
+        >
+          <ChevronLeft aria-hidden="true" className="w-4 h-4" />
         </button>
         <h1 className="font-display text-[28px] leading-tight text-ink-700">Alle grafieken</h1>
       </header>
