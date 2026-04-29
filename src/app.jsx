@@ -1690,7 +1690,8 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
                 key={id}
                 type="button"
                 onClick={() => onThemeChange && onThemeChange(id)}
-                className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition ${
+                aria-pressed={active}
+                className={`flex flex-col items-center gap-1.5 min-h-[44px] py-3 rounded-xl border transition active:scale-95 ${
                   active
                     ? 'bg-sage-100 border-sage-300 text-sage-700'
                     : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
@@ -2277,12 +2278,12 @@ function BottomNav({ active, onSelect }) {
     { id: 'voeding',   label: 'Voeding',     icon: Salad     },
     { id: 'logboek',   label: 'Logboek',     icon: BookOpen  },
     { id: 'stats',     label: 'Inzichten',   icon: BarChart2 },
-    { id: 'settings',  label: 'Stel in',   icon: Settings  },
+    { id: 'settings',  label: 'Profiel',     icon: Settings  },
   ];
   return (
     <nav
       aria-label="Hoofdnavigatie"
-      className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex pb-safe"
     >
       {tabs.map(({ id, label, icon: Icon }) => {
         const on = active === id;
@@ -2293,7 +2294,7 @@ function BottomNav({ active, onSelect }) {
             onClick={() => onSelect(id)}
             aria-label={label}
             aria-current={on ? 'page' : undefined}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] ${
+            className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] active:scale-95 ${
               on ? 'text-sage-600' : 'text-ink-400 hover:text-ink-600'
             }`}
           >

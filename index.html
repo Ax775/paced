@@ -131,6 +131,11 @@
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
+
+    /* iOS safe-area utilities — referenced by reminder banner (top notch)
+       and bottom nav (home indicator). Use env() with safe fallback to 0. */
+    .pt-safe { padding-top:    env(safe-area-inset-top,    0); }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0); }
     html, body {
       margin: 0;
       padding: 0;
