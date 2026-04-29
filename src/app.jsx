@@ -1992,6 +1992,14 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
         </div>
       </header>
 
+      {/* Day summary — compact above-the-fold progress */}
+      <DaySummaryStrip
+        log={log}
+        goals={profile.goals}
+        targets={targets}
+        waterGlassTarget={waterGlassTarget}
+      />
+
       {/* Cycle ring — the hero card */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
         <div className="flex flex-col items-center">
@@ -2677,6 +2685,66 @@ function GoalRing({ value, target, label, unit, color }) {
         <div className="text-[10px] uppercase tracking-wider text-ink-400">{label}</div>
         <div className="text-[10px] text-ink-500">{value}/{target}{unit}</div>
       </div>
+    </div>
+  );
+}
+
+function MiniRing({ value, target, label }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setMounted(true), 100); return () => clearTimeout(id); }, []);
+
+  const r = 13;
+  const c = 2 * Math.PI * r;
+  const ratio = target > 0 ? Math.min(1, value / target) : 0;
+  const displayRatio = mounted ? ratio : 0;
+  const stroke = ratio >= 1 ? '#6B8559' : ratio >= 0.5 ? '#A8BA98' : '#E2D8BE';
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <svg width="32" height="32" viewBox="0 0 32 32" className="-rotate-90">
+        <circle cx="16" cy="16" r={r} stroke="#EDE6D3" strokeWidth="3" fill="none" />
+        <circle
+          cx="16" cy="16" r={r}
+          stroke={stroke} strokeWidth="3" fill="none"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - displayRatio)}
+          style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22,1,0.36,1)' }}
+        />
+      </svg>
+      <div className="text-[9px] uppercase tracking-wider text-ink-400">{label}</div>
+    </div>
+  );
+}
+
+function DaySummaryStrip({ log, goals, targets, waterGlassTarget }) {
+  const g = goals || {};
+  const items = [
+    { label: 'Kcal',     value: log.calories,        target: g.calories  || targets.calories },
+    { label: 'Eiwit',    value: log.protein,         target: g.protein   || targets.protein  },
+    { label: 'Water',    value: log.hydration * 250, target: g.hydration || (waterGlassTarget * 250) },
+    { label: 'Beweging', value: log.movement,        target: g.movement  || 30 },
+  ];
+
+  if (!items.some((i) => i.value > 0)) return null;
+
+  const allHit = items.every((i) => i.target > 0 && i.value / i.target >= 0.8);
+
+  return (
+    <div
+      className="flex items-center gap-3 mb-5 px-4 py-3 rounded-xl3 bg-cream-50/60 border border-cream-200/50 anim-fade-up"
+      aria-label="Voortgang vandaag"
+    >
+      <div className="flex flex-1 items-start justify-between">
+        {items.map((it) => (
+          <MiniRing key={it.label} value={it.value} target={it.target} label={it.label} />
+        ))}
+      </div>
+      {allHit && (
+        <div className="text-[10px] text-sage-700 bg-sage-50 border border-sage-200 px-2 py-1 rounded-full whitespace-nowrap shrink-0">
+          🌿 Goede dag!
+        </div>
+      )}
     </div>
   );
 }
