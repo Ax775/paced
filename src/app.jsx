@@ -81,7 +81,13 @@ function useDailyLog(date = new Date()) {
     });
   }, [key]); // eslint-disable-line
 
-  return [log, update];
+  // Overwrite the entire log with a snapshot (used by the undo toast).
+  const restore = useCallback((snapshot) => {
+    saveLog(date, snapshot);
+    setLog(snapshot);
+  }, [key]); // eslint-disable-line
+
+  return [log, update, restore];
 }
 
 /* ------------------------------------------------------------------ */
@@ -1892,7 +1898,54 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   const insight = useMemo(() => getDailyInsight(state.phase, new Date(), profile.name ? profile.name.split(' ')[0] : ''), [state.phase, profile.name]);
   const PhaseIcon = PHASE_ICONS[state.phase];
 
-  const [log, updateLog] = useDailyLog();
+  const [log, commitLog, restoreLog] = useDailyLog();
+
+  // ── Undo toast ───────────────────────────────────────────────────
+  // Captures the pre-update log so the user can revert the last save
+  // (or burst of saves) within 5s.
+  const [toast, setToast]                       = useState(null);
+  const [toastDismissing, setToastDismissing]   = useState(false);
+  const toastTimerRef     = useRef(null);
+  const toastFadeTimerRef = useRef(null);
+  const toastSnapshotRef  = useRef(null);
+
+  useEffect(() => () => {
+    if (toastTimerRef.current)     clearTimeout(toastTimerRef.current);
+    if (toastFadeTimerRef.current) clearTimeout(toastFadeTimerRef.current);
+  }, []);
+
+  const updateLog = useCallback((patch) => {
+    // If a toast is already showing, keep its older snapshot — that way
+    // undo reverts the entire burst (e.g. typing in the journal note),
+    // not just the most recent keystroke.
+    const snapshot = toastSnapshotRef.current ?? log;
+    toastSnapshotRef.current = snapshot;
+
+    commitLog(patch);
+
+    setToast({ snapshot });
+    setToastDismissing(false);
+    if (toastTimerRef.current)     clearTimeout(toastTimerRef.current);
+    if (toastFadeTimerRef.current) clearTimeout(toastFadeTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setToastDismissing(true);
+      toastFadeTimerRef.current = setTimeout(() => {
+        setToast(null);
+        setToastDismissing(false);
+        toastSnapshotRef.current = null;
+      }, 220);
+    }, 5000);
+  }, [log, commitLog]);
+
+  const handleUndo = useCallback(() => {
+    if (!toast) return;
+    restoreLog(toast.snapshot);
+    if (toastTimerRef.current)     clearTimeout(toastTimerRef.current);
+    if (toastFadeTimerRef.current) clearTimeout(toastFadeTimerRef.current);
+    toastSnapshotRef.current = null;
+    setToast(null);
+    setToastDismissing(false);
+  }, [toast, restoreLog]);
 
   const streak = useMemo(() => getStreak(log), [log]);
 
@@ -2075,6 +2128,35 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
         Aura · v1.2
+      </div>
+
+      <UndoToast visible={!!toast} dismissing={toastDismissing} onUndo={handleUndo} />
+    </div>
+  );
+}
+
+function UndoToast({ visible, dismissing, onUndo }) {
+  if (!visible) return null;
+  return (
+    <div
+      className={`fixed left-0 right-0 bottom-20 z-50 px-4 pointer-events-none
+                  ${dismissing
+                    ? 'opacity-0 transition-opacity duration-200'
+                    : 'opacity-100 anim-slide-up'}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="max-w-md mx-auto pointer-events-auto">
+        <button
+          type="button"
+          onClick={onUndo}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl
+                     bg-ink-700/95 text-cream-50 text-sm font-medium shadow-lg backdrop-blur-md
+                     hover:bg-ink-700 active:scale-[0.99] transition min-h-[44px]"
+        >
+          <Undo2 className="w-4 h-4" />
+          Ongedaan maken
+        </button>
       </div>
     </div>
   );
