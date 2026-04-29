@@ -9,8 +9,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
-  Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen, Activity,
-  BarChart2, Download, X, TrendingUp,
+  Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, BookOpen, Activity,
+  BarChart2, Download, X, TrendingUp, Undo2,
 } from 'lucide-react';
 
 import {
@@ -2250,20 +2250,59 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
   );
 }
 
+function capitalize(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 function LogboekView({ profile, onGoHome }) {
+  const today = useMemo(() => new Date(), []);
+  const currentMonthStart = useMemo(
+    () => new Date(today.getFullYear(), today.getMonth(), 1),
+    [today]
+  );
+  const [activeMonth, setActiveMonth] = useState(currentMonthStart);
+
+  const isCurrentMonth =
+    activeMonth.getFullYear() === currentMonthStart.getFullYear() &&
+    activeMonth.getMonth()    === currentMonthStart.getMonth();
+
   const days = useMemo(() => {
     const out = [];
-    const today = new Date();
-    for (let offset = 0; offset < 14; offset++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - offset);
+    const year  = activeMonth.getFullYear();
+    const month = activeMonth.getMonth();
+    const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+    const startDay = isCurrentMonth ? today.getDate() : lastDayOfMonth;
+
+    for (let day = startDay; day >= 1; day--) {
+      const d = new Date(year, month, day);
       const log     = loadLog(d);
       const state   = getCycleState(profile, d);
       const targets = getDailyTargets(profile, state.phase);
-      out.push({ date: d, isToday: offset === 0, log, state, targets, hasData: logHasData(log) });
+      const isToday = isCurrentMonth && day === today.getDate();
+      out.push({ date: d, isToday, log, state, targets, hasData: logHasData(log) });
     }
     return out;
-  }, [profile]);
+  }, [profile, activeMonth, isCurrentMonth, today]);
+
+  const goPrevMonth = () => {
+    setActiveMonth(new Date(activeMonth.getFullYear(), activeMonth.getMonth() - 1, 1));
+  };
+  const goNextMonth = () => {
+    if (isCurrentMonth) return;
+    setActiveMonth(new Date(activeMonth.getFullYear(), activeMonth.getMonth() + 1, 1));
+  };
+
+  const prevMonthDate = new Date(activeMonth.getFullYear(), activeMonth.getMonth() - 1, 1);
+  const nextMonthDate = new Date(activeMonth.getFullYear(), activeMonth.getMonth() + 1, 1);
+
+  const monthLabel = capitalize(
+    activeMonth.toLocaleDateString('nl', {
+      month: 'long',
+      year: activeMonth.getFullYear() === today.getFullYear() ? undefined : 'numeric',
+    })
+  );
+  const prevMonthLabel = capitalize(prevMonthDate.toLocaleDateString('nl', { month: 'long' }));
+  const nextMonthLabel = capitalize(nextMonthDate.toLocaleDateString('nl', { month: 'long' }));
 
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
@@ -2283,12 +2322,48 @@ function LogboekView({ profile, onGoHome }) {
           Exporteer
         </button>
       </header>
+
+      {/* Month navigator */}
+      <div className="flex items-center justify-between gap-2 mb-5 anim-fade-up">
+        <button
+          type="button"
+          onClick={goPrevMonth}
+          className="flex items-center gap-1 px-3 py-2 rounded-xl bg-cream-100 border border-cream-200
+                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 transition min-h-[44px]"
+          aria-label={`Ga naar ${prevMonthLabel}`}
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+          {prevMonthLabel}
+        </button>
+        <div className="font-display text-lg text-ink-700 truncate px-1" aria-live="polite">
+          {monthLabel}
+        </div>
+        <button
+          type="button"
+          onClick={goNextMonth}
+          disabled={isCurrentMonth}
+          className={`flex items-center gap-1 px-3 py-2 rounded-xl border text-xs transition min-h-[44px] ${
+            isCurrentMonth
+              ? 'bg-cream-50 border-cream-100 text-ink-400/40 cursor-not-allowed'
+              : 'bg-cream-100 border-cream-200 text-ink-500 hover:bg-cream-200 hover:text-ink-700'
+          }`}
+          aria-label={isCurrentMonth ? 'Geen toekomstige maanden' : `Ga naar ${nextMonthLabel}`}
+        >
+          {nextMonthLabel}
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       {days.every(d => !d.hasData) ? (
         <div className="text-center py-16 text-ink-400 anim-fade-up">
           <p className="text-4xl mb-3">🌱</p>
-          <p className="text-sm mb-1">Nog geen logs bijgehouden.</p>
-          <p className="text-xs text-ink-400/70">Log je eerste dag om je voortgang te zien.</p>
-          {onGoHome && (
+          <p className="text-sm mb-1">
+            {isCurrentMonth ? 'Nog geen logs bijgehouden.' : `Geen logs in ${monthLabel}.`}
+          </p>
+          {isCurrentMonth && (
+            <p className="text-xs text-ink-400/70">Log je eerste dag om je voortgang te zien.</p>
+          )}
+          {isCurrentMonth && onGoHome && (
             <button
               type="button"
               onClick={onGoHome}
@@ -2299,14 +2374,14 @@ function LogboekView({ profile, onGoHome }) {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" key={isoDate(activeMonth)}>
           {days.map((entry, i) => (
-            <LogboekEntry key={i} {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
+            <LogboekEntry key={isoDate(entry.date)} {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
           ))}
         </div>
       )}
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Laatste 14 dagen · Export omvat 90 dagen
+        Export omvat 90 dagen
       </div>
     </div>
   );
