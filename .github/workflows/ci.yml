@@ -79,7 +79,7 @@ jobs:
         run: npm run build
 
       - name: Start preview server
-        run: npm run preview -- --port 4173 --strictPort &
+        run: npm run preview -- --host 127.0.0.1 --port 4173 --strictPort &
 
       - name: Wait for preview server on :4173
         run: |

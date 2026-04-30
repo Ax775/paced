@@ -65,6 +65,13 @@ test.describe('a11y — axe-core', () => {
         avgPeriodLength: 5,
       });
     });
+    // saveProfile queues the encrypted localStorage write asynchronously —
+    // wait for it to land before reloading so we don't race the unmount.
+    await page.waitForFunction(
+      () => localStorage.getItem('aura.profile') != null,
+      null,
+      { timeout: 5_000 },
+    );
     await page.goto(`/${E2E_QUERY}`);
     await waitForTestHook(page);
     await page.locator('#aura-pw-unlock').fill(TEST_PASSPHRASE);
