@@ -1,0 +1,53 @@
+# Reference nginx config for Aura — adapt to your existing server block.
+# Goes alongside vercel.json + public/_headers; pick whichever matches
+# your host. All three apply the same security baseline.
+
+server {
+    listen       443 ssl http2;
+    server_name  example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+
+    root /var/www/aura/dist;
+    index index.html;
+
+    # ──────────────────────────────────────────────────────────────
+    #  Security headers
+    # ──────────────────────────────────────────────────────────────
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options    "nosniff"                                       always;
+    add_header Referrer-Policy           "strict-origin-when-cross-origin"               always;
+    add_header Permissions-Policy        "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header X-Frame-Options           "DENY"                                          always;
+
+    # ──────────────────────────────────────────────────────────────
+    #  Caching
+    # ──────────────────────────────────────────────────────────────
+    # Hashed bundles — immortal cache.
+    location ^~ /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Service worker — never cache.
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
+    # Manifest — revalidate on every load.
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache";
+        types { } default_type application/manifest+json;
+        try_files $uri =404;
+    }
+
+    # SPA fallback — index.html serves every unmatched route.
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri /index.html;
+    }
+}

@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#7C3AED" />
+  <meta name="description" content="Aura — cyclus-gesynchroniseerde voeding en hormonale balans." />
+  <title>Aura — Preview</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root {
+      --purple:       #7C3AED;
+      --purple-soft:  #A78BFA;
+      --purple-light: #EDE9FE;
+      --purple-pale:  #F5F3FF;
+      --rose:         #F43F5E;
+      --rose-light:   #FFF1F2;
+      --rose-mid:     #FDA4AF;
+      --bg:           #F8F7FF;
+      --card:         #FFFFFF;
+      --text:         #1E1B2E;
+      --text-mid:     #4B4870;
+      --text-muted:   #9896B0;
+      --border:       #E8E6F4;
+      --radius:       18px;
+      --radius-sm:    10px;
+      --shadow:       0 2px 12px rgba(124,58,237,0.08), 0 1px 3px rgba(124,58,237,0.06);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 430px;
+      margin: 0 auto;
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+    #root { display: flex; flex-direction: column; min-height: 100dvh; }
+
+    .scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 16px 100px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* header */
+    .header {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(248,247,255,0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 14px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-logo { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: var(--purple); }
+    .header-greeting { font-size: 13px; color: var(--text-mid); font-weight: 500; }
+
+    /* bottom tab bar */
+    .tabbar {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 430px;
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .tab-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      gap: 3px; padding: 10px 4px 8px;
+      background: none; border: none; cursor: pointer;
+      font-size: 10px; font-weight: 500;
+      color: var(--text-muted); transition: color 0.15s;
+    }
+    .tab-btn.active { color: var(--purple); }
+
+    /* cards */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+
+    /* phase banner */
+    .phase-banner {
+      background: linear-gradient(135deg, var(--purple) 0%, #9333EA 100%);
+      color: white; border-radius: var(--radius);
+      padding: 20px; margin-bottom: 14px;
+      position: relative; overflow: hidden;
+    }
+    .phase-banner::before {
+      content: '';
+      position: absolute; top: -20px; right: -20px;
+      width: 120px; height: 120px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 50%;
+    }
+    .phase-tag {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; opacity: 0.75; margin-bottom: 6px;
+    }
+    .phase-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+    .phase-sub { font-size: 13px; opacity: 0.8; line-height: 1.5; }
+
+    /* rings grid */
+    .rings-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 8px; margin-bottom: 14px;
+    }
+    .ring-cell {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 6px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 6px;
+      box-shadow: var(--shadow);
+    }
+    .ring-label { font-size: 10px; color: var(--text-muted); text-align: center; line-height: 1.4; }
+    .ring-val { font-size: 11px; font-weight: 600; color: var(--text); }
+
+    /* water glasses */
+    .water-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .glass {
+      width: 32px; height: 40px;
+      border-radius: 4px 4px 8px 8px;
+      border: 2px solid var(--border);
+      background: var(--card);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .glass.filled { border-color: var(--purple-soft); background: var(--purple-light); }
+    .glass:active { transform: scale(0.92); }
+
+    /* section header */
+    .section-hd {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-muted);
+      margin: 20px 0 10px;
+    }
+
+    /* tip card */
+    .tip-card {
+      background: linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 100%);
+      border: 1px solid #FDE68A;
+      border-radius: var(--radius); padding: 16px; margin-bottom: 14px;
+    }
+    .tip-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: #92400E; text-transform: uppercase; margin-bottom: 6px; }
+    .tip-text { font-size: 14px; line-height: 1.6; color: #78350F; }
+
+    /* food chip */
+    .food-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--purple-pale); border: 1px solid var(--purple-light);
+      border-radius: 20px; padding: 6px 12px;
+      font-size: 13px; color: var(--purple); font-weight: 500;
+      margin: 4px;
+    }
+
+    /* recipe card */
+    .recipe-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 14px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 14px;
+      box-shadow: var(--shadow);
+    }
+    .recipe-emoji { font-size: 32px; flex-shrink: 0; }
+    .recipe-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .recipe-sub { font-size: 12px; color: var(--text-muted); }
+
+    /* log entries */
+    .log-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .log-row:last-child { border-bottom: none; }
+    .log-date { font-size: 11px; color: var(--text-muted); min-width: 42px; }
+    .log-phase {
+      font-size: 11px; padding: 2px 8px; border-radius: 12px;
+      background: var(--purple-light); color: var(--purple); font-weight: 500;
+    }
+    .log-note { font-size: 12px; color: var(--text-mid); margin-top: 3px; }
+
+    /* stats */
+    .stat-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 14px; color: var(--text-mid); }
+    .stat-val { font-size: 18px; font-weight: 700; color: var(--purple); }
+
+    /* toggle */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 1px solid var(--border);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-label { font-size: 14px; color: var(--text); }
+    .toggle-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .toggle {
+      width: 44px; height: 26px; border-radius: 13px;
+      background: #D1D5DB; border: none; cursor: pointer;
+      position: relative; transition: background 0.2s; flex-shrink: 0;
+    }
+    .toggle.on { background: var(--purple); }
+    .toggle::after {
+      content: '';
+      position: absolute; top: 3px; left: 3px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: white; transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle.on::after { transform: translateX(18px); }
+
+    /* export btn */
+    .export-btn {
+      width: 100%; padding: 13px; border-radius: var(--radius-sm);
+      border: 1.5px solid var(--border); background: var(--card);
+      font-size: 14px; font-weight: 600; color: var(--purple);
+      cursor: pointer; transition: all 0.15s; margin-bottom: 10px;
+    }
+    .export-btn:active { background: var(--purple-pale); }
+
+    /* progress bar */
+    .progress-bg { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+
+    /* streak badge */
+    .streak {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: linear-gradient(135deg, #FFF7ED, #FEF3C7);
+      border: 1px solid #FDE68A; border-radius: 20px;
+      padding: 8px 16px; font-size: 15px; font-weight: 700; color: #92400E;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.35s ease both; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+  (function seedMaya() {
+    if (localStorage.getItem('aura_seeded_maya')) return;
+    localStorage.setItem('aura_profile', JSON.stringify({
+      name: 'Maya', age: 28, weightKg: 62, heightCm: 168,
+      cycleLength: 28, lastPeriodDate: '2026-04-09',
+      activityLevel: 'moderate',
+      goals: { kcal: 1800, protein: 90, water: 8, movement: 60 },
+    }));
+    var today = '2026-04-23';
+    localStorage.setItem('aura_log_' + today, JSON.stringify({
+      calories: 1240, protein: 65, hydration: 6, sleep: 7.5, movement: 35,
+      symptoms: { energy: 4, mood: 4, cramps: 5, bloating: 5 },
+      note: 'Lekker gesport vandaag, smoothie gemaakt met kefir 🌿',
+    }));
+    var past = [
+      ['2026-04-22', { calories: 1720, protein: 88, hydration: 7, sleep: 8,   movement: 45, symptoms: { energy: 4, mood: 4, cramps: 5, bloating: 4 }, note: '' }],
+      ['2026-04-21', { calories: 1580, protein: 72, hydration: 6, sleep: 7,   movement: 30, symptoms: { energy: 3, mood: 3, cramps: 5, bloating: 4 }, note: 'Rustige dag' }],
+      ['2026-04-20', { calories: 1690, protein: 85, hydration: 8, sleep: 7.5, movement: 50, symptoms: { energy: 5, mood: 5, cramps: 5, bloating: 5 }, note: 'Veel energie!' }],
+      ['2026-04-19', { calories: 1540, protein: 79, hydration: 5, sleep: 6.5, movement: 20, symptoms: { energy: 3, mood: 4, cramps: 5, bloating: 5 }, note: '' }],
+      ['2026-04-18', { calories: 1610, protein: 83, hydration: 7, sleep: 8.5, movement: 40, symptoms: { energy: 4, mood: 5, cramps: 5, bloating: 5 }, note: 'Yoga gedaan 🧘' }],
+      ['2026-04-17', { calories: 1450, protein: 68, hydration: 6, sleep: 7,   movement: 0,  symptoms: { energy: 2, mood: 3, cramps: 4, bloating: 3 }, note: 'Buikpijn' }],
+    ];
+    past.forEach(function(p) { localStorage.setItem('aura_log_' + p[0], JSON.stringify(p[1])); });
+    localStorage.setItem('aura_periods', JSON.stringify(['2026-04-09', '2026-03-12', '2026-02-13', '2026-01-16']));
+    localStorage.setItem('aura_seeded_maya', '1');
+  })();
+</script>
+
+<script type="text/babel" data-presets="react">
+  const { useState } = React;
+
+  // Inline SVG icon helper — no external dependency needed
+  function Icon({ path, size = 20 }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+           dangerouslySetInnerHTML={{ __html: path }} />
+    );
+  }
+
+  const ICON_PATHS = {
+    home:     '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+    salad:    '<path d="M2 12h20M12 2a10 10 0 000 20M12 2c-3 5-3 10 0 20M12 2c3 5 3 10 0 20"/>',
+    book:     '<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>',
+    chart:    '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06-.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>',
+  };
+
+  // SVG progress ring
+  function Ring({ value, target, color, label, emoji }) {
+    const pct = Math.min(1, value / Math.max(1, target));
+    const r = 25, cx = 32, cy = 32, circ = 2 * Math.PI * r;
+    return (
+      <div className="ring-cell fade-up">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EDE9FE" strokeWidth="5" />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="5"
+            strokeDasharray={`${circ * pct} ${circ}`} strokeLinecap="round"
+            transform={`rotate(-90 ${cx} ${cy})`} />
+          <text x={cx} y={cy - 5} textAnchor="middle" fontSize="13" dominantBaseline="auto">{emoji}</text>
+          <text x={cx} y={cy + 9} textAnchor="middle" fontSize="9" fontWeight="700" fill={color}>
+            {Math.round(pct * 100)}%
+          </text>
+        </svg>
+        <div className="ring-label">
+          <div className="ring-val">{value}</div>
+          <div>{label}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Simple bar chart
+  function BarChart({ data, barColor = '#C4B5FD', highlightColor = '#7C3AED' }) {
+    const max = Math.max(...data.map(d => d.v), 1);
+    return (
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 64 }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{
+              width: '100%', borderRadius: '4px 4px 0 0',
+              background: d.today ? highlightColor : barColor,
+              height: Math.max(4, Math.round((d.v / max) * 52)),
+            }} />
+            <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{d.label}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── VANDAAG ──────────────────────────────────────────────────────────
+  function VandaagTab() {
+    const [glasses, setGlasses] = useState(6);
+    const goals   = { kcal: 1800, protein: 90, water: 8, movement: 60 };
+    const actual  = { kcal: 1240, protein: 65, water: glasses, movement: 35 };
+
+    return (
+      <div>
+        <div style={{ height: 16 }} />
+
+        <div className="phase-banner fade-up">
+          <div className="phase-tag">Dag 14 · Cyclus</div>
+          <div className="phase-name">🌸 Folliculaire fase</div>
+          <div className="phase-sub">Oestrogeen stijgt — frisse energie, perfect voor nieuwe dingen.</div>
+          <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <span style={{ background: 'rgba(255,255,255,0.18)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+              🌿 Vers &amp; gefermenteerd
+            </span>
+            <span style={{ background: 'rgba(255,255,255,0.18)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+              Volgende cyclus: 14 mei
+            </span>
+          </div>
+        </div>
+
+        <div className="section-hd">Doelen vandaag</div>
+        <div className="rings-grid">
+          <Ring value={actual.kcal}     target={goals.kcal}     color="#7C3AED" label="kcal"  emoji="🔥" />
+          <Ring value={actual.protein}  target={goals.protein}  color="#F43F5E" label="eiwit" emoji="💪" />
+          <Ring value={actual.water}    target={goals.water}    color="#06B6D4" label="water" emoji="💧" />
+          <Ring value={actual.movement} target={goals.movement} color="#10B981" label="beweg" emoji="🏃" />
+        </div>
+
+        <div className="tip-card fade-up">
+          <div className="tip-label">✨ Tip van de dag</div>
+          <div className="tip-text">
+            In de folliculaire fase stijgt je oestrogeen en daarmee je energie.
+            Voeg kefir of zuurkool toe aan je dag — probiotica ondersteunen je lever
+            bij het metaboliseren van oestrogeen.
+          </div>
+        </div>
+
+        <div className="card fade-up">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>💧</span>
+              <span style={{ fontWeight: 600, fontSize: 15 }}>Water</span>
+            </div>
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--purple)' }}>
+              {glasses}<span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}> / 8 glazen</span>
+            </span>
+          </div>
+          <div className="water-grid">
+            {[1,2,3,4,5,6,7,8].map(slot => (
+              <div key={slot}
+                className={'glass' + (slot <= glasses ? ' filled' : '')}
+                onClick={() => setGlasses(slot <= glasses && slot === glasses ? slot - 1 : slot)}
+                role="button" aria-label={slot + ' glazen'}
+              />
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+            Per glas ≈ 250 ml · tik om te vullen
+          </div>
+        </div>
+
+        <div className="card fade-up">
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>📊 Voortgang</div>
+          {[
+            { label: 'Calorieën', value: actual.kcal,     target: goals.kcal,     color: '#7C3AED', unit: 'kcal' },
+            { label: 'Eiwit',     value: actual.protein,  target: goals.protein,  color: '#F43F5E', unit: 'g' },
+            { label: 'Beweging',  value: actual.movement, target: goals.movement, color: '#10B981', unit: 'min' },
+          ].map(({ label, value, target, color, unit }) => (
+            <div key={label} style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                <span style={{ color: 'var(--text-mid)' }}>{label}</span>
+                <span style={{ fontWeight: 600, color }}>{value} / {target} {unit}</span>
+              </div>
+              <div className="progress-bg">
+                <div className="progress-fill"
+                  style={{ width: Math.min(100, Math.round(value / target * 100)) + '%', background: color }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── VOEDING ──────────────────────────────────────────────────────────
+  function VoedingTab() {
+    const foods = [
+      { emoji: '🥒', name: 'Zuurkool' },
+      { emoji: '🥛', name: 'Kefir' },
+      { emoji: '🌾', name: 'Gekiemde granen' },
+      { emoji: '🍋', name: 'Citrus' },
+      { emoji: '🥗', name: 'Groene salades' },
+    ];
+    const recipes = [
+      { emoji: '🥗', title: 'Kefir smoothiebowl',  sub: '5 min · 380 kcal · 22g eiwit',  bg: '#EDE9FE' },
+      { emoji: '🌮', title: 'Zuurkool-quinoakom',  sub: '15 min · 420 kcal · 18g eiwit', bg: '#F0FDF4' },
+      { emoji: '🍳', title: 'Roerei met spruiten', sub: '10 min · 310 kcal · 24g eiwit', bg: '#FFF7ED' },
+    ];
+    return (
+      <div>
+        <div style={{ height: 16 }} />
+        <div className="card fade-up" style={{ background: 'linear-gradient(135deg, var(--purple-pale), #F0E6FF)' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--purple)', marginBottom: 6 }}>
+            🌸 Folliculaire fase · Focus
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Vers &amp; Gefermenteerd</div>
+          <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>
+            Stijgend oestrogeen combineert goed met lichte, probiotische voeding.
+            Gefermenteerde producten ondersteunen je lever bij het metaboliseren van oestrogeen.
+          </div>
+        </div>
+
+        <div className="section-hd">Aanbevolen voeding</div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', marginBottom: 8 }}>
+          {foods.map(f => (
+            <div key={f.name} className="food-chip">
+              <span>{f.emoji}</span> {f.name}
+            </div>
+          ))}
+        </div>
+
+        <div className="section-hd">Receptideeën</div>
+        {recipes.map(r => (
+          <div key={r.title} className="recipe-card fade-up" style={{ background: r.bg }}>
+            <div className="recipe-emoji">{r.emoji}</div>
+            <div>
+              <div className="recipe-title">{r.title}</div>
+              <div className="recipe-sub">{r.sub}</div>
+            </div>
+          </div>
+        ))}
+
+        <div className="section-hd">Macro's vandaag</div>
+        <div className="card">
+          <BarChart
+            data={[
+              { label: 'Koolh.', v: 165 },
+              { label: 'Eiwit',  v: 65, today: true },
+              { label: 'Vet',    v: 48 },
+              { label: 'Vezel',  v: 22 },
+            ]}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 14 }}>
+            {[['165g','Koolhydr.','#A78BFA'],['65g','Eiwit','#F43F5E'],['48g','Vet','#FCD34D'],['22g','Vezel','#6EE7B7']].map(([v,l,c]) => (
+              <div key={l} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: c }}>{v}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── LOGBOEK ──────────────────────────────────────────────────────────
+  function LogboekTab() {
+    const entries = [
+      { date: 'vandaag', mood: 4, phase: 'Folliculair', note: 'Lekker gesport, smoothie met kefir 🌿', kcal: 1240 },
+      { date: 'gisteren', mood: 4, phase: 'Folliculair', note: 'Energie goed, yoga gedaan',            kcal: 1720 },
+      { date: 'di 21',   mood: 3, phase: 'Folliculair', note: 'Rustige dag thuis',                     kcal: 1580 },
+      { date: 'ma 20',   mood: 5, phase: 'Folliculair', note: 'Veel energie! Hardlopen 🏃',            kcal: 1690 },
+      { date: 'zo 19',   mood: 3, phase: 'Folliculair', note: '',                                      kcal: 1540 },
+      { date: 'za 18',   mood: 4, phase: 'Folliculair', note: 'Yoga gedaan 🧘',                        kcal: 1610 },
+      { date: 'vr 17',   mood: 3, phase: 'Menstrueel',  note: 'Buikpijn, vroeg naar bed',              kcal: 1450 },
+    ];
+    const moodEmoji = ['','😢','😔','😐','🙂','😄'];
+
+    return (
+      <div>
+        <div style={{ height: 16 }} />
+        <div className="card fade-up">
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>Symptomen vandaag</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {[
+              { label: 'Energie',     val: 4, icons: ['😴','🥱','😐','🙂','⚡'] },
+              { label: 'Stemming',    val: 4, icons: ['😢','😔','😐','🙂','😄'] },
+              { label: 'Krampen',     val: 5, icons: ['🔥','😣','😐','🙂','✨'] },
+              { label: 'Opgeblazen',  val: 5, icons: ['🎈','😮','😐','🙂','✨'] },
+            ].map(({ label, val, icons }) => (
+              <div key={label} style={{ background: 'var(--purple-pale)', borderRadius: 12, padding: '10px 12px' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 5 }}>{label}</div>
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {icons.map((ic, i) => (
+                    <span key={i} style={{ fontSize: 15, opacity: i < val ? 1 : 0.2, filter: i < val ? 'none' : 'grayscale(1)' }}>{ic}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 10 }}>Recente entries</div>
+          {entries.map((e, i) => (
+            <div key={i} className="log-row">
+              <div className="log-date">{e.date}</div>
+              <div style={{ fontSize: 22 }}>{moodEmoji[e.mood]}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span className="log-phase">{e.phase}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{e.kcal} kcal</span>
+                </div>
+                {e.note && <div className="log-note">{e.note}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── INZICHTEN ────────────────────────────────────────────────────────
+  function InzichtenTab() {
+    return (
+      <div>
+        <div style={{ height: 16 }} />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+          <div className="streak fade-up">🔥 7 dagen op rij gelogd</div>
+        </div>
+
+        <div className="card fade-up">
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>Cyclus statistieken</div>
+          {[
+            ['Gemiddelde cycluslengte', 'Gebaseerd op 4 cycli', '28 dagen'],
+            ['Huidige fase',            'Dag 14 van 28',        'Folliculair'],
+            ['Volgende menstruatie',    'Over 14 dagen',        '14 mei'],
+          ].map(([label, sub, val]) => (
+            <div key={label} className="stat-row">
+              <div>
+                <div className="stat-label">{label}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{sub}</div>
+              </div>
+              <div className="stat-val">{val}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="card fade-up">
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>Calorieën — afgelopen week</div>
+          <BarChart data={[
+            { label: 'vr', v: 1450 }, { label: 'za', v: 1610 }, { label: 'zo', v: 1540 },
+            { label: 'ma', v: 1690 }, { label: 'di', v: 1580 }, { label: 'gi', v: 1720 },
+            { label: 'va', v: 1240, today: true },
+          ]} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+            <span>Gem. 1547 kcal</span><span>Doel: 1800 kcal</span>
+          </div>
+        </div>
+
+        <div className="card fade-up">
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>Cycluslengte per maand</div>
+          <BarChart
+            data={[{ label: 'jan', v: 27 }, { label: 'feb', v: 28 }, { label: 'mrt', v: 29 }, { label: 'apr', v: 28, today: true }]}
+            barColor="#F9A8D4" highlightColor="#F43F5E"
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
+            <span>Kortste: 27 dagen</span><span>Langste: 29 dagen</span>
+          </div>
+        </div>
+
+        <div className="card fade-up">
+          <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 14 }}>Stemming — afgelopen week</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 64 }}>
+            {[3,4,5,3,4,4,4].map((v, i) => (
+              <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{
+                  width: '100%', borderRadius: '4px 4px 0 0',
+                  background: i === 6 ? '#F43F5E' : '#FDA4AF',
+                  height: v * 12,
+                }} />
+                <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                  {['vr','za','zo','ma','di','gi','va'][i]}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── INSTELLINGEN ─────────────────────────────────────────────────────
+  function InstellingenTab() {
+    const [darkMode,   setDarkMode]   = useState(false);
+    const [notifs,     setNotifs]     = useState(true);
+    const [reminders,  setReminders]  = useState(false);
+
+    return (
+      <div>
+        <div style={{ height: 16 }} />
+
+        <div className="card fade-up" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{
+            width: 54, height: 54, borderRadius: '50%',
+            background: 'linear-gradient(135deg, var(--purple), #9333EA)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 24, flexShrink: 0,
+          }}>🌸</div>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 17 }}>Maya</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>28 jaar · 62 kg · 168 cm</div>
+            <div style={{ fontSize: 12, color: 'var(--purple)', marginTop: 2 }}>Matige activiteit</div>
+          </div>
+        </div>
+
+        <div className="section-hd">Doelen</div>
+        <div className="card">
+          {[
+            ['Calorieën', 'Dagelijks doel', '1800 kcal'],
+            ['Eiwit',     'Dagelijks doel', '90 g'],
+            ['Water',     'Dagelijks doel', '8 glazen'],
+            ['Beweging',  'Dagelijks doel', '60 min'],
+          ].map(([label, sub, val]) => (
+            <div key={label} className="toggle-row">
+              <div>
+                <div className="toggle-label">{label}</div>
+                <div className="toggle-sub">{sub}</div>
+              </div>
+              <div style={{ fontWeight: 600, color: 'var(--purple)', fontSize: 14 }}>{val}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="section-hd">Voorkeuren</div>
+        <div className="card">
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Donkere modus</div>
+              <div className="toggle-sub">Schakel over naar donkere achtergrond</div>
+            </div>
+            <button className={'toggle' + (darkMode ? ' on' : '')} onClick={() => setDarkMode(d => !d)} />
+          </div>
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Push-meldingen</div>
+              <div className="toggle-sub">Dagelijkse logboekherinneringen</div>
+            </div>
+            <button className={'toggle' + (notifs ? ' on' : '')} onClick={() => setNotifs(d => !d)} />
+          </div>
+          <div className="toggle-row">
+            <div>
+              <div className="toggle-label">Cyclus-reminders</div>
+              <div className="toggle-sub">Melding vóór je menstruatie</div>
+            </div>
+            <button className={'toggle' + (reminders ? ' on' : '')} onClick={() => setReminders(d => !d)} />
+          </div>
+        </div>
+
+        <div className="section-hd">Exporteren</div>
+        <div className="card">
+          <button className="export-btn" onClick={() => alert('CSV-export gestart!')}>
+            📊 Exporteer als CSV (90 dagen)
+          </button>
+          <button className="export-btn" onClick={() => alert('JSON-export gestart!')}>
+            🗂 Exporteer als JSON
+          </button>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+            Je data verlaat nooit je apparaat — alles staat lokaal opgeslagen.
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center', padding: '24px 0 8px', color: 'var(--text-muted)', fontSize: 12 }}>
+          Aura v0.9 · Jouw cyclus, jouw data 🌸
+        </div>
+      </div>
+    );
+  }
+
+  // ── ROOT APP ─────────────────────────────────────────────────────────
+  const TABS = [
+    { id: 'vandaag',      label: 'Vandaag',  icon: 'home',     Component: VandaagTab },
+    { id: 'voeding',      label: 'Voeding',  icon: 'salad',    Component: VoedingTab },
+    { id: 'logboek',      label: 'Logboek',  icon: 'book',     Component: LogboekTab },
+    { id: 'inzichten',    label: 'Inzichten',icon: 'chart',    Component: InzichtenTab },
+    { id: 'instellingen', label: 'Stel in',  icon: 'settings', Component: InstellingenTab },
+  ];
+
+  function App() {
+    const [active, setActive] = useState('vandaag');
+    const tab = TABS.find(t => t.id === active);
+    const TabComponent = tab.Component;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+        <div className="header">
+          <div className="header-logo">🌸 Aura</div>
+          <div className="header-greeting">Hoi Maya 👋</div>
+        </div>
+
+        <div className="scroll-area">
+          <TabComponent key={active} />
+        </div>
+
+        <div className="tabbar">
+          {TABS.map(t => (
+            <button key={t.id} className={'tab-btn' + (active === t.id ? ' active' : '')}
+              onClick={() => setActive(t.id)}>
+              <Icon path={ICON_PATHS[t.icon]} size={20} />
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
