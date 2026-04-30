@@ -9,8 +9,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen, Activity,
-  BarChart2, Download, X, TrendingUp, Lock, KeyRound,
+  BarChart2, Download, X, TrendingUp, Lock, KeyRound, FileText,
 } from 'lucide-react';
+
+export const LEGAL_VERSION = '1.0';
 import { changePassphrase } from './lib/secureStorage.js';
 import { WrongPassphraseError } from './lib/crypto.js';
 import { useUnlock, AUTO_LOCK_OPTIONS } from './UnlockGate.jsx';
@@ -932,6 +934,7 @@ function ReminderBanner({ profile }) {
 function Onboarding({ onComplete }) {
   const [step, setStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [form, setForm] = useState({
     name:            '',
     cycleLength:     28,
@@ -963,6 +966,8 @@ function Onboarding({ onComplete }) {
       activityLevel:   form.activityLevel,
       onboardingDone:  true,
       createdAt:       new Date().toISOString(),
+      legalAcceptedAt: new Date().toISOString(),
+      legalVersion:    LEGAL_VERSION,
     };
     saveProfile(profile);
     onComplete(profile);
@@ -1008,7 +1013,7 @@ function Onboarding({ onComplete }) {
             <p className="text-sm text-ink-500 text-center leading-relaxed mb-8">
               Jouw rustige gids voor cyclus-bewuste voeding, energie en welzijn.
             </p>
-            <div className="mb-6">
+            <div className="mb-5">
               <label className="block text-sm text-ink-600 mb-2.5" htmlFor="onboard-name">
                 Hoe heet je?
               </label>
@@ -1019,14 +1024,33 @@ function Onboarding({ onComplete }) {
                 onChange={setFE('name')}
                 placeholder="Jouw naam (optioneel)"
                 autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && goTo(1)}
+                onKeyDown={(e) => e.key === 'Enter' && legalAccepted && goTo(1)}
               />
             </div>
+
+            <label className="flex items-start gap-3 mb-6 text-sm text-ink-600 cursor-pointer leading-relaxed">
+              <input
+                type="checkbox"
+                checked={legalAccepted}
+                onChange={(e) => setLegalAccepted(e.target.checked)}
+                className="mt-0.5 accent-sage-500 shrink-0"
+              />
+              <span>
+                Ik heb de{' '}
+                <a href="/legal/privacy.html" target="_blank" rel="noopener" className="text-sage-600 underline">privacyverklaring</a>
+                {' '}en{' '}
+                <a href="/legal/disclaimer.html" target="_blank" rel="noopener" className="text-sage-600 underline">medische disclaimer</a>
+                {' '}gelezen en ga ermee akkoord.
+              </span>
+            </label>
+
             <button
               type="button"
               onClick={() => goTo(1)}
+              disabled={!legalAccepted}
               className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
-                         hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2"
+                         hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2
+                         disabled:bg-sage-200 disabled:cursor-not-allowed"
             >
               {form.name.trim()
                 ? `Fijn je te ontmoeten, ${form.name.trim().split(' ')[0]} ✓`
@@ -1754,6 +1778,49 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
             Wachtwoord wijzigen
           </button>
         </div>
+      </Card>
+
+      {/* Juridisch */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Juridisch</div>
+        <div className="space-y-2">
+          <a
+            href="/legal/privacy.html"
+            target="_blank"
+            rel="noopener"
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                       text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            <FileText className="w-4 h-4" />
+            Privacyverklaring
+          </a>
+          <a
+            href="/legal/disclaimer.html"
+            target="_blank"
+            rel="noopener"
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                       text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            <FileText className="w-4 h-4" />
+            Medische disclaimer
+          </a>
+          <a
+            href="/legal/colofon.html"
+            target="_blank"
+            rel="noopener"
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                       text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            <FileText className="w-4 h-4" />
+            Colofon
+          </a>
+        </div>
+        {profile.legalAcceptedAt && (
+          <p className="mt-3 text-xs text-ink-400">
+            Geaccepteerd op {new Date(profile.legalAcceptedAt).toLocaleDateString('nl-NL')}
+            {profile.legalVersion && ` (versie ${profile.legalVersion})`}.
+          </p>
+        )}
       </Card>
 
       {/* Danger zone */}
