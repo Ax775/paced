@@ -11,8 +11,9 @@ import {
   Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen, Activity,
   BarChart2, Download, X, TrendingUp, Lock, KeyRound,
 } from 'lucide-react';
-import { lock as lockStore, changePassphrase } from './lib/secureStorage.js';
+import { changePassphrase } from './lib/secureStorage.js';
 import { WrongPassphraseError } from './lib/crypto.js';
+import { useUnlock, AUTO_LOCK_OPTIONS } from './UnlockGate.jsx';
 
 import {
   getCycleState, PHASES, PHASE_META,
@@ -1410,6 +1411,7 @@ function ChangePassphraseModal({ onClose, onSuccess }) {
 }
 
 function SettingsScreen({ profile, onSave, onReset, onBack }) {
+  const { lockNow, autoLockMinutes, setAutoLockMinutes } = useUnlock();
   const [form, setForm] = useState({
     name:          profile.name          || '',
     age:           profile.age           || '',
@@ -1652,6 +1654,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
           <button
             type="button"
             onClick={handleNotifToggle}
+            role="switch"
+            aria-checked={notifEnabled}
+            aria-label="Dagelijkse herinnering"
             className={`relative w-12 h-6 rounded-full transition ${notifEnabled ? 'bg-sage-500' : 'bg-cream-300'}`}
           >
             <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${notifEnabled ? 'left-7' : 'left-1'}`} />
@@ -1712,10 +1717,27 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
       {/* Beveiliging */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Beveiliging</div>
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <Field>
+            <Label htmlFor="settings-autolock">Automatisch vergrendelen</Label>
+            <select
+              id="settings-autolock"
+              value={autoLockMinutes}
+              onChange={(e) => setAutoLockMinutes(Number(e.target.value))}
+              className={inputCx}
+            >
+              {AUTO_LOCK_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-ink-400 leading-relaxed">
+              Aura vergrendelt zichzelf na deze tijd inactiviteit. Bij elke nieuwe sessie vragen we sowieso je wachtwoord.
+            </p>
+          </Field>
+
           <button
             type="button"
-            onClick={() => { lockStore(); window.location.reload(); }}
+            onClick={lockNow}
             className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
                        text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
           >

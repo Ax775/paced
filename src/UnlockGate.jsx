@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Lock, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import {
   isInitialized, isUnlocked, setupNew, unlock, lock, migratePlaintext,
@@ -9,8 +9,38 @@ import {
 } from './lib/crypto.js';
 
 const MIN_PASSPHRASE = 8;
-const HIDDEN_LOCK_MS = 60_000;     // lock 60s after tab hides
-const IDLE_LOCK_MS = 5 * 60_000;   // lock after 5 min idle
+const PREF_KEY = 'aura.prefs.autoLockMinutes';
+const DEFAULT_AUTO_LOCK_MIN = 30; // 0 = never
+
+export const AUTO_LOCK_OPTIONS = [
+  { value: 0,  label: 'Uit'        },
+  { value: 5,  label: '5 minuten'  },
+  { value: 15, label: '15 minuten' },
+  { value: 30, label: '30 minuten' },
+  { value: 60, label: '1 uur'      },
+];
+
+export function getAutoLockMinutes() {
+  const stored = localStorage.getItem(PREF_KEY);
+  if (stored === null) return DEFAULT_AUTO_LOCK_MIN;
+  const raw = Number(stored);
+  if (!Number.isFinite(raw) || raw < 0) return DEFAULT_AUTO_LOCK_MIN;
+  return raw;
+}
+
+function saveAutoLockMinutes(min) {
+  try { localStorage.setItem(PREF_KEY, String(min)); } catch { /* no-op */ }
+}
+
+const UnlockContext = createContext({
+  lockNow: () => {},
+  setAutoLockMinutes: () => {},
+  autoLockMinutes: DEFAULT_AUTO_LOCK_MIN,
+});
+
+export function useUnlock() {
+  return useContext(UnlockContext);
+}
 
 const inputCx =
   'w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-ink-700 ' +
@@ -261,58 +291,53 @@ export default function UnlockGate({ children }) {
     return isInitialized() ? 'locked' : 'setup';
   });
   const [quota, setQuota] = useState(false);
+  const [autoLockMin, setAutoLockMin] = useState(getAutoLockMinutes);
   const idleTimer = useRef(null);
-  const hiddenTimer = useRef(null);
 
   useEffect(() => {
     onQuotaError(() => setQuota(true));
   }, []);
 
-  // Auto-lock when tab is hidden for HIDDEN_LOCK_MS, or after IDLE_LOCK_MS of no input.
+  // Idle auto-lock — controlled by user preference.
   useEffect(() => {
-    if (phase !== 'unlocked') return;
+    if (phase !== 'unlocked' || autoLockMin <= 0) return;
 
+    const ms = autoLockMin * 60_000;
     const resetIdle = () => {
       clearTimeout(idleTimer.current);
       idleTimer.current = setTimeout(() => {
         lock();
         setPhase('locked');
-      }, IDLE_LOCK_MS);
+      }, ms);
     };
 
-    const onVisibility = () => {
-      clearTimeout(hiddenTimer.current);
-      if (document.visibilityState === 'hidden') {
-        hiddenTimer.current = setTimeout(() => {
-          lock();
-          setPhase('locked');
-        }, HIDDEN_LOCK_MS);
-      } else {
-        resetIdle();
-      }
-    };
-
-    const events = ['pointerdown', 'keydown', 'touchstart'];
+    const events = ['pointerdown', 'keydown', 'touchstart', 'wheel'];
     events.forEach((ev) => window.addEventListener(ev, resetIdle, { passive: true }));
-    document.addEventListener('visibilitychange', onVisibility);
     resetIdle();
 
     return () => {
       clearTimeout(idleTimer.current);
-      clearTimeout(hiddenTimer.current);
       events.forEach((ev) => window.removeEventListener(ev, resetIdle));
-      document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [phase]);
+  }, [phase, autoLockMin]);
+
+  const ctx = {
+    lockNow: () => { lock(); setPhase('locked'); },
+    setAutoLockMinutes: (min) => {
+      saveAutoLockMinutes(min);
+      setAutoLockMin(min);
+    },
+    autoLockMinutes: autoLockMin,
+  };
 
   if (phase === 'no-crypto') return <CryptoUnavailableScreen />;
   if (phase === 'setup')     return <SetupScreen   onReady={() => setPhase('unlocked')} />;
   if (phase === 'locked')    return <UnlockScreen onUnlocked={() => setPhase('unlocked')} />;
 
   return (
-    <>
+    <UnlockContext.Provider value={ctx}>
       <main id="main">{children}</main>
       <QuotaToast visible={quota} onDismiss={() => setQuota(false)} />
-    </>
+    </UnlockContext.Provider>
   );
 }
