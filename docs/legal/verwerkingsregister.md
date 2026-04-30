@@ -1,7 +1,10 @@
 # Verwerkingsregister Aura
 
-**Versie:** 1.0 — laatst bijgewerkt op [INVUL: datum]
-**Volgende review:** [INVUL: datum, jaarlijks of bij elke wijziging]
+**Versie:** 1.0 — laatst bijgewerkt op 30 april 2026
+**Volgende review:** uiterlijk 30 april 2027, en altijd bij elke wijziging
+
+> ⚠️ **CONCEPT — bevat nog `[INVUL: …]` placeholders.** Niet definitief
+> vóórdat een privacyjurist akkoord heeft gegeven.
 
 Dit register voldoet aan AVG art. 30 lid 1 (verantwoordelijke). Een
 register van een verwerker (art. 30 lid 2) is voor Aura niet van
@@ -19,12 +22,12 @@ toepassing — wij zijn zelf verwerkingsverantwoordelijke.
 
 | Veld | Waarde |
 |---|---|
-| Naam | [INVUL: bedrijfsnaam + rechtsvorm] |
+| Naam | Xaven VOF (handelend onder de naam Aura) |
 | Adres | [INVUL: postadres] |
-| KvK-nummer | [INVUL] |
-| Contactpersoon | [INVUL: naam + functie] |
-| E-mail | [INVUL: contact-email] |
-| FG (DPO) | [INVUL: naam + contact, of "n.v.t."] |
+| KvK-nummer | [INVUL: in aanvraag] |
+| Contactpersoon | [INVUL: naam vennoot + functie] |
+| E-mail | [INVUL: contact@xaven.io] |
+| FG (DPO) | [INVUL: naam + contact, of "n.v.t." na jurist-beoordeling] |
 
 ## 2. Verwerkingsactiviteiten
 
@@ -54,8 +57,8 @@ toepassing — wij zijn zelf verwerkingsverantwoordelijke.
 | **Bijzondere categorie?** | Nee |
 | **Grondslag** | Art. 6 lid 1 sub b — uitvoering overeenkomst (technisch noodzakelijk) en art. 6 lid 1 sub f — gerechtvaardigd belang (beveiliging, DDoS-mitigatie) |
 | **Ontvangers** | Hostingpartij (verwerker, zie §3) |
-| **Doorgifte buiten EER** | [INVUL: nee, of: ja met SCC's / DPF / adequaatheidsbesluit — afhankelijk van keuze hostingpartij] |
-| **Bewaartermijn** | [INVUL: bv. 30 dagen — zie SLA hostingpartij] |
+| **Doorgifte buiten EER** | Ja — Cloudflare edge-netwerk wereldwijd; gedekt door SCC's en EU-VS Data Privacy Framework |
+| **Bewaartermijn** | ~4 dagen voor Cloudflare Free plan edge logs |
 | **Beveiligingsmaatregelen** | TLS 1.2+, HSTS, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP, X-Frame-Options |
 
 ### Verwerking 3 — Beantwoorden van privacyverzoeken (optioneel)
@@ -71,20 +74,28 @@ toepassing — wij zijn zelf verwerkingsverantwoordelijke.
 | **Ontvangers** | Geen |
 | **Doorgifte buiten EER** | Nee (afhankelijk van e-mailprovider) |
 | **Bewaartermijn** | 2 jaar na afhandeling (bewijs van naleving) |
-| **Beveiligingsmaatregelen** | E-mail via [INVUL: e-mailprovider, bv. ProtonMail, Mailbox.org of zakelijk Outlook met TLS] |
+| **Beveiligingsmaatregelen** | E-mail via [INVUL: e-mailprovider — keuze nog te maken, bv. ProtonMail, Mailbox.org, Microsoft 365 of Google Workspace met TLS-transport en standaardencryptie at rest] |
 
 ## 3. Verwerkers
 
 | Verwerker | Doel | Locatie | DPA op orde? |
 |---|---|---|---|
-| [INVUL: hostingpartij] | Hosting statische app + serverlogs | [INVUL: regio] | [INVUL: ja, [link of referentie] / nee — actie vereist] |
-| [INVUL: e-mailprovider] | Verzenden + ontvangen privacy-correspondentie | [INVUL: regio] | [INVUL] |
+| Cloudflare, Inc. (Cloudflare Pages) | Hosting statische app + edge logs | Wereldwijd edge-netwerk; primaire serving via EU edge | Ja — automatisch geïncorporeerd in Subscription Agreement, geaccepteerd 30-04-2026. Document: https://www.cloudflare.com/cloudflare-customer-dpa/ |
+| [INVUL: e-mailprovider — nog te kiezen] | Verzenden + ontvangen privacy-correspondentie | [INVUL: regio] | [INVUL: te tekenen] |
 
 ## 4. Doorgiften buiten de EER
 
-[INVUL: Beschrijf per doorgifte: welke verwerker, welk land, welke
-waarborg (SCC's, EU-VS Data Privacy Framework, adequaatheidsbesluit,
-of bindende bedrijfsregels). Verwijs naar bewijsstukken in een DPA-map.]
+**Cloudflare, Inc.** (Verenigde Staten) — gedekt door:
+- Standard Contractual Clauses (SCC's) zoals goedgekeurd door de
+  Europese Commissie, geïncorporeerd in de Cloudflare Self-Serve DPA
+- EU-VS Data Privacy Framework certificering (zie
+  https://www.dataprivacyframework.gov/list)
+
+Bewijsstuk: PDF van de Cloudflare DPA gedownload op 30-04-2026,
+bewaard in interne administratie.
+
+[INVUL: Voeg eventuele aanvullende doorgiften (e-mailprovider, etc.)
+toe zodra die zijn gekozen.]
 
 ## 5. Algemene beveiligingsmaatregelen
 

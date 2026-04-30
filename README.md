@@ -72,7 +72,13 @@ plain HTTP.
 
 ## Voor livegang nog te regelen
 
-- [ ] `[INVUL: …]` placeholders invullen in `docs/legal/*.md`
+> ⚠️ **De juridische teksten bevatten nog `[INVUL: …]` placeholders.**
+> Een aantal velden is gevuld met de bekende feiten (Xaven VOF,
+> Cloudflare-host, datums); KvK, BTW, postadres, e-mailadressen en het
+> definitieve app-domein moeten nog aangevuld worden vóórdat de app
+> publiek opengezet wordt.
+
+- [ ] Resterende `[INVUL: …]` placeholders invullen in `docs/legal/*.md`
 - [ ] Juridische review van de privacyverklaring + medische disclaimer
 - [ ] Verwerkersovereenkomst met de hostingpartij
 - [ ] Echte device-tests (iPhone Safari, Android Chrome, screenreader)

@@ -1,9 +1,12 @@
 # Data Protection Impact Assessment — Aura
 
-**Versie:** 1.0 — laatst bijgewerkt op [INVUL: datum]
+**Versie:** 1.0 — laatst bijgewerkt op 30 april 2026
 **Status:** Concept, nog niet beoordeeld door FG/jurist
-**Volgende review:** [INVUL: datum, in beginsel jaarlijks of bij elke
-materiële wijziging in de verwerking]
+**Volgende review:** uiterlijk 30 april 2027, en altijd bij elke
+materiële wijziging in de verwerking
+
+> ⚠️ **CONCEPT — bevat nog `[INVUL: …]` placeholders.** Niet
+> definitief vóórdat een privacyjurist of FG akkoord heeft gegeven.
 
 Deze DPIA volgt de structuur van de **Autoriteit Persoonsgegevens** zoals
 beschreven in haar handleiding *Data Protection Impact Assessment* (versie
@@ -83,10 +86,10 @@ beïnvloedt de proportionaliteits-toets.]
 
 ### 1.6 Context
 
-- Hostingpartij: [INVUL: bv. Cloudflare Pages, Netlify, Hetzner]
-- Verwerkersovereenkomst: [INVUL: status]
+- Hostingpartij: Cloudflare Pages (Cloudflare, Inc., gecertificeerd onder EU-VS Data Privacy Framework + SCC's)
+- Verwerkersovereenkomst: automatisch geïncorporeerd in Cloudflare Self-Serve Subscription Agreement; geaccepteerd 30 april 2026
 - Externe verwerkers verder: geen
-- Open broncode: [INVUL: ja/nee + repository-URL]
+- Open broncode: ja — https://github.com/Ax775/Claude (private tot livegang)
 
 ## 2. Beoordeling noodzaak en evenredigheid
 
@@ -150,7 +153,7 @@ van betrokkenen.
 | R6 | Gebruiker vergeet wachtwoord, verliest data | Midden | Midden (data verloren, geen lek) | Midden |
 | R7 | Browserdata wordt gewist (cache leeg, browser-reset) | Midden | Midden | Midden |
 | R8 | Hostingpartij wordt gehackt en serveert kwaadaardige JavaScript | Laag | Hoog (sleutel + plaintext kan gestolen worden) | Midden |
-| R9 | Doorgifte van logging-IP buiten EER | [INVUL: afhankelijk van host] | Laag | Laag-Midden |
+| R9 | Doorgifte van logging-IP buiten EER (Cloudflare edge-netwerk) | Midden | Laag (alleen IP/User-Agent in edge-logs, ~4 dagen) | Laag-Midden |
 | R10 | Betrokkene onder 16 zonder ouderlijke toestemming | Midden | Midden | Midden |
 
 ### Mitigerende maatregelen

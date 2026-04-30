@@ -1,6 +1,9 @@
 # Medische disclaimer Aura
 
-**Versie:** 1.0 — laatst bijgewerkt op [INVUL: datum]
+**Versie:** 1.0 — laatst bijgewerkt op 30 april 2026
+
+> ⚠️ **CONCEPT — nog niet juridisch gereviewd.** Niet publiceren als
+> publieksgerichte tekst totdat een (privacy)jurist akkoord heeft gegeven.
 
 ## Aura is een wellness-app, geen medisch hulpmiddel
 

@@ -92,8 +92,13 @@
   <div class="wrap">
     <a class="back" href="/">← Terug naar Aura</a>
     <article><h1>Privacyverklaring Aura</h1>
-<p><strong>Versie:</strong> 1.0 — laatst bijgewerkt op [INVUL: datum]
-<strong>Geldig vanaf:</strong> [INVUL: datum]</p>
+<p><strong>Versie:</strong> 1.0 — laatst bijgewerkt op 30 april 2026
+<strong>Geldig vanaf:</strong> [INVUL: datum van eerste publicatie]</p>
+<blockquote>
+<p>⚠️ <strong>CONCEPT — nog niet juridisch gereviewd.</strong> Bevat nog <code>[INVUL: …]</code>
+placeholders. Niet publiceren als publieksgerichte tekst totdat alle
+placeholders ingevuld zijn én een privacyjurist akkoord heeft gegeven.</p>
+</blockquote>
 <p>Aura (&quot;wij&quot;, &quot;ons&quot;) respecteert je privacy. Deze verklaring beschrijft hoe
 wij omgaan met persoonsgegevens, in lijn met de Algemene verordening
 gegevensbescherming (AVG / GDPR) en de Uitvoeringswet AVG (UAVG).</p>
@@ -102,15 +107,17 @@ gegevensbescherming (AVG / GDPR) en de Uitvoeringswet AVG (UAVG).</p>
 versleuteld met een wachtwoord dat alleen jij kent.</p>
 <hr>
 <h2>1. Wie is verwerkingsverantwoordelijke?</h2>
-<p>[INVUL: Volledige bedrijfsnaam, rechtsvorm]
-[INVUL: Postadres]
-[INVUL: KvK-nummer]
-[INVUL: BTW-nummer indien van toepassing]</p>
-<p>E-mail algemeen: [INVUL: contact-email]
-E-mail privacyverzoeken: [INVUL: privacy@…]</p>
-<p>[INVUL: Indien een Functionaris Gegevensbescherming (FG/DPO) is
-aangesteld — naam en contactgegevens. Een FG is verplicht bij grootschalige
-verwerking van bijzondere categorieën persoonsgegevens (AVG art. 37).]</p>
+<p><strong>Xaven</strong> (vennootschap onder firma — &quot;Xaven VOF&quot;)
+[INVUL: Postadres — straat, huisnummer, postcode, woonplaats]
+KvK: [INVUL: KvK-nummer — wordt aangevraagd]
+BTW: [INVUL: NL...B01 indien BTW-plichtig, anders &quot;n.v.t.&quot;]</p>
+<p>E-mail algemeen: [INVUL: <a href="mailto:contact@xaven.io">contact@xaven.io</a>]
+E-mail privacyverzoeken: [INVUL: <a href="mailto:privacy@xaven.io">privacy@xaven.io</a>]</p>
+<p>[INVUL: Functionaris Gegevensbescherming (FG/DPO) — beoordelen of een
+FG verplicht is. Onder AVG art. 37 lid 1 sub c is een FG verplicht bij
+grootschalige verwerking van bijzondere categorieën persoonsgegevens.
+Voor Aura wordt dit relevant naarmate het gebruikersaantal groeit;
+laat dit door je privacyjurist beoordelen.]</p>
 <h2>2. Welke gegevens verwerken wij?</h2>
 <h3>2.1 Gegevens die uitsluitend op je apparaat worden bewaard</h3>
 <p>De volgende gegevens slaan wij <strong>versleuteld op in jouw browser</strong>
@@ -173,7 +180,7 @@ de hostingpartij verwerkt om de pagina te kunnen serveren:</p>
 <tbody><tr>
 <td>IP-adres</td>
 <td>Verbinding tot stand brengen, beveiliging (DDoS-mitigatie)</td>
-<td>[INVUL: bv. 30 dagen in serverlogs van hostingpartij]</td>
+<td>Cloudflare bewaart edge-logs op het Free plan ~4 dagen; analytics worden geanonimiseerd</td>
 </tr>
 <tr>
 <td>User-Agent (browsertype)</td>
@@ -259,24 +266,27 @@ hostingpartij voor het serveren van de statische app. Zie §6.</p>
 </tr>
 </thead>
 <tbody><tr>
-<td>[INVUL: Hostingpartij, bv. Cloudflare Pages, Netlify, Hetzner]</td>
-<td>Hosting van de statische app</td>
-<td>[INVUL: EU/EER of beoordeel adequaatheidsbesluit]</td>
-<td>[INVUL: link naar DPA / verklaring]</td>
+<td>Cloudflare, Inc. (Cloudflare Pages)</td>
+<td>Hosting van de statische app + edge cache</td>
+<td>Wereldwijd edge-netwerk; primaire serving via EU edge nodes</td>
+<td>DPA automatisch geïncorporeerd in de Cloudflare Self-Serve Subscription Agreement; geaccepteerd op 30 april 2026. Document: <a href="https://www.cloudflare.com/cloudflare-customer-dpa/">https://www.cloudflare.com/cloudflare-customer-dpa/</a></td>
 </tr>
 </tbody></table>
-<p>[INVUL: Voeg eventuele extra verwerkers toe (foutmonitoring, e-mail).
-Zorg per verwerker voor een ondertekende verwerkersovereenkomst conform
-AVG art. 28 lid 3.]</p>
+<p>Geen verdere verwerkers. Indien later e-mail- of foutmonitoring wordt
+toegevoegd, dient deze tabel te worden uitgebreid met een ondertekende
+verwerkersovereenkomst conform AVG art. 28 lid 3.</p>
 <h2>7. Doorgifte buiten de EER</h2>
-<p>[INVUL: Als de gekozen hostingpartij gegevens buiten de EER verwerkt
-(bv. Cloudflare met Amerikaanse moederpartij): vermeld de waarborg —
-EU-VS Data Privacy Framework, Standard Contractual Clauses (SCC&#39;s), of
-adequaatheidsbesluit. Voeg link toe naar de relevante documentatie van
-de verwerker.]</p>
-<p>Indien je hostingpartij volledig in de EER opereert: schrijf hier
-&quot;Wij geven geen persoonsgegevens door buiten de Europese Economische
-Ruimte.&quot;</p>
+<p>Wij maken gebruik van Cloudflare Pages voor hosting. Cloudflare is een
+Amerikaanse onderneming; technische logging-data (zoals IP-adressen
+in edge-logs) kan daardoor buiten de Europese Economische Ruimte worden
+verwerkt. Cloudflare hanteert daarvoor de <strong>Standard Contractual Clauses
+(SCC&#39;s)</strong> zoals goedgekeurd door de Europese Commissie en is
+gecertificeerd onder het <strong>EU-VS Data Privacy Framework (DPF)</strong>.</p>
+<p>Verwijzingen:</p>
+<ul>
+<li>Cloudflare DPA: <a href="https://www.cloudflare.com/cloudflare-customer-dpa/">https://www.cloudflare.com/cloudflare-customer-dpa/</a></li>
+<li>DPF-certificering: <a href="https://www.dataprivacyframework.gov/list">https://www.dataprivacyframework.gov/list</a></li>
+</ul>
 <h2>8. Bewaartermijnen</h2>
 <table>
 <thead>
@@ -295,7 +305,7 @@ Ruimte.&quot;</p>
 </tr>
 <tr>
 <td>Serverlogs (IP, User-Agent)</td>
-<td>[INVUL: bv. 30 dagen — afhankelijk van hostingpartij]</td>
+<td>~4 dagen (Cloudflare Free plan edge logs)</td>
 </tr>
 <tr>
 <td>Eventuele e-mails aan ons over privacyverzoeken</td>
@@ -337,7 +347,7 @@ regelmatig via <em>Instellingen → Exporteren</em></li>
 </thead>
 <tbody><tr>
 <td>Inzage (art. 15)</td>
-<td>Je gegevens staan op je eigen apparaat — open de app en bekijk ze. Voor serverlogs: e-mail [INVUL: privacy@…]</td>
+<td>Je gegevens staan op je eigen apparaat — open de app en bekijk ze. Voor serverlogs: e-mail [INVUL: <a href="mailto:privacy@xaven.io">privacy@xaven.io</a>]</td>
 </tr>
 <tr>
 <td>Rectificatie (art. 16)</td>
@@ -349,7 +359,7 @@ regelmatig via <em>Instellingen → Exporteren</em></li>
 </tr>
 <tr>
 <td>Beperking (art. 18)</td>
-<td>E-mail [INVUL: privacy@…] indien van toepassing</td>
+<td>E-mail [INVUL: <a href="mailto:privacy@xaven.io">privacy@xaven.io</a>] indien van toepassing</td>
 </tr>
 <tr>
 <td>Dataportabiliteit (art. 20)</td>
@@ -357,7 +367,7 @@ regelmatig via <em>Instellingen → Exporteren</em></li>
 </tr>
 <tr>
 <td>Bezwaar (art. 21)</td>
-<td>E-mail [INVUL: privacy@…]</td>
+<td>E-mail [INVUL: <a href="mailto:privacy@xaven.io">privacy@xaven.io</a>]</td>
 </tr>
 <tr>
 <td>Niet onderworpen zijn aan automatische besluitvorming (art. 22)</td>
@@ -389,15 +399,15 @@ is 16 jaar de leeftijd waarop de AVG-toestemming voor
 informatiediensten geldig is (UAVG art. 5). Voor gebruikers onder de 16
 is toestemming van een ouder of voogd vereist.</p>
 <p>Constateer je dat een minderjarige onder de 16 zonder die toestemming
-gebruik maakt van Aura, dan kun je dat melden via [INVUL: privacy@…];
+gebruik maakt van Aura, dan kun je dat melden via [INVUL: <a href="mailto:privacy@xaven.io">privacy@xaven.io</a>];
 wij geven dan instructies om de data te verwijderen.</p>
 <h2>13. Wijzigingen</h2>
 <p>Wij kunnen deze privacyverklaring aanpassen. De huidige versie staat
 altijd in de app onder <em>Instellingen → Juridisch</em> en op
-[INVUL: bv. <a href="https://aura.%5Bdomein%5D/privacy%5D">https://aura.[domein]/privacy]</a>. Bij materiële wijzigingen
+[INVUL: https://<aura-domein>/legal/privacy.html — wordt gevuld zodra het Aura-domein is geregistreerd]. Bij materiële wijzigingen
 melden wij dit zichtbaar in de app en vragen wij opnieuw om akkoord.</p>
 <h2>14. Contact</h2>
-<p>Vragen of klachten over privacy? Mail [INVUL: privacy@…]. Wij streven
+<p>Vragen of klachten over privacy? Mail [INVUL: <a href="mailto:privacy@xaven.io">privacy@xaven.io</a>]. Wij streven
 ernaar binnen 5 werkdagen te reageren.</p>
 <hr>
 </article>

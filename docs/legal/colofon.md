@@ -4,10 +4,14 @@ Wettelijke vermelding op grond van **Burgerlijk Wetboek artikel 3:15d**
 (implementatie van Richtlijn 2000/31/EG inzake elektronische handel,
 artikel 5).
 
+> ⚠️ **CONCEPT — nog niet juridisch gereviewd.** Bevat nog `[INVUL: …]`
+> placeholders. Niet publiceren als publieksgerichte tekst totdat alle
+> placeholders ingevuld zijn én een privacyjurist akkoord heeft gegeven.
+
 ## Aanbieder van de dienst
 
-[INVUL: Volledige bedrijfsnaam, rechtsvorm — bv. "Voorbeeld B.V." of
-"Voornaam Achternaam, h.o.d.n. Aura"]
+**Xaven** (vennootschap onder firma — "Xaven VOF"), handelend onder de
+naam **Aura** voor deze dienst.
 
 [INVUL: Vestigingsadres
 Straatnaam huisnummer
@@ -16,8 +20,8 @@ Nederland]
 
 ## Contactgegevens
 
-E-mail algemeen: [INVUL: contact@…]
-E-mail privacyverzoeken: [INVUL: privacy@…]
+E-mail algemeen: [INVUL: contact@xaven.io]
+E-mail privacyverzoeken: [INVUL: privacy@xaven.io]
 
 [INVUL: Telefoonnummer indien beschikbaar — niet verplicht onder
 art. 3:15d, maar wél verplicht onder de Wet bescherming
@@ -25,8 +29,8 @@ consumenten-rechten als de aanbieder zich op consumenten richt]
 
 ## Inschrijving
 
-Kamer van Koophandel: [INVUL: KvK-nummer]
-[INVUL: Handelsnaam afwijkend van bedrijfsnaam, indien van toepassing]
+Kamer van Koophandel: [INVUL: KvK-nummer — VOF-inschrijving in aanvraag]
+Handelsnaam: Aura
 
 ## BTW-nummer
 
@@ -42,9 +46,10 @@ Voor de verwerking van persoonsgegevens valt de aanbieder onder toezicht
 van de **Autoriteit Persoonsgegevens** (https://autoriteitpersoonsgegevens.nl).
 
 Geschillen tussen consumenten en de aanbieder kunnen worden voorgelegd
-aan het [INVUL: optioneel — Stichting De Geschillencommissie of een
-andere geschilleninstantie waarbij de aanbieder is aangesloten, of:
-"de bevoegde Nederlandse rechter"].
+aan **de bevoegde Nederlandse rechter** in het arrondissement waar
+Xaven VOF gevestigd is, tenzij dwingend recht anders bepaalt. [INVUL:
+Indien je je aansluit bij Stichting De Geschillencommissie of een
+andere geschilleninstantie, vermeld die hier.]
 
 ## EU online geschillenbeslechting
 
@@ -57,12 +62,11 @@ consumenten via dit platform een klacht indienen.
 
 ## Auteursrecht
 
-© [INVUL: jaar] [INVUL: rechtsvorm + naam]. Alle rechten voorbehouden,
-tenzij anders aangegeven. De broncode van Aura is beschikbaar onder
-[INVUL: licentie — bv. "MIT-licentie" of "Apache-2.0" of "geen open
-licentie"]; lettertypes Inter (SIL Open Font License 1.1) en Fraunces
-(SIL Open Font License 1.1) worden gebruikt onder hun respectievelijke
-licenties.
+© 2026 Xaven VOF. Alle rechten voorbehouden, tenzij anders aangegeven.
+De broncode van Aura is beschikbaar onder de **MIT-licentie** (zie
+`LICENSE` in de repository); lettertypes Inter (SIL Open Font License 1.1)
+en Fraunces (SIL Open Font License 1.1) worden gebruikt onder hun
+respectievelijke licenties.
 
 ---
 
