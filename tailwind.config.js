@@ -33,7 +33,10 @@ export default {
           600: '#8F5138',
         },
         ink: {
-          400: '#8B8578',
+          // 400 darkened from #8B8578 to meet WCAG-AA 4.5:1 contrast on
+          // cream-50 (and the cream-50 + radial-gradient overlay on body).
+          // Old value rendered ~3.5:1 — flagged by axe-core in CI.
+          400: '#6B6757',
           500: '#5F5A4E',
           600: '#3E3B33',
           700: '#2A2823',
