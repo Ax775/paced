@@ -9,7 +9,8 @@
     "preview": "vite preview --port 4173",
     "test": "vitest run",
     "test:a11y": "playwright test",
-    "build:legal": "node scripts/build-legal.mjs"
+    "build:legal": "node scripts/build-legal.mjs",
+    "gen:splash": "node scripts/generate-splash.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.469.0",
@@ -23,6 +24,7 @@
     "autoprefixer": "^10.4.20",
     "marked": "^14.1.4",
     "postcss": "^8.4.49",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "vite": "^5.4.11",
     "vitest": "^2.1.9"

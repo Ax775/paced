@@ -1,11 +1,21 @@
 /* Aura service worker — network-first navigation, cache-first hashed assets. */
-const CACHE = 'aura-shell-v2';
+const CACHE = 'aura-shell-v3';
 const SHELL = [
   '/',
   '/manifest.webmanifest',
   '/assets/icon.svg',
   '/assets/icon-192.png',
   '/assets/icon-512.png',
+  '/assets/splash/640x1136.png',
+  '/assets/splash/750x1334.png',
+  '/assets/splash/1125x2436.png',
+  '/assets/splash/1170x2532.png',
+  '/assets/splash/1179x2556.png',
+  '/assets/splash/1242x2688.png',
+  '/assets/splash/1290x2796.png',
+  '/assets/splash/1536x2048.png',
+  '/assets/splash/1668x2388.png',
+  '/assets/splash/2048x2732.png',
 ];
 
 const OFFLINE_HTML = `<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aura — Offline</title><style>body{font-family:system-ui;text-align:center;padding:3rem;background:#FBF9F3;color:#3E3B33}h1{font-size:1.5rem}p{color:#5F5A4E}</style></head><body><h1>Geen verbinding</h1><p>Verbind met internet om Aura te openen.</p></body></html>`;
