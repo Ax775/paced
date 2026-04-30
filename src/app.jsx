@@ -6,12 +6,13 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen, Activity,
-  BarChart2, Download, X, TrendingUp,
+  BarChart2, Download, X, TrendingUp, Lock, KeyRound,
 } from 'lucide-react';
+import { lock as lockStore, changePassphrase } from './lib/secureStorage.js';
+import { WrongPassphraseError } from './lib/crypto.js';
 
 import {
   getCycleState, PHASES, PHASE_META,
@@ -1286,6 +1287,128 @@ function Onboarding({ onComplete }) {
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
+function ChangePassphraseModal({ onClose, onSuccess }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext]       = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy]       = useState(false);
+  const [error, setError]     = useState('');
+  const firstField = useRef(null);
+
+  useEffect(() => { firstField.current?.focus(); }, []);
+
+  const tooShort = next.length > 0 && next.length < 8;
+  const mismatch = confirm.length > 0 && next !== confirm;
+  const canSubmit = current && next.length >= 8 && next === confirm && !busy;
+
+  async function submit() {
+    if (!canSubmit) return;
+    setBusy(true);
+    setError('');
+    try {
+      await changePassphrase(current, next);
+      onSuccess();
+    } catch (e) {
+      if (e instanceof WrongPassphraseError) setError('Huidig wachtwoord klopt niet.');
+      else setError('Wijzigen mislukt. Probeer opnieuw.');
+      setBusy(false);
+      setCurrent('');
+    }
+  }
+
+  const inputCxLocal = inputCx;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="change-pw-title"
+      className="fixed inset-0 z-50 bg-ink-700/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md rounded-xl3 bg-cream-50 shadow-soft border border-cream-200 p-6 anim-slide-up">
+        <div className="flex items-start justify-between mb-1">
+          <h2 id="change-pw-title" className="font-display text-xl text-ink-700">Wachtwoord wijzigen</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Sluiten"
+            className="text-ink-400 hover:text-ink-600 p-1 rounded"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <p className="text-sm text-ink-500 leading-relaxed mb-5">
+          Je bestaande gegevens worden direct opnieuw versleuteld met het nieuwe wachtwoord.
+        </p>
+
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="cpw-current" className="block text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium mb-2">Huidig wachtwoord</label>
+            <input
+              ref={firstField}
+              id="cpw-current"
+              type="password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+              autoComplete="current-password"
+              className={inputCxLocal}
+            />
+          </div>
+          <div>
+            <label htmlFor="cpw-next" className="block text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium mb-2">Nieuw wachtwoord</label>
+            <input
+              id="cpw-next"
+              type="password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+              autoComplete="new-password"
+              placeholder="Minimaal 8 tekens"
+              className={inputCxLocal}
+            />
+            {tooShort && <p className="mt-1 text-xs text-terracotta-500">Minimaal 8 tekens.</p>}
+          </div>
+          <div>
+            <label htmlFor="cpw-confirm" className="block text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium mb-2">Bevestig nieuw wachtwoord</label>
+            <input
+              id="cpw-confirm"
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
+              autoComplete="new-password"
+              className={inputCxLocal}
+            />
+            {mismatch && <p className="mt-1 text-xs text-terracotta-500">Wachtwoorden komen niet overeen.</p>}
+          </div>
+
+          {error && <p className="text-sm text-terracotta-500" role="alert">{error}</p>}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-cream-200 bg-cream-50 text-ink-600 py-3 text-sm font-medium hover:bg-cream-100 transition"
+            >
+              Annuleren
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!canSubmit}
+              className="flex-1 rounded-xl bg-sage-500 hover:bg-sage-600 disabled:bg-sage-200 disabled:cursor-not-allowed text-cream-50 py-3 text-sm font-medium transition"
+            >
+              {busy ? 'Bezig…' : 'Wijzigen'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SettingsScreen({ profile, onSave, onReset, onBack }) {
   const [form, setForm] = useState({
     name:          profile.name          || '',
@@ -1306,6 +1429,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
   const [notifTime, setNotifTime]       = useState(profile.notifTime    || '20:00');
   const [toast, setToast]     = useState('');
   const [saved, setSaved]     = useState(false);
+  const [changePwOpen, setChangePwOpen] = useState(false);
   const timerRef      = useRef(null);
   const toastTimerRef = useRef(null);
 
@@ -1585,6 +1709,31 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         </div>
       </Card>
 
+      {/* Beveiliging */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Beveiliging</div>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => { lockStore(); window.location.reload(); }}
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                       text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            <Lock className="w-4 h-4" />
+            Vergrendel nu
+          </button>
+          <button
+            type="button"
+            onClick={() => setChangePwOpen(true)}
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                       text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            <KeyRound className="w-4 h-4" />
+            Wachtwoord wijzigen
+          </button>
+        </div>
+      </Card>
+
       {/* Danger zone */}
       <Card className="p-6 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Gevarenzone</div>
@@ -1601,6 +1750,13 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
           Profiel resetten
         </button>
       </Card>
+
+      {changePwOpen && (
+        <ChangePassphraseModal
+          onClose={() => setChangePwOpen(false)}
+          onSuccess={() => { setChangePwOpen(false); showToast('Wachtwoord gewijzigd'); }}
+        />
+      )}
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.2</div>
     </div>
@@ -2791,4 +2947,4 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+export default App;

@@ -1,14 +1,17 @@
 /**
- * Aura — LocalStorage persistence
- * -------------------------------
- * Thin typed wrapper around localStorage with two namespaces:
+ * Aura — App-level persistence
+ * ----------------------------
+ * Thin typed wrapper that lives on top of the secure storage layer.
+ * Two namespaces:
  *
- *   aura.profile       — single object, user onboarding data
- *   aura.log.<YYYY-MM-DD> — one object per day (tracker entries)
+ *   aura.profile           — single object, user onboarding data
+ *   aura.log.<YYYY-MM-DD>  — one object per day (tracker entries)
  *
- * Keeping each day in its own key makes it trivial to read "today" and
- * to scan back over recent history without parsing one giant blob.
+ * All reads/writes go through secureStorage so data is encrypted at rest.
+ * Reads are sync because secureStorage caches plaintext in memory after unlock.
  */
+
+import * as secure from './secureStorage.js';
 
 const PROFILE_KEY = 'aura.profile';
 const LOG_PREFIX  = 'aura.log.';
@@ -17,24 +20,18 @@ const LOG_PREFIX  = 'aura.log.';
 /*  Profile                                                            */
 /* ------------------------------------------------------------------ */
 
-/** @returns {object|null} */
 export function loadProfile() {
-  try {
-    const raw = localStorage.getItem(PROFILE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
+  const raw = secure.getItem(PROFILE_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
 export function saveProfile(profile) {
-  try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  } catch { /* quota / private mode — fail silently */ }
+  secure.setItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
 export function clearProfile() {
-  try { localStorage.removeItem(PROFILE_KEY); } catch { /* no-op */ }
+  secure.removeItem(PROFILE_KEY);
 }
 
 /* ------------------------------------------------------------------ */
@@ -56,31 +53,30 @@ export function emptyLog() {
   return {
     protein:   0,
     calories:  0,
-    hydration: 0,         // in glasses (250 ml each)
-    sleep:     0,         // hours slept last night
-    movement:  0,         // minutes of activity today
-    note:      '',        // free-text journal note (max 280 chars)
+    hydration: 0,
+    sleep:     0,
+    movement:  0,
+    note:      '',
     gut: {
       probiotics: false,
       fiber:      false,
       fermented:  false,
     },
     symptoms: {
-      energy:   0, // 1–5 (1=poor, 5=great)
+      energy:   0,
       mood:     0,
-      cramps:   0, // 1=intense, 5=none
-      bloating: 0, // 1=heavy, 5=none
+      cramps:   0,
+      bloating: 0,
     },
   };
 }
 
 export function loadLog(date = new Date()) {
+  const raw = secure.getItem(logKey(date));
+  if (!raw) return emptyLog();
   try {
-    const raw = localStorage.getItem(logKey(date));
-    if (!raw) return emptyLog();
     const parsed = JSON.parse(raw);
     const base = emptyLog();
-    // Deep-merge nested objects so old logs without symptoms/gut stay valid.
     return {
       ...base,
       ...parsed,
@@ -93,12 +89,9 @@ export function loadLog(date = new Date()) {
 }
 
 export function saveLog(date, log) {
-  try {
-    localStorage.setItem(logKey(date), JSON.stringify(log));
-  } catch { /* no-op */ }
+  secure.setItem(logKey(date), JSON.stringify(log));
 }
 
-/** Merge a partial update into today's log — ergonomic for React handlers. */
 export function updateLog(date, patch) {
   const current = loadLog(date);
   const next = { ...current, ...patch };
@@ -112,7 +105,6 @@ export function updateLog(date, patch) {
 /*  Streak                                                             */
 /* ------------------------------------------------------------------ */
 
-/** True if the log has any data entered. */
 export function logHasData(log) {
   if (!log) return false;
   return (
@@ -127,15 +119,6 @@ export function logHasData(log) {
   );
 }
 
-/**
- * Count consecutive days (ending today) where the user logged something.
- * If today has no data, returns 0 — the streak is alive until midnight.
- * Re-evaluate by passing the live `todayLog` so the count updates without
- * a page reload when the user taps a tracker for the first time today.
- *
- * @param {object} todayLog  — live log state from useDailyLog
- * @param {Date}   [today]   — override for testing
- */
 export function getStreak(todayLog, today = new Date()) {
   if (!logHasData(todayLog)) return 0;
   let count = 1;

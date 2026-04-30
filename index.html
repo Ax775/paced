@@ -3,17 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#c9768f" />
+  <!--CSP-->
+  <meta name="theme-color" content="#87A074" />
   <meta name="description" content="Persoonlijke gezondheids- en cyclus-tracker voor vrouwen." />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Aura">
-  <meta name="format-detection" content="telephone=no">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Aura" />
+  <meta name="format-detection" content="telephone=no" />
   <title>Aura — Vrouwelijke Gezondheid</title>
 
-  <link rel="manifest" href="./manifest.webmanifest" />
-  <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
-  <link rel="apple-touch-icon" href="./assets/icon.svg" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="/assets/icon.svg" />
+  <link rel="apple-touch-icon" href="/assets/icon-192.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,185 +22,9 @@
     href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap"
     rel="stylesheet"
   />
-
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    // Quiet Luxury palette — sage, cream, muted terracotta
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-            display: ['Fraunces', 'Georgia', 'serif'],
-          },
-          colors: {
-            cream: {
-              50:  '#FBF9F3',
-              100: '#F5F1E8',
-              200: '#EDE6D3',
-              300: '#E2D8BE',
-            },
-            sage: {
-              50:  '#F2F5F0',
-              100: '#E2E9DC',
-              200: '#C6D3BB',
-              300: '#A8BA98',
-              400: '#87A074',
-              500: '#6B8559',
-              600: '#556B47',
-              700: '#42533A',
-            },
-            terracotta: {
-              100: '#F4E2D8',
-              200: '#E8C4B0',
-              300: '#D9A188',
-              400: '#C78264',
-              500: '#B06849',
-              600: '#8F5138',
-            },
-            ink: {
-              400: '#8B8578',
-              500: '#5F5A4E',
-              600: '#3E3B33',
-              700: '#2A2823',
-            },
-          },
-          boxShadow: {
-            soft: '0 1px 2px rgba(66,83,58,0.04), 0 8px 24px rgba(66,83,58,0.06)',
-            glow: '0 0 0 1px rgba(168,186,152,0.25), 0 12px 40px rgba(107,133,89,0.12)',
-          },
-          borderRadius: {
-            'xl2': '1.25rem',
-            'xl3': '1.75rem',
-          },
-        },
-      },
-    };
-  </script>
-
-  <script type="importmap">
-    {
-      "imports": {
-        "react":             "https://esm.sh/react@18",
-        "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
-        "react-dom/client":  "https://esm.sh/react-dom@18/client",
-        "lucide-react":      "https://esm.sh/lucide-react@0.441.0?deps=react@18"
-      }
-    }
-  </script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Fix: Babel compiles external files to blob: URLs, which breaks
-       relative imports (./lib/cycle.js resolves against blob: not the
-       original file URL). This plugin rewrites relative imports to
-       absolute URLs so the blob module can resolve them correctly. -->
-  <script>
-    // Register SYNCHRONOUSLY — Babel processes text/babel scripts on
-    // DOMContentLoaded, so the plugin must exist before that fires.
-    // A per-load timestamp cache-busts the ES module registry so edits
-    // to lib files are always picked up without a hard-refresh.
-    const _v = Date.now();
-    Babel.registerPlugin('absolute-imports', ({ types: t }) => ({
-      visitor: {
-        'ImportDeclaration|ExportNamedDeclaration|ExportAllDeclaration'(path) {
-          const src = path.node.source;
-          if (!src) return;
-          const val = src.value;
-          if (val.startsWith('./') || val.startsWith('../')) {
-            const base = new URL('./src/', window.location.href).href;
-            const abs  = new URL(val.replace(/^\.\//, ''), base).href;
-            path.node.source = t.stringLiteral(abs + '?v=' + _v);
-          }
-        }
-      }
-    }));
-  </script>
-
-  <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #FBF9F3;
-      color: #3E3B33;
-      font-family: 'Inter', system-ui, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      text-rendering: optimizeLegibility;
-    }
-    body {
-      min-height: 100vh;
-      min-height: 100dvh;
-      background:
-        radial-gradient(1200px 600px at 85% -10%, #EDE6D3 0%, transparent 60%),
-        radial-gradient(900px 500px at -10% 110%, #E2E9DC 0%, transparent 55%),
-        #FBF9F3;
-    }
-    .font-display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
-
-    /* Calm animations */
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(12px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes breathe {
-      0%, 100% { transform: scale(1);    opacity: 0.85; }
-      50%      { transform: scale(1.02); opacity: 1; }
-    }
-    @keyframes pop {
-      0%   { transform: scale(1); }
-      45%  { transform: scale(1.06); }
-      100% { transform: scale(1); }
-    }
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes streakPulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(107, 133, 89, 0); }
-      50%      { box-shadow: 0 0 0 4px rgba(107, 133, 89, 0.12); }
-    }
-    @keyframes tabIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .anim-fade-up      { animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
-    .anim-breathe      { animation: breathe 6s ease-in-out infinite; }
-    .anim-pop          { animation: pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1); }
-    .anim-slide-up     { animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
-    .anim-streak-pulse { animation: streakPulse 3s ease-in-out infinite; }
-    .anim-tab-in       { animation: tabIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
-
-    /* Subtle scrollbar */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-thumb { background: #E2D8BE; border-radius: 999px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-
-    /* Form resets that respect the palette */
-    input, select, button, textarea { font-family: inherit; color: inherit; }
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button {
-      -webkit-appearance: none; margin: 0;
-    }
-    input[type="number"] { -moz-appearance: textfield; }
-  </style>
 </head>
 <body>
   <div id="root"></div>
-
-  <!-- React app. Babel standalone transforms JSX in-browser and walks
-       the import graph to pull in ./src/lib/*.js as real ES modules. -->
-  <script type="text/babel" data-type="module" data-presets="react" data-plugins="absolute-imports" src="./src/app.jsx"></script>
-
-  <!-- Service worker registration -->
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => { /* offline-only nicety */ });
-      });
-    }
-  </script>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>
