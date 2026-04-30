@@ -57,7 +57,7 @@ const Field = ({ children }) => (
 
 const inputCx =
   'w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-ink-700 ' +
-  'placeholder:text-ink-400/70 focus:outline-none focus:border-sage-300 focus:ring-2 ' +
+  'placeholder:text-ink-500 focus:outline-none focus:border-sage-300 focus:ring-2 ' +
   'focus:ring-sage-200/60 transition';
 
 /* ------------------------------------------------------------------ */
@@ -376,7 +376,7 @@ function SymptomTracker({ log, onUpdate }) {
                 {val > 0 ? (
                   <div className="text-base leading-none">{icons[val - 1]}</div>
                 ) : (
-                  <div className="text-[10px] text-ink-400/70">{hint}</div>
+                  <div className="text-[10px] text-ink-500">{hint}</div>
                 )}
               </div>
               <div className="flex gap-1.5">
@@ -632,7 +632,7 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
         Mijn menstruatie begon vandaag
       </button>
       {cyclesTracked > 0 && (
-        <div className="text-[10px] uppercase tracking-wider text-ink-400/80">
+        <div className="text-[10px] uppercase tracking-wider text-ink-500">
           {cyclesTracked} {cyclesTracked === 1 ? 'cyclus' : 'cycli'} bijgehouden
         </div>
       )}
@@ -811,12 +811,12 @@ function JournalNote({ note, onChange }) {
         placeholder="Iets wat je wilt onthouden over vandaag…"
         rows={3}
         className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-sm
-                   text-ink-700 placeholder:text-ink-400/60 focus:outline-none
+                   text-ink-700 placeholder:text-ink-500 focus:outline-none
                    focus:border-sage-300 focus:ring-2 focus:ring-sage-200/60
                    transition resize-none leading-relaxed"
       />
       <div className="flex justify-end mt-1">
-        <span className="text-[10px] text-ink-400/60">{(note || '').length}/280</span>
+        <span className="text-[10px] text-ink-500">{(note || '').length}/280</span>
       </div>
     </div>
   );
@@ -1939,7 +1939,7 @@ function PhaseTimeline({ state }) {
               className={`h-1.5 w-full rounded-full transition ${active ? 'anim-breathe' : ''}`}
               style={{ background: active ? meta.hue : '#EDE6D3' }}
             />
-            <div className={`text-[10px] uppercase tracking-wider ${active ? 'text-ink-600' : 'text-ink-400/70'}`}>
+            <div className={`text-[10px] uppercase tracking-wider ${active ? 'text-ink-600' : 'text-ink-500'}`}>
               {meta.label}
             </div>
           </div>
@@ -2288,12 +2288,12 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                 </div>
               )}
               {log.note ? (
-                <div className="text-[11px] text-ink-400/80 italic mt-1 line-clamp-2">"{log.note}"</div>
+                <div className="text-[11px] text-ink-500 italic mt-1 line-clamp-2">"{log.note}"</div>
               ) : null}
             </div>
           ) : isToday ? (
             <div className="flex items-center gap-3">
-              <div className="text-[11px] text-ink-400/70 italic">Nog niets gelogd vandaag.</div>
+              <div className="text-[11px] text-ink-500 italic">Nog niets gelogd vandaag.</div>
               {onGoToToday && (
                 <button
                   type="button"
@@ -2305,7 +2305,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
               )}
             </div>
           ) : (
-            <div className="text-[11px] text-ink-400/60 italic">Niets gelogd</div>
+            <div className="text-[11px] text-ink-500 italic">Niets gelogd</div>
           )}
         </div>
       </div>
@@ -2350,7 +2350,7 @@ function LogboekView({ profile, onGoHome }) {
         <div className="text-center py-16 text-ink-400 anim-fade-up">
           <p className="text-4xl mb-3">🌱</p>
           <p className="text-sm mb-1">Nog geen logs bijgehouden.</p>
-          <p className="text-xs text-ink-400/70">Log je eerste dag om je voortgang te zien.</p>
+          <p className="text-xs text-ink-500">Log je eerste dag om je voortgang te zien.</p>
           {onGoHome && (
             <button
               type="button"
@@ -2517,7 +2517,7 @@ function InsightsView({ profile, onOpenCharts }) {
                       {SYMPTOM_LABELS[top]}
                     </div>
                   ) : (
-                    <div className="text-xs text-ink-400/60 italic">te weinig data</div>
+                    <div className="text-xs text-ink-500 italic">te weinig data</div>
                   )}
                 </div>
               );

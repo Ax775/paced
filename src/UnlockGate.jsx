@@ -44,7 +44,7 @@ export function useUnlock() {
 
 const inputCx =
   'w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-ink-700 ' +
-  'placeholder:text-ink-400/70 focus:outline-none focus:border-sage-300 focus:ring-2 ' +
+  'placeholder:text-ink-500 focus:outline-none focus:border-sage-300 focus:ring-2 ' +
   'focus:ring-sage-200/60 transition';
 
 /**
