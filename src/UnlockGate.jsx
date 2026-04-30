@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { Lock, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 import {
   isInitialized, isUnlocked, setupNew, unlock, lock, migratePlaintext,
-  onQuotaError,
+  destroyAll, onQuotaError,
 } from './lib/secureStorage.js';
 import {
   isCryptoAvailable, WrongPassphraseError, CryptoUnavailableError,
@@ -204,10 +204,71 @@ function SetupScreen({ onReady }) {
   );
 }
 
-function UnlockScreen({ onUnlocked }) {
+function ForgotConfirm({ onCancel, onConfirm }) {
+  const [acknowledged, setAcknowledged] = useState(false);
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="forgot-title"
+      className="fixed inset-0 z-50 bg-ink-700/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div className="w-full max-w-md rounded-xl3 bg-cream-50 shadow-soft border border-cream-200 p-6 anim-slide-up">
+        <h2 id="forgot-title" className="font-display text-xl text-ink-700 mb-2">
+          Alles wissen en opnieuw beginnen?
+        </h2>
+        <p className="text-sm text-ink-500 leading-relaxed mb-4">
+          Als je je wachtwoord kwijt bent, is je data niet meer leesbaar. Je kunt Aura wel
+          opnieuw instellen — alle bestaande gegevens worden dan permanent verwijderd.
+        </p>
+
+        <div className="rounded-xl bg-terracotta-100/60 border border-terracotta-200 p-4 text-sm text-ink-600 leading-relaxed mb-4">
+          <p className="font-medium text-ink-700 mb-1">Wat verloren gaat</p>
+          <ul className="list-disc list-inside space-y-0.5">
+            <li>Je profiel en doelen</li>
+            <li>Alle dagelijkse logs en cyclus-geschiedenis</li>
+            <li>Je huidige wachtwoord</li>
+          </ul>
+        </div>
+
+        <label className="flex items-start gap-3 text-sm text-ink-600 cursor-pointer mb-5">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={(e) => setAcknowledged(e.target.checked)}
+            className="mt-1 accent-terracotta-500"
+          />
+          <span>Ik begrijp dat dit niet ongedaan kan worden gemaakt.</span>
+        </label>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-xl border border-cream-200 bg-cream-50 text-ink-600 py-3 text-sm font-medium hover:bg-cream-100 transition"
+          >
+            Annuleren
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={!acknowledged}
+            className="flex-1 rounded-xl bg-terracotta-500 hover:bg-terracotta-600 disabled:bg-terracotta-200 disabled:cursor-not-allowed text-cream-50 py-3 text-sm font-medium transition"
+          >
+            Wis alles
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UnlockScreen({ onUnlocked, onReset }) {
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
 
   async function submit() {
     if (!pw || busy) return;
@@ -226,39 +287,56 @@ function UnlockScreen({ onUnlocked }) {
   }
 
   return (
-    <GateShell>
-      <div className="flex items-center gap-2 mb-3">
-        <Lock size={20} className="text-sage-500" aria-hidden="true" />
-        <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium">
-          Vergrendeld
-        </span>
-      </div>
-      <h1 className="font-display text-2xl text-ink-700 mb-2">Welkom terug</h1>
-      <p className="text-ink-500 text-sm leading-relaxed mb-6">
-        Voer je wachtwoord in om Aura te openen.
-      </p>
+    <>
+      <GateShell>
+        <div className="flex items-center gap-2 mb-3">
+          <Lock size={20} className="text-sage-500" aria-hidden="true" />
+          <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium">
+            Vergrendeld
+          </span>
+        </div>
+        <h1 className="font-display text-2xl text-ink-700 mb-2">Welkom terug</h1>
+        <p className="text-ink-500 text-sm leading-relaxed mb-6">
+          Voer je wachtwoord in om Aura te openen.
+        </p>
 
-      <div className="space-y-4">
-        <PassphraseField
-          id="aura-pw-unlock"
-          label="Wachtwoord"
-          placeholder="Je wachtwoord"
-          value={pw}
-          onChange={setPw}
-          onSubmit={submit}
-          autoFocus
+        <div className="space-y-4">
+          <PassphraseField
+            id="aura-pw-unlock"
+            label="Wachtwoord"
+            placeholder="Je wachtwoord"
+            value={pw}
+            onChange={setPw}
+            onSubmit={submit}
+            autoFocus
+          />
+          {error && <p className="text-sm text-terracotta-500" role="alert">{error}</p>}
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!pw || busy}
+            className="w-full rounded-xl bg-sage-500 hover:bg-sage-600 disabled:bg-sage-200 disabled:cursor-not-allowed text-cream-50 px-5 py-3 font-medium transition"
+          >
+            {busy ? 'Ontgrendelen…' : 'Ontgrendelen'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="w-full text-center text-sm text-ink-400 hover:text-ink-600 transition pt-1"
+          >
+            Wachtwoord vergeten?
+          </button>
+        </div>
+      </GateShell>
+
+      {confirming && (
+        <ForgotConfirm
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => { setConfirming(false); onReset(); }}
         />
-        {error && <p className="text-sm text-terracotta-500" role="alert">{error}</p>}
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!pw || busy}
-          className="w-full rounded-xl bg-sage-500 hover:bg-sage-600 disabled:bg-sage-200 disabled:cursor-not-allowed text-cream-50 px-5 py-3 font-medium transition"
-        >
-          {busy ? 'Ontgrendelen…' : 'Ontgrendelen'}
-        </button>
-      </div>
-    </GateShell>
+      )}
+    </>
   );
 }
 
@@ -332,7 +410,14 @@ export default function UnlockGate({ children }) {
 
   if (phase === 'no-crypto') return <CryptoUnavailableScreen />;
   if (phase === 'setup')     return <SetupScreen   onReady={() => setPhase('unlocked')} />;
-  if (phase === 'locked')    return <UnlockScreen onUnlocked={() => setPhase('unlocked')} />;
+  if (phase === 'locked') {
+    return (
+      <UnlockScreen
+        onUnlocked={() => setPhase('unlocked')}
+        onReset={() => { destroyAll(); setPhase('setup'); }}
+      />
+    );
+  }
 
   return (
     <UnlockContext.Provider value={ctx}>
