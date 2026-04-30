@@ -88,11 +88,19 @@ export function atMidnight(input) {
   return d;
 }
 
-/** Whole days between two dates (b - a). Always integer, never negative NaN. */
+/**
+ * Whole calendar days between two dates (b - a). Always integer.
+ *
+ * Uses UTC arithmetic on the (year, month, day) triple so DST transitions
+ * never cause an off-by-one (a "day" between Mar 28 → Mar 30 in Europe is
+ * really 47 hours of wall-clock time, but still 2 calendar days).
+ */
 export function daysBetween(a, b) {
-  const aM = atMidnight(a).getTime();
-  const bM = atMidnight(b).getTime();
-  return Math.floor((bM - aM) / MS_PER_DAY);
+  const aM = atMidnight(a);
+  const bM = atMidnight(b);
+  const aUTC = Date.UTC(aM.getFullYear(), aM.getMonth(), aM.getDate());
+  const bUTC = Date.UTC(bM.getFullYear(), bM.getMonth(), bM.getDate());
+  return Math.round((bUTC - aUTC) / MS_PER_DAY);
 }
 
 /** ISO yyyy-mm-dd from a Date or parseable date string. Local-tz, not UTC. */
