@@ -1,0 +1,16 @@
+[build]
+  command   = "npm run build"
+  publish   = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback — every unmatched route serves index.html so the in-app
+# router can take over.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# Headers are read from public/_headers automatically; this section
+# documents the minimum we expect Netlify to apply.

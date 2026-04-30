@@ -86,3 +86,14 @@
 .anim-slide-up     { animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .anim-streak-pulse { animation: streakPulse 3s ease-in-out infinite; }
 .anim-tab-in       { animation: tabIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Honour the user's motion preference — disable decorative animations and
+   transitions for visitors who request reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

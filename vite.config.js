@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react';
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
   "img-src 'self' data:",
   "connect-src 'self'",
   "manifest-src 'self'",
@@ -40,6 +40,16 @@ export default defineConfig({
           icons: ['lucide-react'],
         },
       },
+    },
+  },
+  test: {
+    setupFiles: ['./src/test/setup.js'],
+    testTimeout: 30000,
+    exclude: ['node_modules/**', 'dist/**', 'e2e/**'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/lib/crypto.js', 'src/lib/secureStorage.js'],
+      reporter: ['text', 'html'],
     },
   },
 });

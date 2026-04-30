@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Lock, Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { Lock, Eye, EyeOff, ShieldAlert, KeyRound } from 'lucide-react';
 import {
   isInitialized, isUnlocked, setupNew, unlock, lock, migratePlaintext,
   destroyAll, onQuotaError,
@@ -46,6 +46,51 @@ const inputCx =
   'w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-ink-700 ' +
   'placeholder:text-ink-400/70 focus:outline-none focus:border-sage-300 focus:ring-2 ' +
   'focus:ring-sage-200/60 transition';
+
+/**
+ * Lightweight passphrase scorer (no zxcvbn dep). Returns a level 0–4 plus
+ * a Dutch label. Counts character-class diversity and length thresholds.
+ */
+function scorePassphrase(pw) {
+  if (!pw) return { level: 0, label: '' };
+  const classes =
+    (/[a-z]/.test(pw) ? 1 : 0) +
+    (/[A-Z]/.test(pw) ? 1 : 0) +
+    (/[0-9]/.test(pw) ? 1 : 0) +
+    (/[^A-Za-z0-9]/.test(pw) ? 1 : 0);
+  const len = pw.length;
+  let score = 0;
+  if (len >= 8) score = 1;
+  if (len >= 12) score = 2;
+  if (len >= 16 || (len >= 12 && classes >= 3)) score = 3;
+  if (len >= 20 || (len >= 16 && classes >= 3)) score = 4;
+  const labels = ['', 'Zwak', 'Matig', 'Sterk', 'Heel sterk'];
+  return { level: score, label: labels[score] };
+}
+
+function StrengthMeter({ value }) {
+  const { level, label } = scorePassphrase(value);
+  if (!value) return null;
+  const colors = ['bg-cream-200', 'bg-terracotta-300', 'bg-terracotta-200', 'bg-sage-300', 'bg-sage-500'];
+  return (
+    <div className="mt-2" aria-live="polite">
+      <div className="flex gap-1" aria-hidden="true">
+        {[1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-colors ${i <= level ? colors[level] : 'bg-cream-200'}`}
+          />
+        ))}
+      </div>
+      <p className="mt-1 text-xs text-ink-400">
+        Sterkte: <span className="text-ink-600">{label || '—'}</span>
+        {level < 3 && (
+          <span className="ml-1 text-ink-400">— gebruik 12+ tekens met letters, cijfers en symbolen voor sterker</span>
+        )}
+      </p>
+    </div>
+  );
+}
 
 function PassphraseField({ id, value, onChange, onSubmit, autoFocus, label, placeholder }) {
   const [visible, setVisible] = useState(false);
@@ -106,12 +151,63 @@ function CryptoUnavailableScreen() {
   );
 }
 
+function BackupPromptScreen({ onContinue }) {
+  const [acknowledged, setAcknowledged] = useState(false);
+  return (
+    <GateShell>
+      <div className="flex items-center gap-2 mb-3">
+        <KeyRound size={20} className="text-sage-500" aria-hidden="true" />
+        <span className="text-[11px] uppercase tracking-[0.14em] text-ink-400 font-medium">
+          Eén laatste stap
+        </span>
+      </div>
+      <h1 className="font-display text-2xl text-ink-700 mb-2">Bewaar je wachtwoord nu</h1>
+      <p className="text-ink-500 text-sm leading-relaxed mb-5">
+        Aura kan je wachtwoord niet voor je herstellen. Schrijf het nu ergens veilig op — anders
+        ben je je gegevens kwijt als je het vergeet.
+      </p>
+
+      <div className="rounded-xl bg-sage-50 border border-sage-100 p-4 text-sm text-ink-600 leading-relaxed mb-5">
+        <p className="font-medium text-ink-700 mb-2">Goede plekken</p>
+        <ul className="list-disc list-inside space-y-1 marker:text-sage-400">
+          <li>Wachtwoordmanager (1Password, Bitwarden, Apple Keychain)</li>
+          <li>Op papier in een kluis of agenda</li>
+          <li>Versleutelde notities-app waar alleen jij bij kan</li>
+        </ul>
+        <p className="mt-3 text-xs text-ink-400">
+          Niet doen: een onversleutelde notitie op je telefoon, een mail naar jezelf, of een screenshot.
+        </p>
+      </div>
+
+      <label className="flex items-start gap-3 text-sm text-ink-600 cursor-pointer mb-5">
+        <input
+          type="checkbox"
+          checked={acknowledged}
+          onChange={(e) => setAcknowledged(e.target.checked)}
+          className="mt-1 accent-sage-500"
+        />
+        <span>Ik heb mijn wachtwoord op een veilige plek bewaard.</span>
+      </label>
+
+      <button
+        type="button"
+        onClick={onContinue}
+        disabled={!acknowledged}
+        className="w-full rounded-xl bg-sage-500 hover:bg-sage-600 disabled:bg-sage-200 disabled:cursor-not-allowed text-cream-50 px-5 py-3 font-medium transition"
+      >
+        Doorgaan naar Aura
+      </button>
+    </GateShell>
+  );
+}
+
 function SetupScreen({ onReady }) {
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [showBackupPrompt, setShowBackupPrompt] = useState(false);
 
   const tooShort = pw.length > 0 && pw.length < MIN_PASSPHRASE;
   const mismatch = confirm.length > 0 && pw !== confirm;
@@ -124,11 +220,15 @@ function SetupScreen({ onReady }) {
     try {
       await setupNew(pw);
       try { await migratePlaintext(); } catch { /* migration is best-effort */ }
-      onReady();
+      setShowBackupPrompt(true);
     } catch (e) {
       setError('Kon beveiliging niet instellen. Probeer opnieuw.');
       setBusy(false);
     }
+  }
+
+  if (showBackupPrompt) {
+    return <BackupPromptScreen onContinue={onReady} />;
   }
 
   return (
@@ -146,18 +246,21 @@ function SetupScreen({ onReady }) {
       </p>
 
       <div className="space-y-4">
-        <PassphraseField
-          id="aura-pw-new"
-          label="Kies een wachtwoord"
-          placeholder={`Minimaal ${MIN_PASSPHRASE} tekens`}
-          value={pw}
-          onChange={setPw}
-          onSubmit={submit}
-          autoFocus
-        />
-        {tooShort && (
-          <p className="text-xs text-terracotta-500">Minimaal {MIN_PASSPHRASE} tekens.</p>
-        )}
+        <div>
+          <PassphraseField
+            id="aura-pw-new"
+            label="Kies een wachtwoord"
+            placeholder={`Minimaal ${MIN_PASSPHRASE} tekens`}
+            value={pw}
+            onChange={setPw}
+            onSubmit={submit}
+            autoFocus
+          />
+          <StrengthMeter value={pw} />
+          {tooShort && (
+            <p className="mt-1 text-xs text-terracotta-500">Minimaal {MIN_PASSPHRASE} tekens.</p>
+          )}
+        </div>
 
         <PassphraseField
           id="aura-pw-confirm"
