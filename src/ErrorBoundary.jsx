@@ -1,4 +1,5 @@
 import React from 'react';
+import { captureException } from './lib/telemetry.js';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -14,6 +15,7 @@ export default class ErrorBoundary extends React.Component {
     if (typeof console !== 'undefined') {
       console.error('Aura crashed:', error, info?.componentStack);
     }
+    captureException(error, info?.componentStack);
   }
 
   reset = () => {

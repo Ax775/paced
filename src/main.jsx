@@ -5,10 +5,12 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 import UnlockGate from './UnlockGate.jsx';
 import UpdateBanner from './UpdateBanner.jsx';
 import { ensureSchemaVersion } from './lib/schema.js';
+import { initTelemetry } from './lib/telemetry.js';
 import './fonts.css';
 import './index.css';
 
 ensureSchemaVersion();
+initTelemetry();
 
 // Test-only hook for the CI a11y suite. Activates only when the page is loaded
 // with `?e2e=1`, so real users never expose internal storage modules.

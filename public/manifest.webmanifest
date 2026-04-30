@@ -30,5 +30,21 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/screenshots/mobile-1.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Vandaag — cyclusfase, dagelijkse doelen en symptomen"
+    },
+    {
+      "src": "/assets/screenshots/wide-1.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Aura op tablet of desktop"
+    }
   ]
 }
