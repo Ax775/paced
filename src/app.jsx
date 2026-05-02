@@ -9,8 +9,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client';
 import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
-  Check, Droplet, Wheat, Salad, ChevronLeft, BookOpen, Activity,
-  BarChart2, Download, X, TrendingUp,
+  Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
+  BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
 } from 'lucide-react';
 
 import {
@@ -38,6 +38,62 @@ const Card = ({ className = '', style, children }) => (
   </div>
 );
 
+const COLLAPSED_KEY = 'aura_card_collapsed';
+
+function readCollapsedMap() {
+  try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '{}') || {}; }
+  catch { return {}; }
+}
+
+function CollapsibleCard({ id, title, headerExtra, className = '', style, children }) {
+  const [collapsed, setCollapsed] = useState(() => !!readCollapsedMap()[id]);
+
+  const toggle = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        const map = readCollapsedMap();
+        map[id] = next;
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify(map));
+      } catch { /* storage unavailable — state still updates in memory */ }
+      return next;
+    });
+  };
+
+  return (
+    <Card className={`overflow-hidden anim-fade-up ${className}`} style={style}>
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={!collapsed}
+        aria-label={`${title} ${collapsed ? 'uitklappen' : 'inklappen'}`}
+        className="w-full flex items-center justify-between gap-3 px-6 py-4 min-h-[44px] text-left hover:bg-cream-100/40 transition"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className="text-[11px] uppercase tracking-[0.18em] text-ink-400">{title}</span>
+          {headerExtra && <div className="ml-auto">{headerExtra}</div>}
+        </div>
+        <ChevronDown
+          className="w-4 h-4 text-ink-400 shrink-0 transition-transform duration-300"
+          style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}
+        />
+      </button>
+      <div
+        aria-hidden={collapsed}
+        style={{
+          display: 'grid',
+          gridTemplateRows: collapsed ? '0fr' : '1fr',
+          transition: 'grid-template-rows 300ms cubic-bezier(0.22,1,0.36,1)',
+        }}
+      >
+        <div style={{ overflow: 'hidden' }}>
+          <div className="px-6 pb-6">{children}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 const Label = ({ children, htmlFor }) => (
   <label
     htmlFor={htmlFor}
@@ -60,6 +116,11 @@ const inputCx =
 /*  Daily log hook                                                     */
 /* ------------------------------------------------------------------ */
 
+// Loads and persists the log for a given calendar day.
+// `key` (ISO date string) is the stable dependency — two `new Date()` calls on
+// the same calendar day share the same key but are different object references,
+// so we key effects on the string rather than the Date object to avoid spurious
+// re-fetches. Currently only called with today's date (Dashboard), so this is safe.
 function useDailyLog(date = new Date()) {
   const key = isoDate(date);
   const [log, setLog] = useState(() => loadLog(date));
@@ -76,7 +137,13 @@ function useDailyLog(date = new Date()) {
     });
   }, [key]); // eslint-disable-line
 
-  return [log, update];
+  // Overwrite the entire log with a snapshot (used by the undo toast).
+  const restore = useCallback((snapshot) => {
+    saveLog(date, snapshot);
+    setLog(snapshot);
+  }, [key]); // eslint-disable-line
+
+  return [log, update, restore];
 }
 
 /* ------------------------------------------------------------------ */
@@ -131,7 +198,7 @@ function exportCSV(profile) {
       log.hydration || '',
       log.sleep     || '',
       log.movement  || '',
-      `"${(log.note || '').replace(/"/g, '""')}"`,
+      `"${(log.note || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`,
     ].join(','));
   }
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
@@ -147,6 +214,18 @@ function exportCSV(profile) {
 /*  Apple Health XML export (feature 7)                               */
 /* ------------------------------------------------------------------ */
 
+/* Escape a value for safe use inside an XML attribute.
+   Covers both single- and double-quoted attribute contexts so the helper
+   stays correct if a caller ever switches quote style. */
+function xmlAttr(v) {
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function exportAppleHealth(profile, onEmpty) {
   const today = new Date();
   const records = [];
@@ -158,21 +237,30 @@ function exportAppleHealth(profile, onEmpty) {
     const iso = d.toISOString();
     const dateStr = d.toISOString().slice(0, 10);
 
+    // Next calendar day — used as the end date for overnight records.
+    const nextD = new Date(d);
+    nextD.setDate(d.getDate() + 1);
+    const nextStr = nextD.toISOString().slice(0, 10);
+
     if (log.calories > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.calories}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.calories)}"/>`);
     }
     if (log.protein > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.protein}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.protein)}"/>`);
     }
     if (log.hydration > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${iso}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${log.hydration * 250}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.hydration * 250)}"/>`);
     }
     if (log.sleep > 0) {
-      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${iso}" startDate="${dateStr}T22:00:00" endDate="${dateStr}T0${log.sleep}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
+      // Sleep starts previous evening (22:00) and ends next morning.
+      const sleepHH = String(log.sleep).padStart(2, '0');
+      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T22:00:00" endDate="${nextStr}T${sleepHH}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
     }
     if (log.movement > 0) {
       const est = Math.round(log.movement * 5);
-      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${iso}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T08:${String(log.movement).padStart(2,'0')}:00" value="${est}"/>`);
+      const movMM = String(log.movement % 60).padStart(2, '0');
+      const movHH = String(Math.floor(log.movement / 60)).padStart(2, '0');
+      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T${movHH}:${movMM}:00" value="${xmlAttr(est)}"/>`);
     }
   }
 
@@ -252,7 +340,7 @@ function Chip({ children, onClick, ariaLabel }) {
   );
 }
 
-function NumberValue({ value, unit, target, onChange }) {
+function NumberValue({ value, unit, target, label, onChange }) {
   return (
     <div className="flex items-baseline gap-1 font-display text-ink-700">
       <input
@@ -264,7 +352,7 @@ function NumberValue({ value, unit, target, onChange }) {
         }}
         className="w-[3.4rem] text-right bg-transparent text-[26px] leading-none
                    focus:outline-none focus:text-sage-700"
-        aria-label={`${unit} entered`}
+        aria-label={label ? `${label} in ${unit}` : `${unit} ingevoerd`}
       />
       <span className="text-ink-400 text-sm">/ {target} {unit}</span>
     </div>
@@ -279,18 +367,18 @@ function TrackerRow({ icon: Icon, label, value, target, unit, increments, onAdd,
           {Icon && <Icon className="w-3.5 h-3.5 text-ink-400" />}
           <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400">{label}</div>
         </div>
-        <NumberValue value={value} unit={unit} target={target} onChange={onSet} />
+        <NumberValue value={value} unit={unit} target={target} label={label} onChange={onSet} />
       </div>
       <SoftProgress value={value} target={target} />
       <div className="flex flex-wrap gap-2 mt-3">
         {increments.map((inc) => (
-          <Chip key={inc} onClick={() => onAdd(inc)} ariaLabel={`Add ${inc} ${unit}`}>
+          <Chip key={inc} onClick={() => onAdd(inc)} ariaLabel={`Voeg ${inc} ${unit} toe`}>
             +{inc} {unit}
           </Chip>
         ))}
         {value > 0 && (
-          <Chip onClick={() => onSet(0)} ariaLabel={`Reset ${label}`}>
-            reset
+          <Chip onClick={() => onSet(0)} ariaLabel={`Wis ${label}`}>
+            wis
           </Chip>
         )}
       </div>
@@ -320,13 +408,18 @@ function HydrationRow({ glasses, target, onChange }) {
               type="button"
               aria-label={`Stel water in op ${slot} glazen`}
               onClick={() => onChange(filled && slot === glasses ? slot - 1 : slot)}
-              className={`w-7 h-9 rounded-b-full rounded-t-md border transition
-                          active:scale-95 ${
-                            filled
-                              ? 'bg-sage-200 border-sage-300'
-                              : 'bg-cream-50 border-cream-200 hover:border-sage-200'
-                          }`}
-            />
+              className="relative grid place-items-center min-w-[44px] min-h-[44px] active:scale-95 transition"
+            >
+              {/* Visible glass — sits inside a 44×44 invisible hit area for touch */}
+              <span
+                aria-hidden="true"
+                className={`block w-7 h-9 rounded-b-full rounded-t-md border transition ${
+                  filled
+                    ? 'bg-sage-200 border-sage-300'
+                    : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+                }`}
+              />
+            </button>
           );
         })}
       </div>
@@ -385,11 +478,13 @@ function SymptomTracker({ log, onUpdate }) {
                       onClick={() =>
                         onUpdate({ symptoms: { ...syms, [id]: active ? 0 : n } })
                       }
-                      className={`flex-1 py-2.5 rounded-xl border transition active:scale-95 text-lg leading-none ${
+                      className={`flex-1 min-h-[44px] py-3 rounded-xl border transition active:scale-95 text-lg leading-none ${
                         active
                           ? 'bg-sage-100 border-sage-300 shadow-soft'
                           : 'bg-cream-50 border-cream-200 hover:border-sage-200'
                       }`}
+                      aria-label={`${label}: ${n} van 5`}
+                      aria-pressed={active}
                     >
                       {icons[n - 1]}
                     </button>
@@ -507,8 +602,8 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
       <WeekBarRow label="Water"     values={days.map((d) => d.pctWater)}    />
 
       <div className="flex gap-1.5 mt-4">
-        {days.map((d, i) => (
-          <div key={i} className="flex-1 flex flex-col items-center">
+        {days.map((d) => (
+          <div key={isoDate(d.date)} className="flex-1 flex flex-col items-center">
             <div
               className={`text-[10px] uppercase tracking-wider ${
                 d.isToday ? 'text-sage-700 font-semibold' : 'text-ink-400'
@@ -521,10 +616,10 @@ function WeeklyHistoryStrip({ profile, todayLog }) {
         ))}
       </div>
 
-      <div className="flex gap-1.5 mt-3" aria-label="Cycle phase per day">
-        {days.map((d, i) => (
+      <div className="flex gap-1.5 mt-3" aria-label="Cyclusfase per dag">
+        {days.map((d) => (
           <div
-            key={i}
+            key={`phase-${isoDate(d.date)}`}
             className="flex-1 h-[3px] rounded-full"
             style={{ background: d.phaseHue, opacity: 0.55 }}
             title={PHASE_META[d.phase].label}
@@ -553,7 +648,7 @@ function WeekBarRow({ label, values }) {
             <div
               key={i}
               className="flex-1 h-full rounded-md bg-cream-200/60 relative overflow-hidden"
-              aria-label={`${label} day ${i + 1}: ${Math.round(v)}% of target`}
+              aria-label={`${label} dag ${i + 1}: ${Math.round(v)}% van doel`}
             >
               <div
                 className="absolute bottom-0 left-0 right-0 rounded-md transition-all duration-500"
@@ -607,7 +702,8 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
         <button
           type="button"
           onClick={handleUndo}
-          className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition"
+          aria-label="Menstruatie-log ongedaan maken"
+          className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
         >
           ongedaan maken
         </button>
@@ -620,11 +716,12 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
       <button
         type="button"
         onClick={handleLog}
+        aria-label="Log dat mijn menstruatie vandaag begon"
         className="w-full max-w-[260px] px-6 py-3.5 rounded-2xl font-medium text-sm text-cream-50
                    active:scale-[0.97] transition-transform flex items-center justify-center gap-3"
         style={{ background: 'linear-gradient(135deg, #C78264 0%, #B06849 100%)' }}
       >
-        <span className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
+        <span aria-hidden="true" className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
         Mijn menstruatie begon vandaag
       </button>
       {cyclesTracked > 0 && (
@@ -674,7 +771,7 @@ function GutChecklist({ gut, onToggle }) {
               <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
             </div>
             {on && (
-              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">Done</div>
+              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">Klaar</div>
             )}
           </button>
         );
@@ -712,7 +809,7 @@ function SleepTracker({ hours, onChange }) {
               type="button"
               aria-label={`${h} uur slaap`}
               onClick={() => onChange(active ? 0 : h)}
-              className={`flex-1 py-2.5 rounded-xl border text-sm transition active:scale-95 ${
+              className={`flex-1 min-h-[44px] py-3 rounded-xl border text-sm transition active:scale-95 ${
                 active
                   ? 'bg-sage-100 border-sage-300 text-sage-700 font-medium shadow-soft'
                   : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
@@ -766,7 +863,7 @@ function MovementTracker({ minutes, onChange, phase }) {
               type="button"
               aria-label={`${m} minuten bewegen`}
               onClick={() => onChange(active ? 0 : m)}
-              className={`px-3 py-2.5 rounded-xl border text-sm transition active:scale-95 ${
+              className={`min-h-[44px] min-w-[56px] px-3 py-3 rounded-xl border text-sm transition active:scale-95 ${
                 active
                   ? 'bg-sage-100 border-sage-300 text-sage-700 font-medium shadow-soft'
                   : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
@@ -779,8 +876,9 @@ function MovementTracker({ minutes, onChange, phase }) {
         {minutes > 0 && (
           <button
             type="button"
+            aria-label="Wis bewegingstijd"
             onClick={() => onChange(0)}
-            className="px-3 py-2.5 rounded-xl border border-cream-200 bg-cream-50 text-ink-400 text-sm transition hover:border-sage-200"
+            className="min-h-[44px] px-4 py-3 rounded-xl border border-cream-200 bg-cream-50 text-ink-400 text-sm transition hover:border-sage-200 active:scale-95"
           >
             wis
           </button>
@@ -827,7 +925,9 @@ function PWAInstallBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem('aura.pwa.dismissed')) return;
+    try {
+      if (localStorage.getItem('aura.pwa.dismissed')) return;
+    } catch { /* storage unavailable — show the prompt anyway */ }
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -846,7 +946,8 @@ function PWAInstallBanner() {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('aura.pwa.dismissed', '1');
+    try { localStorage.setItem('aura.pwa.dismissed', '1'); }
+    catch { /* private mode — banner just won't persist its dismissal */ }
     setVisible(false);
   };
 
@@ -876,7 +977,7 @@ function PWAInstallBanner() {
           type="button"
           onClick={handleDismiss}
           className="p-1 text-ink-400 hover:text-ink-600 transition shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
-          aria-label="Dismiss install prompt"
+          aria-label="Installatie-prompt sluiten"
         >
           <X className="w-4 h-4" />
         </button>
@@ -915,6 +1016,7 @@ function ReminderBanner({ profile }) {
           <div className="text-xs text-ink-400 mt-0.5">Je hebt vandaag nog niets bijgehouden.</div>
         </div>
         <button type="button" onClick={() => setVisible(false)}
+          aria-label="Herinnering sluiten"
           className="p-1 text-ink-400 hover:text-ink-600 min-h-[44px] min-w-[44px] flex items-center justify-center">
           <X className="w-4 h-4" />
         </button>
@@ -950,11 +1052,13 @@ function Onboarding({ onComplete }) {
   };
 
   const complete = () => {
+    const parsedDate  = new Date(form.lastPeriodStart);
+    const validDate   = form.lastPeriodStart && !isNaN(parsedDate.getTime());
     const profile = {
-      name:            form.name.trim(),
+      name:            String(form.name || '').trim().slice(0, 60),
       cycleLength:     Number(form.cycleLength),
       mensDuration:    Number(form.mensDuration) || 5,
-      lastPeriodStart: form.lastPeriodStart,
+      lastPeriodStart: validDate ? form.lastPeriodStart : new Date().toISOString().slice(0, 10),
       age:             Number(form.age)      || 28,
       weightKg:        Number(form.weightKg) || 62,
       heightCm:        Number(form.heightCm) || 168,
@@ -975,7 +1079,7 @@ function Onboarding({ onComplete }) {
           style={{
             width:      i === step ? 24 : 8,
             height:     8,
-            background: i === step ? '#6B8559' : i < step ? '#A8BA98' : '#EDE6D3',
+            background: i === step ? '#6B8559' : i < step ? '#A8BA98' : 'var(--progress-track)',
           }}
         />
       ))}
@@ -1031,6 +1135,11 @@ function Onboarding({ onComplete }) {
                 : 'Laten we beginnen'}
               <ArrowRight className="w-4 h-4" />
             </button>
+            <p className="text-[11px] text-ink-400 text-center leading-relaxed mt-5">
+              Aura bewaart alles uitsluitend lokaal op je apparaat — geen accounts, geen tracking.
+              <br />
+              Volledige privacyverklaring &amp; medische disclaimer vind je in Instellingen.
+            </p>
           </Card>
         )}
 
@@ -1063,12 +1172,13 @@ function Onboarding({ onComplete }) {
                 <div className="flex items-center gap-4 mt-1">
                   <button
                     type="button"
+                    aria-label="Cycluslengte verlagen"
                     onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
                     className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
                                transition text-xl flex items-center justify-center"
                   >−</button>
-                  <div className="flex-1 text-center">
+                  <div className="flex-1 text-center" aria-live="polite">
                     <span className="font-display text-[36px] text-ink-700 leading-none">
                       {form.cycleLength}
                     </span>
@@ -1076,6 +1186,7 @@ function Onboarding({ onComplete }) {
                   </div>
                   <button
                     type="button"
+                    aria-label="Cycluslengte verhogen"
                     onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
                     className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
@@ -1092,12 +1203,13 @@ function Onboarding({ onComplete }) {
                 <div className="flex items-center gap-4 mt-1">
                   <button
                     type="button"
+                    aria-label="Menstruatieduur verlagen"
                     onClick={() => setF('mensDuration', Math.max(2, form.mensDuration - 1))}
                     className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
                                transition text-xl flex items-center justify-center"
                   >−</button>
-                  <div className="flex-1 text-center">
+                  <div className="flex-1 text-center" aria-live="polite">
                     <span className="font-display text-[36px] text-ink-700 leading-none">
                       {form.mensDuration}
                     </span>
@@ -1105,6 +1217,7 @@ function Onboarding({ onComplete }) {
                   </div>
                   <button
                     type="button"
+                    aria-label="Menstruatieduur verhogen"
                     onClick={() => setF('mensDuration', Math.min(10, form.mensDuration + 1))}
                     className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                                text-ink-600 hover:bg-sage-100 hover:border-sage-200
@@ -1286,7 +1399,7 @@ function Onboarding({ onComplete }) {
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
-function SettingsScreen({ profile, onSave, onReset, onBack }) {
+function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onThemeChange, onOpenLegal }) {
   const [form, setForm] = useState({
     name:          profile.name          || '',
     age:           profile.age           || '',
@@ -1342,14 +1455,25 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
   };
 
   const handleSave = () => {
+    const age      = Number(form.age)      || profile.age;
+    const weightKg = Number(form.weightKg) || profile.weightKg;
+    const heightCm = Number(form.heightCm) || profile.heightCm;
+
+    if (age      && (age      < 12  || age      > 80 )) { showToast('Leeftijd moet tussen 12 en 80 jaar liggen');      return; }
+    if (weightKg && (weightKg < 30  || weightKg > 250)) { showToast('Gewicht moet tussen 30 en 250 kg liggen');        return; }
+    if (heightCm && (heightCm < 120 || heightCm > 220)) { showToast('Lengte moet tussen 120 en 220 cm liggen');        return; }
+
     const cleanGoals = {};
     Object.entries(goals).forEach(([k, v]) => { if (Number(v) > 0) cleanGoals[k] = Number(v); });
+    // Trim + cap the name so a runaway paste can't bloat the profile blob.
+    // React already escapes everything we render, so no HTML stripping needed.
+    const cleanName = String(form.name || '').trim().slice(0, 60);
     onSave({
       ...profile,
-      name:          form.name,
-      age:           Number(form.age)      || profile.age,
-      weightKg:      Number(form.weightKg) || profile.weightKg,
-      heightCm:      Number(form.heightCm) || profile.heightCm,
+      name:          cleanName,
+      age,
+      weightKg,
+      heightCm,
       activityLevel: form.activityLevel,
       cycleLength:   Number(form.cycleLength),
       goals:         cleanGoals,
@@ -1440,12 +1564,13 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
             <div className="flex items-center gap-4 mt-1">
               <button
                 type="button"
+                aria-label="Cycluslengte verlagen"
                 onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
                 className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                            text-ink-600 hover:bg-sage-100 hover:border-sage-200
                            transition text-xl flex items-center justify-center"
               >−</button>
-              <div className="flex-1 text-center">
+              <div className="flex-1 text-center" aria-live="polite">
                 <span className="font-display text-[36px] text-ink-700 leading-none">
                   {form.cycleLength}
                 </span>
@@ -1453,6 +1578,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
               </div>
               <button
                 type="button"
+                aria-label="Cycluslengte verhogen"
                 onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
                 className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                            text-ink-600 hover:bg-sage-100 hover:border-sage-200
@@ -1527,10 +1653,13 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
           </div>
           <button
             type="button"
+            role="switch"
+            aria-checked={notifEnabled}
+            aria-label="Dagelijkse herinnering inschakelen"
             onClick={handleNotifToggle}
             className={`relative w-12 h-6 rounded-full transition ${notifEnabled ? 'bg-sage-500' : 'bg-cream-300'}`}
           >
-            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${notifEnabled ? 'left-7' : 'left-1'}`} />
+            <div aria-hidden="true" className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${notifEnabled ? 'left-7' : 'left-1'}`} />
           </button>
         </div>
         {notifEnabled && (
@@ -1544,6 +1673,39 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
             />
           </Field>
         )}
+      </Card>
+
+      {/* Weergave */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Weergave</div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: 'auto',  label: 'Automatisch', Icon: null },
+            { id: 'light', label: 'Licht',        Icon: Sun  },
+            { id: 'dark',  label: 'Donker',       Icon: Moon },
+          ].map(({ id, label, Icon }) => {
+            const active = theme === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onThemeChange && onThemeChange(id)}
+                aria-pressed={active}
+                className={`flex flex-col items-center gap-1.5 min-h-[44px] py-3 rounded-xl border transition active:scale-95 ${
+                  active
+                    ? 'bg-sage-100 border-sage-300 text-sage-700'
+                    : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+                }`}
+              >
+                {Icon
+                  ? <Icon className="w-4 h-4" />
+                  : <span className="w-4 h-4 rounded-full border-2 border-current" style={{ borderStyle: 'dashed' }} />
+                }
+                <span className="text-[11px] font-medium leading-none">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </Card>
 
       {/* Save */}
@@ -1602,7 +1764,118 @@ function SettingsScreen({ profile, onSave, onReset, onBack }) {
         </button>
       </Card>
 
+      {/* Legal */}
+      <button
+        type="button"
+        onClick={() => onOpenLegal && onOpenLegal()}
+        className="w-full mt-5 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                   text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition
+                   flex items-center justify-center gap-2"
+      >
+        Privacy &amp; disclaimer
+      </button>
+
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.2</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Legal: privacy + medical disclaimer + imprint                      */
+/* ------------------------------------------------------------------ */
+
+function LegalView({ onBack }) {
+  return (
+    <div className="min-h-dvh px-5 py-8 pb-28 max-w-md mx-auto">
+      <header className="flex items-center gap-3 mb-8 anim-fade-up">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Terug"
+          className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
+                     flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <h1 className="font-display text-[28px] text-ink-700 leading-tight">Privacy &amp; disclaimer</h1>
+      </header>
+
+      {/* Medische disclaimer */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Medische disclaimer</div>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Aura is een hulpmiddel voor zelfreflectie en bewustwording — geen medisch hulpmiddel.
+          De app vervangt geen consult bij een (huis)arts, gynaecoloog, voedingsdeskundige of andere zorgverlener.
+        </p>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Berekeningen voor cyclus, calorieën en eiwitten zijn schattingen op basis van algemene formules.
+          Ze kunnen afwijken van jouw persoonlijke situatie en zijn niet bedoeld als diagnose of behandeling.
+        </p>
+        <p className="text-sm text-ink-600 leading-relaxed">
+          Maak je je zorgen over je gezondheid, je menstruatiecyclus, je voeding of je welzijn?
+          Neem dan altijd contact op met een gekwalificeerde zorgverlener.
+        </p>
+      </Card>
+
+      {/* Wat slaan we op */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Wat slaan we op</div>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Alle gegevens die je in Aura invoert blijven <strong>uitsluitend op dit apparaat</strong>,
+          opgeslagen in de lokale opslag van je browser:
+        </p>
+        <ul className="text-sm text-ink-600 leading-relaxed list-disc pl-5 space-y-1 mb-3">
+          <li>Profiel: naam, leeftijd, gewicht, lengte, activiteitsniveau</li>
+          <li>Cyclus: lengte, duur menstruatie, datums die je logt</li>
+          <li>Dagelijks logboek: voeding, water, slaap, beweging, symptomen, notities</li>
+          <li>Voorkeuren: thema (licht/donker), herinneringstijd</li>
+        </ul>
+        <p className="text-sm text-ink-600 leading-relaxed">
+          Er wordt <strong>geen data naar servers gestuurd</strong>. We zien je gegevens niet, niemand anders ook.
+        </p>
+      </Card>
+
+      {/* Wat doen we niet */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Wat we niet doen</div>
+        <ul className="text-sm text-ink-600 leading-relaxed space-y-2">
+          <li>✗ Geen accounts, geen inlog, geen wachtwoorden</li>
+          <li>✗ Geen tracking-cookies of -pixels</li>
+          <li>✗ Geen analytics-diensten</li>
+          <li>✗ Geen advertenties</li>
+          <li>✗ Geen verkoop, verhuur of delen van data met derden</li>
+          <li>✗ Geen synchronisatie tussen apparaten (data blijft op dit apparaat)</li>
+        </ul>
+      </Card>
+
+      {/* Externe diensten */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Externe diensten</div>
+        <p className="text-sm text-ink-600 leading-relaxed">
+          De productieversie van Aura laadt <strong>geen externe scripts, lettertypes of CDN's</strong>
+          tijdens gebruik. Alle code, stijlen en lettertypes worden samen met de app meegestuurd
+          en vanuit dezelfde host geserveerd. Tijdens het bezoeken van Aura wordt dus alleen
+          verbinding gemaakt met de Aura-host zelf — niet met Google, niet met derde partijen.
+        </p>
+      </Card>
+
+      {/* Jouw rechten */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Jouw rechten (AVG / GDPR)</div>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">
+          Onder de Europese privacywet heb je recht op inzage, correctie en verwijdering van je gegevens.
+          Omdat alle data alleen op dit apparaat staat, heb je dit volledig zelf in handen:
+        </p>
+        <ul className="text-sm text-ink-600 leading-relaxed list-disc pl-5 space-y-1">
+          <li>Inzage en correctie: open Instellingen om alles te zien en aan te passen</li>
+          <li>Verwijdering profiel: Instellingen → Profiel resetten</li>
+          <li>Verwijdering álles: wis de site-data via je browserinstellingen</li>
+        </ul>
+      </Card>
+
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
+        Aura · v1.2 · laatst bijgewerkt 28 april 2026
+      </div>
     </div>
   );
 }
@@ -1668,11 +1941,11 @@ function CycleRing({ state }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Day</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Dag</div>
         <div className="font-display text-[54px] leading-none text-ink-700">
           {state.cycleDay ?? '—'}
         </div>
-        <div className="text-xs text-ink-400 mt-1">of {state.cycleLength}</div>
+        <div className="text-xs text-ink-400 mt-1">van {state.cycleLength}</div>
       </div>
     </div>
   );
@@ -1692,7 +1965,7 @@ function PhaseTimeline({ state }) {
           >
             <div
               className={`h-1.5 w-full rounded-full transition ${active ? 'anim-breathe' : ''}`}
-              style={{ background: active ? meta.hue : '#EDE6D3' }}
+              style={{ background: active ? meta.hue : 'var(--progress-track)' }}
             />
             <div className={`text-[10px] uppercase tracking-wider ${active ? 'text-ink-600' : 'text-ink-400/70'}`}>
               {meta.label}
@@ -1710,7 +1983,54 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   const insight = useMemo(() => getDailyInsight(state.phase, new Date(), profile.name ? profile.name.split(' ')[0] : ''), [state.phase, profile.name]);
   const PhaseIcon = PHASE_ICONS[state.phase];
 
-  const [log, updateLog] = useDailyLog();
+  const [log, commitLog, restoreLog] = useDailyLog();
+
+  // ── Undo toast ───────────────────────────────────────────────────
+  // Captures the pre-update log so the user can revert the last save
+  // (or burst of saves) within 5s.
+  const [toast, setToast]                       = useState(null);
+  const [toastDismissing, setToastDismissing]   = useState(false);
+  const toastTimerRef     = useRef(null);
+  const toastFadeTimerRef = useRef(null);
+  const toastSnapshotRef  = useRef(null);
+
+  useEffect(() => () => {
+    if (toastTimerRef.current)     clearTimeout(toastTimerRef.current);
+    if (toastFadeTimerRef.current) clearTimeout(toastFadeTimerRef.current);
+  }, []);
+
+  const updateLog = useCallback((patch) => {
+    // If a toast is already showing, keep its older snapshot — that way
+    // undo reverts the entire burst (e.g. typing in the journal note),
+    // not just the most recent keystroke.
+    const snapshot = toastSnapshotRef.current ?? log;
+    toastSnapshotRef.current = snapshot;
+
+    commitLog(patch);
+
+    setToast({ snapshot });
+    setToastDismissing(false);
+    if (toastTimerRef.current)     clearTimeout(toastTimerRef.current);
+    if (toastFadeTimerRef.current) clearTimeout(toastFadeTimerRef.current);
+    toastTimerRef.current = setTimeout(() => {
+      setToastDismissing(true);
+      toastFadeTimerRef.current = setTimeout(() => {
+        setToast(null);
+        setToastDismissing(false);
+        toastSnapshotRef.current = null;
+      }, 320);
+    }, 5000);
+  }, [log, commitLog]);
+
+  const handleUndo = useCallback(() => {
+    if (!toast) return;
+    restoreLog(toast.snapshot);
+    if (toastTimerRef.current)     clearTimeout(toastTimerRef.current);
+    if (toastFadeTimerRef.current) clearTimeout(toastFadeTimerRef.current);
+    toastSnapshotRef.current = null;
+    setToast(null);
+    setToastDismissing(false);
+  }, [toast, restoreLog]);
 
   const streak = useMemo(() => getStreak(log), [log]);
 
@@ -1748,14 +2068,23 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
             </div>
           )}
           <button
+            type="button"
             onClick={onOpenSettings}
-            aria-label="Settings"
+            aria-label="Instellingen openen"
             className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
           >
-            <Settings className="w-4 h-4" />
+            <Settings aria-hidden="true" className="w-4 h-4" />
           </button>
         </div>
       </header>
+
+      {/* Day summary — compact above-the-fold progress */}
+      <DaySummaryStrip
+        log={log}
+        goals={profile.goals}
+        targets={targets}
+        waterGlassTarget={waterGlassTarget}
+      />
 
       {/* Cycle ring — the hero card */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
@@ -1832,14 +2161,18 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       </Card>
 
       {/* Wellbeing — sleep + movement */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '200ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-5">Welzijn</div>
+      <CollapsibleCard
+        id="wellbeing"
+        title="Welzijn"
+        className="mb-5"
+        style={{ animationDelay: '200ms' }}
+      >
         <div className="space-y-6">
           <SleepTracker hours={log.sleep} onChange={setSleep} />
           <div className="h-px bg-cream-200/70" />
           <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
         </div>
-      </Card>
+      </CollapsibleCard>
 
       {/* Tip van de dag */}
       <TipVanDeDag phase={state.phase} log={log} goals={profile.goals} targets={targets} name={profile.name} />
@@ -1848,19 +2181,27 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       <WeeklyHistoryStrip profile={profile} todayLog={log} />
 
       {/* Gut health checklist */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '240ms' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Darmgezondheid</div>
-          <div className="text-[11px] text-ink-400">
+      <CollapsibleCard
+        id="gut"
+        title="Darmgezondheid"
+        headerExtra={
+          <span className="text-[11px] text-ink-400">
             {Object.values(log.gut).filter(Boolean).length} of 3
-          </div>
-        </div>
+          </span>
+        }
+        className="mb-5"
+        style={{ animationDelay: '240ms' }}
+      >
         <GutChecklist gut={log.gut} onToggle={toggleGut} />
-      </Card>
+      </CollapsibleCard>
 
       {/* Nutrient focus */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '280ms' }}>
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Nutriëntenfocus</div>
+      <CollapsibleCard
+        id="focus"
+        title="Nutriëntenfocus"
+        className="mb-5"
+        style={{ animationDelay: '280ms' }}
+      >
         <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
         <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
         <div className="flex flex-wrap gap-2">
@@ -1873,7 +2214,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
             </span>
           ))}
         </div>
-      </Card>
+      </CollapsibleCard>
 
       {/* Journal note */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '340ms' }}>
@@ -1894,6 +2235,37 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
         Aura · v1.2
       </div>
+
+      <UndoToast visible={!!toast} dismissing={toastDismissing} onUndo={handleUndo} />
+    </div>
+  );
+}
+
+function UndoToast({ visible, dismissing, onUndo }) {
+  if (!visible) return null;
+  return (
+    <div
+      className={`fixed left-0 right-0 bottom-20 z-50 px-4 pointer-events-none
+                  transition-all duration-300 ease-out
+                  ${dismissing
+                    ? 'opacity-0 translate-y-2'
+                    : 'opacity-100 translate-y-0 anim-slide-up'}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="max-w-md mx-auto pointer-events-auto">
+        <button
+          type="button"
+          onClick={onUndo}
+          aria-label="Laatste wijziging ongedaan maken"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl
+                     bg-ink-700/95 text-cream-50 text-sm font-medium shadow-lg backdrop-blur-md
+                     hover:bg-ink-700 active:scale-[0.99] transition min-h-[44px]"
+        >
+          <Undo2 aria-hidden="true" className="w-4 h-4" />
+          Ongedaan maken
+        </button>
+      </div>
     </div>
   );
 }
@@ -1908,10 +2280,13 @@ function BottomNav({ active, onSelect }) {
     { id: 'voeding',   label: 'Voeding',     icon: Salad     },
     { id: 'logboek',   label: 'Logboek',     icon: BookOpen  },
     { id: 'stats',     label: 'Inzichten',   icon: BarChart2 },
-    { id: 'settings',  label: 'Stel in',   icon: Settings  },
+    { id: 'settings',  label: 'Profiel',     icon: Settings  },
   ];
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex">
+    <nav
+      aria-label="Hoofdnavigatie"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex pb-safe"
+    >
       {tabs.map(({ id, label, icon: Icon }) => {
         const on = active === id;
         return (
@@ -1919,11 +2294,13 @@ function BottomNav({ active, onSelect }) {
             key={id}
             type="button"
             onClick={() => onSelect(id)}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] ${
+            aria-label={label}
+            aria-current={on ? 'page' : undefined}
+            className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] active:scale-95 ${
               on ? 'text-sage-600' : 'text-ink-400 hover:text-ink-600'
             }`}
           >
-            <Icon className="w-5 h-5" strokeWidth={on ? 2 : 1.5} />
+            <Icon aria-hidden="true" className="w-5 h-5" strokeWidth={on ? 2 : 1.5} />
             <span className="text-[10px] uppercase tracking-wider font-medium">{label}</span>
           </button>
         );
@@ -1957,7 +2334,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
 
   return (
     <Card
-      className={`p-4 anim-fade-up transition-opacity ${!hasData ? 'opacity-40' : ''}`}
+      className={`p-5 anim-fade-up transition-opacity ${!hasData ? 'opacity-40' : ''}`}
       style={{ animationDelay: `${animDelay}ms` }}
     >
       <div className="flex items-start gap-3">
@@ -2047,13 +2424,13 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
               ) : null}
             </div>
           ) : isToday ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="text-[11px] text-ink-400/70 italic">Nog niets gelogd vandaag.</div>
               {onGoToToday && (
                 <button
                   type="button"
                   onClick={onGoToToday}
-                  className="text-[11px] text-sage-600 underline decoration-dotted underline-offset-2 hover:text-sage-700 transition"
+                  className="text-[11px] text-sage-600 underline decoration-dotted underline-offset-2 hover:text-sage-700 active:scale-95 transition px-2 py-2 min-h-[44px] inline-flex items-center"
                 >
                   Begin met loggen
                 </button>
@@ -2068,20 +2445,59 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
   );
 }
 
+function capitalize(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 function LogboekView({ profile, onGoHome }) {
+  const today = useMemo(() => new Date(), []);
+  const currentMonthStart = useMemo(
+    () => new Date(today.getFullYear(), today.getMonth(), 1),
+    [today]
+  );
+  const [activeMonth, setActiveMonth] = useState(currentMonthStart);
+
+  const isCurrentMonth =
+    activeMonth.getFullYear() === currentMonthStart.getFullYear() &&
+    activeMonth.getMonth()    === currentMonthStart.getMonth();
+
   const days = useMemo(() => {
     const out = [];
-    const today = new Date();
-    for (let offset = 0; offset < 14; offset++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - offset);
+    const year  = activeMonth.getFullYear();
+    const month = activeMonth.getMonth();
+    const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+    const startDay = isCurrentMonth ? today.getDate() : lastDayOfMonth;
+
+    for (let day = startDay; day >= 1; day--) {
+      const d = new Date(year, month, day);
       const log     = loadLog(d);
       const state   = getCycleState(profile, d);
       const targets = getDailyTargets(profile, state.phase);
-      out.push({ date: d, isToday: offset === 0, log, state, targets, hasData: logHasData(log) });
+      const isToday = isCurrentMonth && day === today.getDate();
+      out.push({ date: d, isToday, log, state, targets, hasData: logHasData(log) });
     }
     return out;
-  }, [profile]);
+  }, [profile, activeMonth, isCurrentMonth, today]);
+
+  const goPrevMonth = () => {
+    setActiveMonth(new Date(activeMonth.getFullYear(), activeMonth.getMonth() - 1, 1));
+  };
+  const goNextMonth = () => {
+    if (isCurrentMonth) return;
+    setActiveMonth(new Date(activeMonth.getFullYear(), activeMonth.getMonth() + 1, 1));
+  };
+
+  const prevMonthDate = new Date(activeMonth.getFullYear(), activeMonth.getMonth() - 1, 1);
+  const nextMonthDate = new Date(activeMonth.getFullYear(), activeMonth.getMonth() + 1, 1);
+
+  const monthLabel = capitalize(
+    activeMonth.toLocaleDateString('nl', {
+      month: 'long',
+      year: activeMonth.getFullYear() === today.getFullYear() ? undefined : 'numeric',
+    })
+  );
+  const prevMonthLabel = capitalize(prevMonthDate.toLocaleDateString('nl', { month: 'long' }));
+  const nextMonthLabel = capitalize(nextMonthDate.toLocaleDateString('nl', { month: 'long' }));
 
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
@@ -2094,19 +2510,55 @@ function LogboekView({ profile, onGoHome }) {
           type="button"
           onClick={() => exportCSV(profile)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cream-100 border border-cream-200
-                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 transition min-h-[44px]"
+                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 active:scale-95 transition min-h-[44px]"
           aria-label="Exporteer CSV"
         >
-          <Download className="w-3.5 h-3.5" />
+          <Download aria-hidden="true" className="w-4 h-4" />
           Exporteer
         </button>
       </header>
+
+      {/* Month navigator */}
+      <div className="flex items-center justify-between gap-2 mb-5 anim-fade-up">
+        <button
+          type="button"
+          onClick={goPrevMonth}
+          className="flex items-center gap-1 px-3 py-2 rounded-xl bg-cream-100 border border-cream-200
+                     text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 active:scale-95 transition min-h-[44px]"
+          aria-label={`Ga naar ${prevMonthLabel}`}
+        >
+          <ChevronLeft aria-hidden="true" className="w-4 h-4" />
+          {prevMonthLabel}
+        </button>
+        <div className="font-display text-lg text-ink-700 truncate px-1" aria-live="polite">
+          {monthLabel}
+        </div>
+        <button
+          type="button"
+          onClick={goNextMonth}
+          disabled={isCurrentMonth}
+          className={`flex items-center gap-1 px-3 py-2 rounded-xl border text-xs transition min-h-[44px] ${
+            isCurrentMonth
+              ? 'bg-cream-50 border-cream-100 text-ink-400/40 cursor-not-allowed'
+              : 'bg-cream-100 border-cream-200 text-ink-500 hover:bg-cream-200 hover:text-ink-700 active:scale-95'
+          }`}
+          aria-label={isCurrentMonth ? 'Geen toekomstige maanden' : `Ga naar ${nextMonthLabel}`}
+        >
+          {nextMonthLabel}
+          <ChevronRight aria-hidden="true" className="w-4 h-4" />
+        </button>
+      </div>
+
       {days.every(d => !d.hasData) ? (
         <div className="text-center py-16 text-ink-400 anim-fade-up">
           <p className="text-4xl mb-3">🌱</p>
-          <p className="text-sm mb-1">Nog geen logs bijgehouden.</p>
-          <p className="text-xs text-ink-400/70">Log je eerste dag om je voortgang te zien.</p>
-          {onGoHome && (
+          <p className="text-sm mb-1">
+            {isCurrentMonth ? 'Nog geen logs bijgehouden.' : `Geen logs in ${monthLabel}.`}
+          </p>
+          {isCurrentMonth && (
+            <p className="text-xs text-ink-400/70">Log je eerste dag om je voortgang te zien.</p>
+          )}
+          {isCurrentMonth && onGoHome && (
             <button
               type="button"
               onClick={onGoHome}
@@ -2117,14 +2569,14 @@ function LogboekView({ profile, onGoHome }) {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3" key={isoDate(activeMonth)}>
           {days.map((entry, i) => (
-            <LogboekEntry key={i} {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
+            <LogboekEntry key={isoDate(entry.date)} {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
           ))}
         </div>
       )}
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Laatste 14 dagen · Export omvat 90 dagen
+        Export omvat 90 dagen
       </div>
     </div>
   );
@@ -2322,7 +2774,7 @@ function GoalRing({ value, target, label, unit, color }) {
     <div className="flex flex-col items-center gap-1.5">
       <div className="relative w-16 h-16 flex items-center justify-center">
         <svg width="64" height="64" viewBox="0 0 64 64" className="-rotate-90 absolute inset-0">
-          <circle cx="32" cy="32" r={r} stroke="#EDE6D3" strokeWidth="5" fill="none" />
+          <circle cx="32" cy="32" r={r} className="goal-ring-track" stroke="#EDE6D3" strokeWidth="5" fill="none" />
           <circle cx="32" cy="32" r={r} stroke={strokeColor} strokeWidth="5" fill="none"
             strokeLinecap="round" strokeOpacity={opacity}
             strokeDasharray={c}
@@ -2330,7 +2782,7 @@ function GoalRing({ value, target, label, unit, color }) {
             style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22,1,0.36,1)' }} />
         </svg>
         {ratio >= 1
-          ? <span className="text-[14px] font-semibold relative z-10" style={{ color: '#6B8559' }}>✓</span>
+          ? <span className="text-[14px] font-semibold relative z-10 text-sage-600">✓</span>
           : <span className="text-[11px] font-medium text-ink-700 relative z-10">{pctVal}%</span>
         }
       </div>
@@ -2338,6 +2790,66 @@ function GoalRing({ value, target, label, unit, color }) {
         <div className="text-[10px] uppercase tracking-wider text-ink-400">{label}</div>
         <div className="text-[10px] text-ink-500">{value}/{target}{unit}</div>
       </div>
+    </div>
+  );
+}
+
+function MiniRing({ value, target, label }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { const id = setTimeout(() => setMounted(true), 100); return () => clearTimeout(id); }, []);
+
+  const r = 13;
+  const c = 2 * Math.PI * r;
+  const ratio = target > 0 ? Math.min(1, value / target) : 0;
+  const displayRatio = mounted ? ratio : 0;
+  const stroke = ratio >= 1 ? '#6B8559' : ratio >= 0.5 ? '#A8BA98' : '#E2D8BE';
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <svg width="32" height="32" viewBox="0 0 32 32" className="-rotate-90">
+        <circle cx="16" cy="16" r={r} className="goal-ring-track" stroke="#EDE6D3" strokeWidth="3" fill="none" />
+        <circle
+          cx="16" cy="16" r={r}
+          stroke={stroke} strokeWidth="3" fill="none"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - displayRatio)}
+          style={{ transition: 'stroke-dashoffset 800ms cubic-bezier(0.22,1,0.36,1)' }}
+        />
+      </svg>
+      <div className="text-[10px] uppercase tracking-wider text-ink-500 font-medium">{label}</div>
+    </div>
+  );
+}
+
+function DaySummaryStrip({ log, goals, targets, waterGlassTarget }) {
+  const g = goals || {};
+  const items = [
+    { label: 'Kcal',     value: log.calories,        target: g.calories  || targets.calories },
+    { label: 'Eiwit',    value: log.protein,         target: g.protein   || targets.protein  },
+    { label: 'Water',    value: log.hydration * 250, target: g.hydration || (waterGlassTarget * 250) },
+    { label: 'Beweging', value: log.movement,        target: g.movement  || 30 },
+  ];
+
+  if (!items.some((i) => i.value > 0)) return null;
+
+  const allHit = items.every((i) => i.target > 0 && i.value / i.target >= 0.8);
+
+  return (
+    <div
+      className="flex items-center gap-3 mb-5 px-4 py-4 rounded-xl3 bg-cream-50/80 backdrop-blur-sm border border-cream-200/60 shadow-soft anim-fade-up"
+      aria-label="Voortgang vandaag"
+    >
+      <div className="flex flex-1 items-start justify-between gap-2">
+        {items.map((it) => (
+          <MiniRing key={it.label} value={it.value} target={it.target} label={it.label} />
+        ))}
+      </div>
+      {allHit && (
+        <div className="text-[10px] font-medium text-sage-700 bg-sage-50 border border-sage-200 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0">
+          🌿 Goede dag!
+        </div>
+      )}
     </div>
   );
 }
@@ -2463,13 +2975,13 @@ function PhaseRecipes({ phase }) {
         Recepten voor jouw fase · {phaseLabels[phase]}
       </div>
       <div className="space-y-3">
-        {recipes.map((recipe, i) => {
-          const open = expanded === i;
+        {recipes.map((recipe) => {
+          const open = expanded === recipe.name;
           return (
-            <div key={i}>
+            <div key={recipe.name}>
               <button
                 type="button"
-                onClick={() => setExpanded(open ? null : i)}
+                onClick={() => setExpanded(open ? null : recipe.name)}
                 className={`w-full text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] ${
                   open ? 'bg-sage-50 border-sage-200' : 'bg-cream-50 border-cream-200 hover:border-sage-200'
                 }`}
@@ -2560,7 +3072,8 @@ function ExtendedCharts({ profile }) {
       <div className="flex gap-2">
         {[30, 90].map(n => (
           <button key={n} type="button" onClick={() => setDays(n)}
-            className={`px-4 py-2 rounded-full text-sm transition ${days === n ? 'bg-sage-500 text-cream-50' : 'bg-cream-100 border border-cream-200 text-ink-600 hover:border-sage-200'}`}>
+            aria-pressed={days === n}
+            className={`min-h-[44px] px-5 py-2.5 rounded-full text-sm transition active:scale-95 ${days === n ? 'bg-sage-500 text-cream-50' : 'bg-cream-100 border border-cream-200 text-ink-600 hover:border-sage-200'}`}>
             {n} dagen
           </button>
         ))}
@@ -2688,15 +3201,157 @@ function AllChartsView({ profile, onBack }) {
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
       <header className="flex items-center gap-3 mb-7 anim-fade-up">
-        <button type="button" onClick={onBack}
-          className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition">
-          <ChevronLeft className="w-4 h-4" />
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Terug naar inzichten"
+          className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 transition"
+        >
+          <ChevronLeft aria-hidden="true" className="w-4 h-4" />
         </button>
         <h1 className="font-display text-[28px] leading-tight text-ink-700">Alle grafieken</h1>
       </header>
       <ExtendedCharts profile={profile} />
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Error boundary + crash screen                                      */
+/* ------------------------------------------------------------------ */
+/*                                                                     */
+/*  Privacy-first crash handling: errors stay on the device. Nothing   */
+/*  is auto-sent. The user gets a calm fallback UI with a reload       */
+/*  button and an opt-in "copy details" action so they can paste the   */
+/*  report into an email if they want help debugging.                  */
+/*                                                                     */
+/* ------------------------------------------------------------------ */
+
+function buildErrorReport(error, errorInfo) {
+  const lines = [
+    `Aura crash report — ${new Date().toISOString()}`,
+    `URL:      ${typeof location !== 'undefined' ? location.href : '?'}`,
+    `Theme:    ${document?.documentElement?.getAttribute('data-theme') || '?'}`,
+    `UA:       ${navigator?.userAgent || '?'}`,
+    `Language: ${navigator?.language || '?'}`,
+    '',
+    `Message:  ${error?.message || String(error)}`,
+    '',
+    'Stack:',
+    error?.stack || '(no stack)',
+  ];
+  if (errorInfo?.componentStack) {
+    lines.push('', 'Component stack:', errorInfo.componentStack.trim());
+  }
+  return lines.join('\n');
+}
+
+function CrashScreen({ error, errorInfo }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [copied,      setCopied]      = useState(false);
+
+  const report = useMemo(() => buildErrorReport(error, errorInfo), [error, errorInfo]);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for browsers without clipboard API: select the <pre> text.
+      const pre = document.getElementById('aura-crash-report');
+      if (pre) {
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+  };
+
+  const handleReload = () => window.location.reload();
+
+  return (
+    <div className="min-h-dvh px-5 py-10 flex flex-col items-center justify-center max-w-md mx-auto">
+      <div className="w-16 h-16 rounded-[22px] mb-6 flex items-center justify-center shadow-soft"
+           style={{ background: 'linear-gradient(135deg, #F4E2D8 0%, #E2E9DC 100%)' }}>
+        <Flower2 className="w-7 h-7 text-terracotta-500" />
+      </div>
+      <h1 className="font-display text-[28px] text-ink-700 text-center leading-tight mb-3">
+        Aura is even uit balans
+      </h1>
+      <p className="text-sm text-ink-500 text-center leading-relaxed mb-6">
+        Er ging iets mis bij het tekenen van het scherm. Je gegevens zijn veilig — alles staat
+        nog steeds lokaal op je apparaat. Probeer Aura opnieuw te laden.
+      </p>
+
+      <button
+        type="button"
+        onClick={handleReload}
+        className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
+                   hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 mb-3"
+      >
+        Probeer opnieuw
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setShowDetails((v) => !v)}
+        className="w-full rounded-xl border border-cream-200 bg-cream-50 text-ink-600 py-3 text-sm
+                   hover:border-sage-200 hover:bg-sage-50 transition mb-2"
+      >
+        {showDetails ? 'Verberg foutgegevens' : 'Toon foutgegevens'}
+      </button>
+
+      {showDetails && (
+        <div className="w-full mt-2 anim-fade-up">
+          <pre
+            id="aura-crash-report"
+            className="text-[10px] leading-relaxed text-ink-500 bg-cream-100 border border-cream-200
+                       rounded-xl p-3 max-h-64 overflow-auto whitespace-pre-wrap"
+          >
+            {report}
+          </pre>
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="w-full mt-2 rounded-xl border border-cream-200 bg-cream-50 text-ink-600 py-2.5 text-xs
+                       hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            {copied ? 'Gekopieerd ✓' : 'Kopieer foutgegevens'}
+          </button>
+          <p className="text-[10px] text-ink-400 text-center mt-3 leading-relaxed">
+            Aura stuurt nooit automatisch foutgegevens. Alleen als jij ze zelf kopieert en deelt.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    this.setState({ errorInfo });
+    // eslint-disable-next-line no-console
+    console.error('[Aura] render error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.error) {
+      return <CrashScreen error={this.state.error} errorInfo={this.state.errorInfo} />;
+    }
+    return this.props.children;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -2707,13 +3362,39 @@ function App() {
   const [profile, setProfile] = useState(() => loadProfile());
   const [tab, setTab] = useState('home');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem('aura.theme') || 'auto'; }
+    catch { return 'auto'; }
+  });
+
+  const handleThemeChange = useCallback((newTheme) => {
+    setTheme(newTheme);
+    try { localStorage.setItem('aura.theme', newTheme); }
+    catch { /* private mode / quota — theme still applies in-memory */ }
+    const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const dark = newTheme === 'dark' || (newTheme === 'auto' && sysDark);
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  }, []);
 
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key === 'aura.profile') setProfile(loadProfile());
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    // Quiet logging for async errors that the React boundary can't see
+    // (event handlers, setTimeout callbacks, unhandled promise rejections).
+    // We don't surface these to the user — most don't break the UI — but
+    // they're tagged so anyone copying the console for support can find
+    // them quickly. Nothing leaves the device.
+    const onError    = (e) => console.error('[Aura] uncaught:',  e.error || e.message || e);
+    const onRejected = (e) => console.error('[Aura] rejection:', e.reason);
+    window.addEventListener('storage',            onStorage);
+    window.addEventListener('error',              onError);
+    window.addEventListener('unhandledrejection', onRejected);
+    return () => {
+      window.removeEventListener('storage',            onStorage);
+      window.removeEventListener('error',              onError);
+      window.removeEventListener('unhandledrejection', onRejected);
+    };
   }, []);
 
   if (!profile) return <Onboarding onComplete={setProfile} />;
@@ -2736,24 +3417,34 @@ function App() {
   return (
     <>
       {showResetConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up">
-            <h2 className="font-display text-[22px] text-ink-700 mb-2">Profiel resetten?</h2>
-            <p className="text-sm text-ink-500 leading-relaxed mb-6">
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm"
+          onClick={() => setShowResetConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up"
+            role="alertdialog"
+            aria-labelledby="reset-dialog-title"
+            aria-describedby="reset-dialog-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="reset-dialog-title" className="font-display text-[22px] text-ink-700 mb-2">Profiel resetten?</h2>
+            <p id="reset-dialog-desc" className="text-sm text-ink-500 leading-relaxed mb-6">
               Weet je het zeker? Alle profieldata wordt gewist. Je dagelijkse logs blijven bewaard.
             </p>
             <div className="flex gap-3">
               <button
                 type="button"
+                autoFocus
                 onClick={() => setShowResetConfirm(false)}
-                className="flex-1 py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 transition"
+                className="flex-1 min-h-[44px] py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 active:scale-[0.98] transition"
               >
                 Annuleren
               </button>
               <button
                 type="button"
                 onClick={confirmReset}
-                className="flex-1 py-3 rounded-xl bg-terracotta-400 text-cream-50 text-sm font-medium hover:bg-terracotta-500 transition active:scale-[0.98]"
+                className="flex-1 min-h-[44px] py-3 rounded-xl bg-terracotta-400 text-cream-50 text-sm font-medium hover:bg-terracotta-500 transition active:scale-[0.98]"
               >
                 Ja, reset
               </button>
@@ -2781,7 +3472,13 @@ function App() {
             onSave={updateProfile}
             onBack={() => setTab('home')}
             onReset={handleReset}
+            theme={theme}
+            onThemeChange={handleThemeChange}
+            onOpenLegal={() => setTab('legal')}
           />
+        )}
+        {tab === 'legal' && (
+          <LegalView onBack={() => setTab('settings')} />
         )}
       </div>
       <BottomNav active={tab} onSelect={setTab} />
@@ -2791,4 +3488,8 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById('root')).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);

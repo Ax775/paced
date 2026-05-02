@@ -1,0 +1,47 @@
+# Cloudflare Pages headers
+# Format: path on its own line, indented header lines beneath it.
+# Specific paths override the catch-all `/*`.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  # CSP — tight policy for the production build. No more unsafe-eval (Babel
+  # is gone), no more CDN script sources (Tailwind & React are bundled).
+  # 'unsafe-inline' for script-src remains because of the two short inline
+  # scripts (theme init + SW registration); switching to sha256 hashes is a
+  # nice future tightening but those hashes have to be recomputed on every
+  # edit, which doesn't pay off for ~350 bytes of static code.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+
+# Shell + service worker — never cache so updates land on next reload.
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+  Service-Worker-Allowed: /
+
+# Manifest can have a short cache.
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600
+  Content-Type: application/manifest+json; charset=utf-8
+
+# App source — short cache because users may pull updates frequently.
+# The SW also uses network-first for these so a stale browser cache won't
+# stick around long.
+/src/*
+  Cache-Control: public, max-age=300, must-revalidate
+
+# Static assets — long cache. The font files are unlikely to change, the
+# icon never does. Content-hashed filenames are a follow-up.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/assets/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *

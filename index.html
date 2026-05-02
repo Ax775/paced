@@ -15,13 +15,6 @@
   <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
   <link rel="apple-touch-icon" href="./assets/icon.svg" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
-
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     // Quiet Luxury palette — sage, cream, muted terracotta
@@ -116,10 +109,33 @@
   </script>
 
   <style>
+    /* ── Self-hosted variable fonts (no external CDN) ──────────────── */
+    /* Inter: variable wght axis, Latin subset. ~48 KB. */
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 300 700;
+      font-display: swap;
+      src: url('./assets/fonts/inter-latin-wght-normal.woff2') format('woff2');
+    }
+    /* Fraunces: full variable axes (wght + opsz + soft), Latin subset. ~120 KB. */
+    @font-face {
+      font-family: 'Fraunces';
+      font-style: normal;
+      font-weight: 400 700;
+      font-display: swap;
+      src: url('./assets/fonts/fraunces-latin-full-normal.woff2') format('woff2');
+    }
+
     *, *::before, *::after {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
+
+    /* iOS safe-area utilities — referenced by reminder banner (top notch)
+       and bottom nav (home indicator). Use env() with safe fallback to 0. */
+    .pt-safe { padding-top:    env(safe-area-inset-top,    0); }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0); }
     html, body {
       margin: 0;
       padding: 0;
@@ -184,7 +200,146 @@
       -webkit-appearance: none; margin: 0;
     }
     input[type="number"] { -moz-appearance: textfield; }
+
+    /* ── Dark mode ───────────────────────────────────────────────────── */
+    /* The JS init script (below) reads localStorage + prefers-color-scheme
+       and sets data-theme="dark"|"light" on <html> before first paint.
+       All dark overrides key off [data-theme="dark"] so they also respond
+       automatically to the system preference via that script. */
+
+    :root {
+      --progress-track: #EDE6D3; /* phase timeline inactive bar + goal ring bg */
+    }
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --progress-track: #3A3733;
+    }
+
+    /* Page background */
+    [data-theme="dark"] body {
+      background:
+        radial-gradient(1200px 600px at 85% -10%, rgba(46,43,40,0.5) 0%, transparent 60%),
+        radial-gradient(900px 500px at -10% 110%, rgba(38,48,38,0.4) 0%, transparent 55%),
+        #1C1A17;
+      color: #F0EBE1;
+    }
+
+    /* Scrollbar */
+    [data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3A3733; }
+
+    /* Shadows */
+    [data-theme="dark"] .shadow-soft {
+      box-shadow: 0 1px 3px rgba(0,0,0,0.22), 0 8px 24px rgba(0,0,0,0.32) !important;
+    }
+    [data-theme="dark"] .shadow-glow {
+      box-shadow: 0 0 0 1px rgba(168,186,152,0.07), 0 12px 40px rgba(0,0,0,0.48) !important;
+    }
+
+    /* ── Backgrounds ── */
+    [data-theme="dark"] .bg-cream-50    { background-color: #252220 !important; }
+    [data-theme="dark"] .bg-cream-100   { background-color: #2E2B28 !important; }
+    [data-theme="dark"] .bg-cream-200   { background-color: #3A3733 !important; }
+    [data-theme="dark"] .bg-cream-300   { background-color: #4A4742 !important; }
+    [data-theme="dark"] .bg-sage-50     { background-color: #1E2620 !important; }
+    [data-theme="dark"] .bg-sage-100    { background-color: #263026 !important; }
+    [data-theme="dark"] .bg-sage-200    { background-color: #3D5238 !important; }
+    [data-theme="dark"] .bg-terracotta-100 { background-color: #3A2520 !important; }
+
+    /* Opacity variants */
+    [data-theme="dark"] .bg-cream-50\/60  { background-color: rgba(37,34,32,0.6)  !important; }
+    [data-theme="dark"] .bg-cream-50\/80  { background-color: rgba(37,34,32,0.9)  !important; }
+    [data-theme="dark"] .bg-cream-50\/95  { background-color: rgba(28,26,23,0.97) !important; }
+    [data-theme="dark"] .bg-cream-100\/40 { background-color: rgba(46,43,40,0.5)  !important; }
+    [data-theme="dark"] .bg-cream-100\/60 { background-color: rgba(46,43,40,0.6)  !important; }
+    [data-theme="dark"] .bg-cream-100\/70 { background-color: rgba(46,43,40,0.7)  !important; }
+    [data-theme="dark"] .bg-cream-200\/60 { background-color: rgba(58,55,51,0.6)  !important; }
+    [data-theme="dark"] .bg-cream-200\/70 { background-color: rgba(58,55,51,0.7)  !important; }
+    [data-theme="dark"] .bg-cream-200\/80 { background-color: rgba(58,55,51,0.8)  !important; }
+    [data-theme="dark"] .bg-sage-50\/95   { background-color: rgba(30,38,32,0.97) !important; }
+    [data-theme="dark"] .bg-terracotta-100\/50 { background-color: rgba(58,37,32,0.5) !important; }
+    [data-theme="dark"] .bg-ink-700\/95   { background-color: rgba(61,58,54,0.97) !important; }
+
+    /* ── Text ── */
+    [data-theme="dark"] .text-ink-700   { color: #F0EBE1 !important; }
+    [data-theme="dark"] .text-ink-600   { color: #D8D2C8 !important; }
+    [data-theme="dark"] .text-ink-500   { color: #A8A39A !important; }
+    [data-theme="dark"] .text-ink-400   { color: #6E6A62 !important; }
+    [data-theme="dark"] .text-sage-700  { color: #A8C896 !important; }
+    [data-theme="dark"] .text-sage-600  { color: #96B882 !important; }
+    [data-theme="dark"] .text-sage-500  { color: #96B882 !important; }
+    [data-theme="dark"] .text-terracotta-600 { color: #D9A188 !important; }
+    [data-theme="dark"] .text-ink-400\/70    { color: rgba(110,106,98,0.7) !important; }
+
+    /* ── Borders ── */
+    [data-theme="dark"] .border-cream-200    { border-color: #3A3733 !important; }
+    [data-theme="dark"] .border-cream-300    { border-color: #4A4742 !important; }
+    [data-theme="dark"] .border-sage-200     { border-color: #3D5238 !important; }
+    [data-theme="dark"] .border-sage-300     { border-color: #4A6B42 !important; }
+    [data-theme="dark"] .border-terracotta-200 { border-color: #5A3E35 !important; }
+    [data-theme="dark"] .border-cream-200\/60  { border-color: rgba(58,55,51,0.6) !important; }
+
+    /* ── Hover states ── */
+    [data-theme="dark"] .hover\:bg-sage-50:hover   { background-color: #1E2620 !important; }
+    [data-theme="dark"] .hover\:bg-sage-100:hover  { background-color: #263026 !important; }
+    [data-theme="dark"] .hover\:bg-cream-200:hover { background-color: #3A3733 !important; }
+    [data-theme="dark"] .hover\:border-sage-200:hover { border-color: #3D5238 !important; }
+    [data-theme="dark"] .hover\:text-ink-700:hover { color: #F0EBE1 !important; }
+    [data-theme="dark"] .hover\:text-ink-600:hover { color: #D8D2C8 !important; }
+    [data-theme="dark"] .hover\:bg-sage-600:hover  { background-color: #3F5E33 !important; }
+
+    /* ── Focus states ── */
+    [data-theme="dark"] .focus\:border-sage-300:focus  { border-color: #4A6B42 !important; }
+    [data-theme="dark"] .focus\:ring-sage-200\/60:focus { --tw-ring-color: rgba(74,107,66,0.5) !important; }
+
+    /* Text opacity variants — Tailwind bakes opacity into a separate class
+       per modifier, so each one needs its own dark override. */
+    [data-theme="dark"] .text-ink-400\/40 { color: rgba(110,106,98,0.4) !important; }
+    [data-theme="dark"] .text-ink-400\/60 { color: rgba(110,106,98,0.6) !important; }
+    [data-theme="dark"] .text-ink-400\/80 { color: rgba(110,106,98,0.8) !important; }
+
+    /* Border opacity variants */
+    [data-theme="dark"] .border-cream-200\/50 { border-color: rgba(58,55,51,0.5) !important; }
+
+    /* ── Placeholders ── */
+    [data-theme="dark"] .placeholder\:text-ink-400\/70::placeholder { color: rgba(110,106,98,0.6) !important; }
+    [data-theme="dark"] .placeholder\:text-ink-400\/60::placeholder { color: rgba(110,106,98,0.5) !important; }
+
+    /* ── SVG: goal ring background track ── */
+    [data-theme="dark"] .goal-ring-track { stroke: #3A3733 !important; }
+
+    /* ── Modal backdrop ── */
+    [data-theme="dark"] .bg-ink-700\/30 { background-color: rgba(0,0,0,0.58) !important; }
+
+    /* ── Toast: give it more contrast against the dark page background ── */
+    [data-theme="dark"] .bg-ink-700 { background-color: #3D3A36 !important; }
+
+    /* ── Remaining hover/misc gaps ── */
+    [data-theme="dark"] .hover\:bg-cream-100:hover  { background-color: #2E2B28 !important; }
+    [data-theme="dark"] .hover\:bg-sage-200:hover   { background-color: #3D5238 !important; }
+    [data-theme="dark"] .hover\:bg-terracotta-100:hover { background-color: #3A2520 !important; }
+    [data-theme="dark"] .hover\:bg-terracotta-500:hover { background-color: #8F4532 !important; }
+    [data-theme="dark"] .border-terracotta-100    { border-color: #4A2E28 !important; }
+    [data-theme="dark"] .text-terracotta-400      { color: #D0856A !important; }
   </style>
+
+  <!-- Theme init: apply data-theme before first paint to avoid flash.
+       Wrapped in try/catch so a localStorage SecurityError (private mode,
+       sandboxed iframe, third-party-cookie blocking) can't crash the whole
+       page before React mounts. -->
+  <script>
+    (function () {
+      function applyTheme() {
+        var pref = null;
+        try { pref = localStorage.getItem('aura.theme'); } catch (_) {}
+        var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var dark    = pref === 'dark' || (pref !== 'light' && sysDark);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      }
+      applyTheme();
+      window.matchMedia('(prefers-color-scheme: dark)')
+            .addEventListener('change', applyTheme);
+    })();
+  </script>
 </head>
 <body>
   <div id="root"></div>
