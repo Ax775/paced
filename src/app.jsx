@@ -2405,7 +2405,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         Privacy &amp; disclaimer
       </button>
 
-      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.2</div>
+      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">Aura · v1.3</div>
     </div>
   );
 }
@@ -2504,7 +2504,7 @@ function LegalView({ onBack }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v1.2 · laatst bijgewerkt 28 april 2026
+        Aura · v1.3 · laatst bijgewerkt 3 mei 2026
       </div>
     </div>
   );
@@ -2960,7 +2960,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       </Card>
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
-        Aura · v1.2
+        Aura · v1.3
       </div>
 
       <UndoToast visible={!!toast} dismissing={toastDismissing} onUndo={handleUndo} />
