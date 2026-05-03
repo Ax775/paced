@@ -152,4 +152,3 @@ een release zodat oude SW-caches geëvinceerd worden.
 Code: zie `LICENSE` (toe te voegen). Lettertypes (Inter, Fraunces) staan
 onder SIL Open Font License — zie `OFL.txt` in de respectievelijke
 fontsource packages.
-
