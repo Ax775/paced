@@ -75,6 +75,91 @@ export const PHASE_META = {
   },
 };
 
+/**
+ * Hormonale uitleg per fase — geserveerd door het (i)-icoontje naast
+ * de fasenaam. Bewust geen medisch jargon: de "tone" is bemoedigend,
+ * niet diagnostisch. Lees deze als rustige micro-lessen, geen
+ * waarschuwingen.
+ */
+export const PHASE_HORMONES = {
+  [PHASES.MENSTRUAL]: {
+    title:   'Wat gebeurt er hormonaal?',
+    summary: 'Oestrogeen en progesteron zijn op hun laagst.',
+    body:    'Je baarmoederslijmvlies komt los — een maandelijkse herstart. Omdat beide hormonen laag staan, mis je de oppepper waar je in andere fases op leunt.',
+    moodHeadline: 'Wat je kunt voelen',
+    mood:    'Vermoeidheid, gevoeligheid, behoefte aan stilte. Dat is geen luiheid — dat is je lichaam dat hard werkt.',
+    affirmation: 'Rust is productief. Eer wat je lichaam vraagt en de rest komt vanzelf.',
+  },
+  [PHASES.FOLLICULAR]: {
+    title:   'Wat gebeurt er hormonaal?',
+    summary: 'Oestrogeen stijgt zachtjes weer aan.',
+    body:    'Een nieuwe eicel rijpt. Oestrogeen lift je energie, je focus en je creatieve sap mee omhoog — een natuurlijk groeimoment.',
+    moodHeadline: 'Wat je kunt voelen',
+    mood:    'Frisheid, optimisme, zin om dingen aan te pakken. Sociale contacten voelen lichter, leren gaat soepeler.',
+    affirmation: 'Een goed moment om iets nieuws te beginnen — een gewoonte, een gesprek, een plan.',
+  },
+  [PHASES.OVULATORY]: {
+    title:   'Wat gebeurt er hormonaal?',
+    summary: 'Oestrogeen piekt, LH zorgt voor de eisprong.',
+    body:    'Je lichaam laat een eicel los. Hormonen staan op hun stralendst — je communicatie, charisma en zelfvertrouwen profiteren mee.',
+    moodHeadline: 'Wat je kunt voelen',
+    mood:    'Stralend, verbonden, zelfverzekerd. Je woorden komen makkelijker, je lichaam voelt sterker.',
+    affirmation: 'Benut deze piek voor wat échte aanwezigheid vraagt: gesprekken, presentaties, samen sporten.',
+  },
+  [PHASES.LUTEAL]: {
+    title:   'Wat gebeurt er hormonaal?',
+    summary: 'Progesteron neemt het over.',
+    body:    'Na de eisprong vertraagt je systeem. Progesteron werkt rustgevend, maar maakt je ook gevoeliger voor prikkels en stemmingen.',
+    moodHeadline: 'Wat je kunt voelen',
+    mood:    'Voller, emotioneler, soms prikkelbaar. Behoefte aan grenzen, comfort en voorspelbaarheid.',
+    affirmation: 'Dit is geen achteruitgang — het is je lichaam dat ruimte vraagt. Zelfzorg en grenzen zijn nu zorg, geen luxe.',
+  },
+};
+
+/**
+ * Sportadvies per cyclusfase. Korte vuistregels die de UI als chips
+ * en suggesties toont. Bewust 3 voorbeelden per fase: genoeg variatie,
+ * te overzien op één scherm.
+ */
+export const PHASE_SPORTS = {
+  [PHASES.MENSTRUAL]: {
+    intensity: 'light',
+    headline:  'Lichte beweging',
+    why:       'Je energie is laag — zachte beweging ondersteunt herstel zonder uit te putten.',
+    examples:  ['Yoga (yin / restorative)', 'Wandelen in de natuur', 'Stretching of mobility'],
+  },
+  [PHASES.FOLLICULAR]: {
+    intensity: 'moderate',
+    headline:  'Opbouwend',
+    why:       'Stijgend oestrogeen verhoogt je energie en spierherstel — bouw kalm op.',
+    examples:  ['Pilates of barre', 'Lichte cardio of fietsen', 'Krachttraining (lager volume)'],
+  },
+  [PHASES.OVULATORY]: {
+    intensity: 'intense',
+    headline:  'Krachtig',
+    why:       'Piek oestrogeen, piek kracht — een goed moment voor je zwaardere training.',
+    examples:  ['HIIT of intervaltraining', 'Hardlopen', 'Sportles of teamactiviteit'],
+  },
+  [PHASES.LUTEAL]: {
+    intensity: 'moderate',
+    headline:  'Matig & rustgevend',
+    why:       'Progesteron vraagt om kalmere intensiteit — voel goed van bewegen, niet uitgeput.',
+    examples:  ['Yoga (vinyasa rustig)', 'Zwemmen', 'Rustige fietssessie'],
+  },
+};
+
+/**
+ * Sportintensiteit-IDs zoals opgeslagen in `log.sportIntensity` —
+ * hier centraal gedefinieerd zodat de UI en pure logica nooit uit
+ * elkaar lopen.
+ */
+export const SPORT_INTENSITIES = [
+  { id: 'rest',     label: 'Rust',      hint: 'Vandaag rusten, ook beweging' },
+  { id: 'light',    label: 'Licht',     hint: 'Wandelen, yoga, stretchen' },
+  { id: 'moderate', label: 'Matig',     hint: 'Cardio, pilates, krachtoefeningen' },
+  { id: 'intense',  label: 'Intensief', hint: 'HIIT, hardlopen, zware kracht' },
+];
+
 /* ------------------------------------------------------------------ */
 /*  Date helpers                                                       */
 /* ------------------------------------------------------------------ */
@@ -355,6 +440,75 @@ export function unlogPeriodStart(profile, today = new Date()) {
 export function isPeriodLoggedOn(profile, day = new Date()) {
   if (!Array.isArray(profile?.periodHistory)) return false;
   return profile.periodHistory.includes(toISODate(day));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Basal temperature & ovulation detection                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Plausibele range voor basaaltemperatuur (°C). Buiten deze range is
+ * het waarschijnlijk een meetfout of verkeerde eenheid (bv. Fahrenheit).
+ */
+export const TEMP_MIN = 35.0;
+export const TEMP_MAX = 38.0;
+
+/** True wanneer een waarde binnen de plausibele basaaltemp-range valt. */
+export function isValidTemperature(t) {
+  const v = Number(t);
+  return Number.isFinite(v) && v >= TEMP_MIN && v <= TEMP_MAX;
+}
+
+/**
+ * Detecteer eisprong uit een serie basaaltemperatuur-metingen.
+ *
+ * Klassieke "thermal shift": na ~3 opeenvolgende dagen waarin de temp
+ * minstens `THRESHOLD` (0.2 °C) hoger ligt dan het gemiddelde van de
+ * 6 dagen daarvóór, is de eisprong vrijwel zeker net geweest. We
+ * markeren de **laatste lage dag vóór de stijging** als eisprongdag,
+ * conform de meeste BBT-protocollen.
+ *
+ * @param {{date: Date|string, temperature: number}[]} series
+ *        Chronologisch oplopende reeks (oudste → nieuwste).
+ *        Ontbrekende of nul-temperaturen worden overgeslagen — we
+ *        pakken pas door zodra er genoeg geldige metingen op rij staan.
+ * @returns {{ ovulationISO: string, shiftStartISO: string } | null}
+ */
+export function detectOvulationFromTemperatureSeries(series) {
+  if (!Array.isArray(series) || series.length < 9) return null;
+
+  const SHIFT_THRESHOLD = 0.2;     // °C boven baseline
+  const SUSTAINED_DAYS  = 3;       // minstens 3 hogere dagen op rij
+  const BASELINE_DAYS   = 6;       // gemiddeld over 6 lage dagen
+
+  // Indexeer alleen entries met geldige temperaturen — anders verstoren
+  // gaten de glijdende vensters. We onthouden de oorspronkelijke datum
+  // zodat het uiteindelijke antwoord een echte ISO-datum is.
+  const valid = series
+    .map((s) => ({ iso: toISODate(s.date), temp: Number(s.temperature) }))
+    .filter((s) => isValidTemperature(s.temp));
+
+  if (valid.length < BASELINE_DAYS + SUSTAINED_DAYS) return null;
+
+  for (let i = BASELINE_DAYS; i <= valid.length - SUSTAINED_DAYS; i++) {
+    const baselineSlice = valid.slice(i - BASELINE_DAYS, i);
+    const baseline =
+      baselineSlice.reduce((sum, s) => sum + s.temp, 0) / BASELINE_DAYS;
+
+    const sustained = valid.slice(i, i + SUSTAINED_DAYS);
+    const allHigher = sustained.every(
+      (s) => s.temp >= baseline + SHIFT_THRESHOLD
+    );
+
+    if (allHigher) {
+      // De laatste lage dag vóór de stijging is conventioneel "ovulatie-dag".
+      const ovulationISO = baselineSlice[baselineSlice.length - 1].iso;
+      const shiftStartISO = sustained[0].iso;
+      return { ovulationISO, shiftStartISO };
+    }
+  }
+
+  return null;
 }
 
 /**
