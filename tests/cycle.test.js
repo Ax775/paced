@@ -12,6 +12,9 @@ import { describe, it, expect } from 'vitest';
 import {
   PHASES,
   PHASE_META,
+  PHASE_HORMONES,
+  PHASE_SPORTS,
+  SPORT_INTENSITIES,
   atMidnight,
   daysBetween,
   toISODate,
@@ -24,6 +27,10 @@ import {
   unlogPeriodStart,
   isPeriodLoggedOn,
   getCycleHistory,
+  isValidTemperature,
+  TEMP_MIN,
+  TEMP_MAX,
+  detectOvulationFromTemperatureSeries,
 } from '../src/lib/cycle.js';
 
 /* ─────────────────────────────  Date helpers  ───────────────────────── */
@@ -315,6 +322,145 @@ describe('isPeriodLoggedOn', () => {
   it('returns false when periodHistory is missing', () => {
     expect(isPeriodLoggedOn({}, new Date())).toBe(false);
     expect(isPeriodLoggedOn(null, new Date())).toBe(false);
+  });
+});
+
+/* ─────────────────────  Phase metadata extensions  ───────────────────── */
+
+describe('PHASE_HORMONES', () => {
+  it('defines a hormonal explanation for every phase', () => {
+    for (const phase of Object.values(PHASES)) {
+      const info = PHASE_HORMONES[phase];
+      expect(info).toBeDefined();
+      expect(info.title).toBeTruthy();
+      expect(info.summary).toBeTruthy();
+      expect(info.body).toBeTruthy();
+      expect(info.mood).toBeTruthy();
+      expect(info.affirmation).toBeTruthy();
+    }
+  });
+
+  it('keeps tone supportive — affirmations never use "moet"', () => {
+    for (const phase of Object.values(PHASES)) {
+      expect(PHASE_HORMONES[phase].affirmation.toLowerCase()).not.toMatch(/\bmoet\b/);
+    }
+  });
+});
+
+describe('PHASE_SPORTS', () => {
+  it('defines sport advice for every phase', () => {
+    for (const phase of Object.values(PHASES)) {
+      const sport = PHASE_SPORTS[phase];
+      expect(sport).toBeDefined();
+      expect(sport.headline).toBeTruthy();
+      expect(sport.why).toBeTruthy();
+      expect(Array.isArray(sport.examples)).toBe(true);
+      expect(sport.examples.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('uses an intensity ID that exists in SPORT_INTENSITIES', () => {
+    const ids = SPORT_INTENSITIES.map((s) => s.id);
+    for (const phase of Object.values(PHASES)) {
+      expect(ids).toContain(PHASE_SPORTS[phase].intensity);
+    }
+  });
+});
+
+describe('SPORT_INTENSITIES', () => {
+  it('exposes the canonical four-step ladder', () => {
+    expect(SPORT_INTENSITIES.map((s) => s.id))
+      .toEqual(['rest', 'light', 'moderate', 'intense']);
+  });
+});
+
+/* ────────────────────  Basal temperature validation  ───────────────────── */
+
+describe('isValidTemperature', () => {
+  it('accepts plausible basal-temp values', () => {
+    expect(isValidTemperature(36.2)).toBe(true);
+    expect(isValidTemperature(36.6)).toBe(true);
+    expect(isValidTemperature(37.4)).toBe(true);
+    expect(isValidTemperature(TEMP_MIN)).toBe(true);
+    expect(isValidTemperature(TEMP_MAX)).toBe(true);
+  });
+
+  it('rejects out-of-range, non-numeric, or empty inputs', () => {
+    expect(isValidTemperature(34.9)).toBe(false);
+    expect(isValidTemperature(38.1)).toBe(false);
+    expect(isValidTemperature(0)).toBe(false);
+    expect(isValidTemperature('')).toBe(false);
+    expect(isValidTemperature('abc')).toBe(false);
+    expect(isValidTemperature(NaN)).toBe(false);
+    expect(isValidTemperature(undefined)).toBe(false);
+    expect(isValidTemperature(null)).toBe(false);
+  });
+
+  it('coerces numeric strings transparently', () => {
+    expect(isValidTemperature('36.5')).toBe(true);
+    expect(isValidTemperature('39')).toBe(false);
+  });
+});
+
+/* ────────────────────  Ovulation detection from temp  ──────────────────── */
+
+describe('detectOvulationFromTemperatureSeries', () => {
+  // Helper: build a chronological series with a clear thermal shift on
+  // the given index. Days before are at the cold baseline, days after
+  // are at baseline + shift.
+  function makeSeries({ length, shiftAt, baseline = 36.3, shift = 0.3 }) {
+    const start = new Date(2026, 0, 1);
+    const out = [];
+    for (let i = 0; i < length; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      out.push({
+        date:        d,
+        temperature: i < shiftAt ? baseline : baseline + shift,
+      });
+    }
+    return out;
+  }
+
+  it('returns null for too-short series', () => {
+    expect(detectOvulationFromTemperatureSeries([])).toBeNull();
+    expect(detectOvulationFromTemperatureSeries(makeSeries({ length: 5, shiftAt: 3 }))).toBeNull();
+  });
+
+  it('returns null when the series has no shift', () => {
+    const flat = makeSeries({ length: 14, shiftAt: 99 }); // shift index past end
+    expect(detectOvulationFromTemperatureSeries(flat)).toBeNull();
+  });
+
+  it('detects a clear 0.3°C thermal shift after 6 baseline days', () => {
+    const s = makeSeries({ length: 14, shiftAt: 7 });
+    const result = detectOvulationFromTemperatureSeries(s);
+    expect(result).not.toBeNull();
+    // The "ovulation day" is the last low day before the shift (index 6).
+    expect(result.ovulationISO).toBe('2026-01-07');
+    expect(result.shiftStartISO).toBe('2026-01-08');
+  });
+
+  it('ignores entries with missing or invalid temperatures', () => {
+    const s = makeSeries({ length: 14, shiftAt: 7 });
+    s[2].temperature = 0;     // missing measurement
+    s[3].temperature = NaN;   // junk
+    const result = detectOvulationFromTemperatureSeries(s);
+    expect(result).not.toBeNull();
+  });
+
+  it('does not falsely detect with a 0.1°C noise blip', () => {
+    // Below the 0.2°C threshold → no detection.
+    const s = makeSeries({ length: 14, shiftAt: 7, shift: 0.1 });
+    expect(detectOvulationFromTemperatureSeries(s)).toBeNull();
+  });
+
+  it('requires the higher temperatures to be sustained, not a one-day spike', () => {
+    // 6 baseline days + 1 spike + 1 baseline day + 1 spike — never 3 hot
+    // in a row. The detector should refuse to call this an ovulation.
+    const s = makeSeries({ length: 9, shiftAt: 6 });
+    s[7].temperature = 36.3; // dip back to baseline
+    expect(detectOvulationFromTemperatureSeries(s)).toBeNull();
   });
 });
 
