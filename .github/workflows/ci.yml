@@ -37,6 +37,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # Match the npm version that maintains the lockfile. npm@10 strips
+      # cross-platform optional binaries (rolldown, esbuild) on lockfile
+      # regen, breaking vitest@4's Linux runtime; npm@11 keeps them.
+      - name: Pin npm to 11.x
+        run: npm install -g npm@11
+
       - name: Install dependencies
         run: npm ci
 

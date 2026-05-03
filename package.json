@@ -4,6 +4,10 @@
   "description": "Aura — persoonlijke gezondheids- en cyclus-tracker (PWA)",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "scripts": {
     "build": "node build.mjs",
     "dev": "echo 'Open index.html directly in a browser — no build needed for dev mode.'",
