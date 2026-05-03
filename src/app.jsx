@@ -1431,43 +1431,74 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
 
 function GutChecklist({ gut, onToggle }) {
   const items = [
-    { id: 'probiotics', label: 'Probiotica',      hint: 'Yoghurt, kefir, capsule…',              icon: Sparkles },
-    { id: 'fiber',      label: 'Vezelrijke maaltijd', hint: 'Groenten, peulvruchten, volkoren',  icon: Wheat },
-    { id: 'fermented',  label: 'Gefermenteerd',  hint: 'Zuurkool, kimchi, miso, kombucha',      icon: Salad },
+    { id: 'probiotics', label: 'Probiotica',          hint: 'Yoghurt, kefir, capsule…',             icon: Sparkles },
+    { id: 'fiber',      label: 'Vezelrijke maaltijd', hint: 'Groenten, peulvruchten, volkoren',     icon: Wheat },
+    { id: 'fermented',  label: 'Gefermenteerd',       hint: 'Zuurkool, kimchi, miso, kombucha',     icon: Salad },
   ];
+  const doneCount = items.reduce((n, { id }) => n + (gut[id] ? 1 : 0), 0);
+  const total = items.length;
+  const allDone = doneCount === total;
+
   return (
-    <div className="space-y-2">
-      {items.map(({ id, label, hint, icon: Icon }) => {
-        const on = !!gut[id];
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onToggle(id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left
-                        active:scale-[0.99] ${
-                          on
-                            ? 'bg-sage-100 border-sage-300'
-                            : 'bg-cream-50 border-cream-200 hover:border-sage-200'
-                        }`}
-          >
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition ${
-                on ? 'bg-sage-300 text-cream-50' : 'bg-cream-100 text-ink-400'
-              }`}
+    <div>
+      <p className="text-sm text-ink-500 leading-relaxed mb-2">
+        Drie kleine gewoontes voor een gezonde darmflora — tik aan wat je vandaag binnen kreeg.
+      </p>
+      <p className="text-[11px] text-ink-400 mb-4">
+        Schaal: {doneCount} van {total} gewoontes {allDone ? '— alle drie gehaald 🌿' : 'gehaald vandaag'}.
+      </p>
+
+      <div className="space-y-2">
+        {items.map(({ id, label, hint, icon: Icon }) => {
+          const on = !!gut[id];
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onToggle(id)}
+              aria-pressed={on}
+              aria-label={`${label}${on ? ' — gelogd, tik om te wissen' : ' — tik om te loggen'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left
+                          active:scale-[0.99] ${
+                            on
+                              ? 'bg-sage-100 border-sage-300'
+                              : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+                          }`}
             >
-              {on ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
-            </div>
-            <div className="min-w-0">
-              <div className={`text-sm font-medium ${on ? 'text-sage-700' : 'text-ink-600'}`}>{label}</div>
-              <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
-            </div>
-            {on && (
-              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">Klaar</div>
-            )}
-          </button>
-        );
-      })}
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition ${
+                  on ? 'bg-sage-300 text-cream-50' : 'bg-cream-100 text-ink-400'
+                }`}
+              >
+                {on ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className={`text-sm font-medium ${on ? 'text-sage-700' : 'text-ink-600'}`}>{label}</div>
+                <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
+              </div>
+              <div className="ml-auto text-[10px] uppercase tracking-wider shrink-0">
+                {on ? (
+                  <span className="text-sage-600">Gelogd · tik om te wissen</span>
+                ) : (
+                  <span className="text-ink-400">Tik om te loggen</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {doneCount === 0 ? (
+        <div className="mt-4 rounded-xl border border-dashed border-cream-200 bg-cream-50/60 px-4 py-3">
+          <div className="text-xs text-ink-500 leading-relaxed">
+            Nog niets gelogd vandaag. Eén keuze is al genoeg — een kop yoghurt of een schep zuurkool telt.
+          </div>
+        </div>
+      ) : (
+        <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
+          Tip — meerdere gewoontes mogen samen; tik nogmaals om te wissen.
+        </p>
+      )}
     </div>
   );
 }
@@ -3935,22 +3966,29 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
     'cycle-history':  () => <CycleHistoryStrip key="cycle-history" profile={profile} />,
     'weekly-history': () => <WeeklyHistoryStrip key="weekly-history" profile={profile} todayLog={log} />,
 
-    'gut': () => (
-      <CollapsibleCard
-        key="gut"
-        id="gut"
-        title="Darmgezondheid"
-        headerExtra={
-          <span className="text-[11px] text-ink-400">
-            {Object.values(log.gut).filter(Boolean).length} of 3
-          </span>
-        }
-        className="mb-5"
-        style={{ animationDelay: '240ms' }}
-      >
-        <GutChecklist gut={log.gut} onToggle={toggleGut} />
-      </CollapsibleCard>
-    ),
+    'gut': () => {
+      const gutDone = Object.values(log.gut).filter(Boolean).length;
+      return (
+        <CollapsibleCard
+          key="gut"
+          id="gut"
+          title="Darmgezondheid"
+          headerExtra={
+            gutDone > 0 ? (
+              <span className="text-[11px] text-sage-600 bg-sage-50 border border-sage-200 px-2 py-0.5 rounded-full">
+                {gutDone} van 3 gelogd
+              </span>
+            ) : (
+              <span className="text-[11px] text-ink-400">0 van 3</span>
+            )
+          }
+          className="mb-5"
+          style={{ animationDelay: '240ms' }}
+        >
+          <GutChecklist gut={log.gut} onToggle={toggleGut} />
+        </CollapsibleCard>
+      );
+    },
 
     'nutrient-focus': () => (
       <CollapsibleCard
