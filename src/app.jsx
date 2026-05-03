@@ -26,8 +26,64 @@ import { getDailyInsight, TIPS, MENSTRUAL_SELFCARE } from './lib/insights.js';
 import {
   loadProfile, saveProfile, clearProfile,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
-  loadRecentLogs,
+  loadRecentLogs, loadCardOrder, saveCardOrder,
 } from './lib/storage.js';
+
+/* ------------------------------------------------------------------ */
+/*  Dashboard card registry                                            */
+/* ------------------------------------------------------------------ */
+
+// Bron-van-waarheid voor welke kaarten op het dashboard staan en in welke
+// volgorde ze standaard verschijnen. De gebruiker kan de volgorde
+// aanpassen op de profielpagina; de opgeslagen volgorde wordt tegen deze
+// lijst gevalideerd zodat hernoemde of nieuwe kaart-IDs niet kapot gaan.
+//
+// Kaarten met `alwaysVisible: true` kunnen niet verborgen worden — denk
+// aan de cyclusring en de check-in: zonder die twee is het scherm leeg.
+// (Verbergen wordt op dit moment nog niet ondersteund in de UI; het veld
+// staat hier zodat de registry een toekomstige toggle kan dragen.)
+export const CARD_REGISTRY = [
+  { id: 'cycle-phase',      label: 'Cyclus & fase',          alwaysVisible: true  },
+  { id: 'log-today',        label: 'Dagelijkse check-in',    alwaysVisible: true  },
+  { id: 'goal-rings',       label: 'Doelen overzicht',       alwaysVisible: false },
+  { id: 'protein-tracker',  label: 'Voeding (eiwit & water)',alwaysVisible: false },
+  { id: 'basal-temp',       label: 'Basaaltemperatuur',      alwaysVisible: false },
+  { id: 'ovulation',        label: 'Ovulatie',               alwaysVisible: false },
+  { id: 'bleeding-details', label: 'Bloedverlies details',   alwaysVisible: false },
+  { id: 'sport-tracker',    label: 'Sport & intensiteit',    alwaysVisible: false },
+  { id: 'wellbeing',        label: 'Welzijn (slaap & beweging)', alwaysVisible: false },
+  { id: 'cycle-history',    label: 'Cyclusgeschiedenis',     alwaysVisible: false },
+  { id: 'weekly-history',   label: 'Week-overzicht',         alwaysVisible: false },
+  { id: 'gut',              label: 'Darmgezondheid',         alwaysVisible: false },
+  { id: 'nutrient-focus',   label: 'Nutriëntenfocus',        alwaysVisible: false },
+  { id: 'journal',          label: 'Notitie',                alwaysVisible: false },
+  { id: 'tip-of-day',       label: 'Tip van de dag',         alwaysVisible: false },
+  { id: 'insights',         label: 'Dagelijks inzicht',      alwaysVisible: false },
+  { id: 'selfcare-general', label: 'Zelfzorg tips',          alwaysVisible: false },
+];
+
+const CARD_DEFAULT_ORDER = CARD_REGISTRY.map((c) => c.id);
+const CARD_ID_SET        = new Set(CARD_DEFAULT_ORDER);
+
+// Validate + heal a saved order: drop unknown IDs, append any new
+// registry entries to the end. This way users who upgrade after we add
+// a new card don't have to re-customize — the new card just shows up at
+// the bottom of their existing layout.
+export function resolveCardOrder(saved) {
+  if (!Array.isArray(saved)) return CARD_DEFAULT_ORDER.slice();
+  const seen = new Set();
+  const valid = [];
+  for (const id of saved) {
+    if (CARD_ID_SET.has(id) && !seen.has(id)) {
+      valid.push(id);
+      seen.add(id);
+    }
+  }
+  for (const id of CARD_DEFAULT_ORDER) {
+    if (!seen.has(id)) valid.push(id);
+  }
+  return valid;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Small presentational primitives                                    */
@@ -2026,6 +2082,153 @@ function Onboarding({ onComplete }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Card order editor — drag-to-reorder dashboard layout               */
+/* ------------------------------------------------------------------ */
+
+// HTML5 drag-and-drop op de rijen, plus pijltoetsen voor toetsenbord-
+// gebruikers. Auto-save bij elke wijziging — geen aparte "opslaan"-knop
+// want dat zou de directe feedback breken die maakt dat slepen leuk
+// voelt.
+function CardOrderEditor() {
+  const [order, setOrder] = useState(() => resolveCardOrder(loadCardOrder()));
+  const [dragId, setDragId]       = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  const labelById = useMemo(() => {
+    const map = {};
+    for (const c of CARD_REGISTRY) map[c.id] = c;
+    return map;
+  }, []);
+
+  const commit = (next) => {
+    setOrder(next);
+    saveCardOrder(next);
+  };
+
+  const move = (id, delta) => {
+    const idx = order.indexOf(id);
+    if (idx < 0) return;
+    const target = idx + delta;
+    if (target < 0 || target >= order.length) return;
+    const next = order.slice();
+    [next[idx], next[target]] = [next[target], next[idx]];
+    commit(next);
+  };
+
+  const reorderTo = (sourceId, targetId) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const next = order.filter((id) => id !== sourceId);
+    const targetIdx = next.indexOf(targetId);
+    if (targetIdx < 0) return;
+    next.splice(targetIdx, 0, sourceId);
+    commit(next);
+  };
+
+  const handleReset = () => {
+    saveCardOrder(null);
+    setOrder(CARD_REGISTRY.map((c) => c.id));
+  };
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Schermindeling aanpassen</div>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="text-[11px] text-ink-500 hover:text-sage-700 underline-offset-2 hover:underline transition"
+        >
+          Standaard volgorde herstellen
+        </button>
+      </div>
+      <p className="text-[12px] text-ink-500 mb-4 leading-relaxed">
+        Sleep de kaarten in de gewenste volgorde, of gebruik de pijltjes.
+        Wijzigingen worden meteen bewaard.
+      </p>
+      <ul className="space-y-1.5" aria-label="Kaartvolgorde">
+        {order.map((id, idx) => {
+          const meta = labelById[id];
+          if (!meta) return null;
+          const isDragging = dragId === id;
+          const isOver     = dragOverId === id && dragId && dragId !== id;
+          return (
+            <li
+              key={id}
+              draggable
+              onDragStart={(e) => {
+                setDragId(id);
+                e.dataTransfer.effectAllowed = 'move';
+                // Sommige browsers tonen geen drag-image zonder payload.
+                try { e.dataTransfer.setData('text/plain', id); } catch { /* no-op */ }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (dragOverId !== id) setDragOverId(id);
+              }}
+              onDragLeave={() => {
+                if (dragOverId === id) setDragOverId(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                reorderTo(dragId, id);
+                setDragId(null);
+                setDragOverId(null);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setDragOverId(null);
+              }}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition select-none
+                ${isDragging ? 'opacity-50 border-sage-300 bg-sage-50' : 'border-cream-200 bg-cream-50'}
+                ${isOver ? 'border-sage-400 bg-sage-100/60' : ''}`}
+            >
+              <span
+                aria-hidden="true"
+                className="text-ink-400 cursor-grab active:cursor-grabbing px-1 select-none text-base leading-none"
+                title="Sleep om te verplaatsen"
+              >
+                ⠿
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-ink-700 truncate">{meta.label}</div>
+                {meta.alwaysVisible && (
+                  <div className="text-[10px] text-ink-400 mt-0.5">(altijd zichtbaar)</div>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => move(id, -1)}
+                  disabled={idx === 0}
+                  aria-label={`${meta.label} omhoog`}
+                  className="w-8 h-8 rounded-lg border border-cream-200 bg-cream-50 text-ink-500
+                             hover:border-sage-200 hover:text-sage-700 transition
+                             disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(id, +1)}
+                  disabled={idx === order.length - 1}
+                  aria-label={`${meta.label} omlaag`}
+                  className="w-8 h-8 rounded-lg border border-cream-200 bg-cream-50 text-ink-500
+                             hover:border-sage-200 hover:text-sage-700 transition
+                             disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  ↓
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -2337,6 +2540,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
           })}
         </div>
       </Card>
+
+      {/* Schermindeling — drag-to-reorder dashboard cards */}
+      <CardOrderEditor />
 
       {/* Save */}
       <button
@@ -2741,6 +2947,214 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
   const displayName = profile.name ? profile.name.split(' ')[0] : null;
 
+  // Volgorde van de kaarten — geladen op mount; Dashboard wordt opnieuw
+  // gemount bij elke tabswitch, dus aanpassingen vanuit Instellingen
+  // worden vanzelf zichtbaar zodra de gebruiker terug naar 'home' gaat.
+  const cardOrder = useMemo(() => resolveCardOrder(loadCardOrder()), []);
+
+  // Per-id renderers. Conditionele kaarten (bleeding-details,
+  // selfcare-general, cycle-history, weekly-history) returnen `null`
+  // wanneer ze niet relevant zijn — de positie blijft gereserveerd zodat
+  // de volgorde stabiel blijft als de conditie omslaat.
+  const cardRenderers = {
+    'cycle-phase': () => (
+      <Card key="cycle-phase" className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
+        <div className="flex flex-col items-center">
+          <CycleRing state={state} ovulationDay={ovulationCycleDay} />
+          <div className="flex items-center gap-2 mt-5 flex-wrap justify-center">
+            <PhaseIcon className="w-4 h-4 shrink-0" style={{ color: state.phaseMeta.hue }} />
+            <div className="font-display text-xl text-ink-700">{state.phaseMeta.label}</div>
+            <span className="text-ink-400">·</span>
+            <div className="text-sm text-ink-500">{state.phaseMeta.subtitle}</div>
+            <PhaseInfoButton phase={state.phase} onOpen={() => setPhaseInfo(state.phase)} />
+          </div>
+          <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
+            {state.phaseMeta.blurb}
+          </p>
+          {state.hasData && (
+            <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-cream-100 border border-cream-200">
+              <span className="text-[11px] text-ink-400">Volgende periode</span>
+              <span className="text-[11px] font-medium text-ink-600">
+                {formatNextPeriod(state.daysUntilNext)}
+              </span>
+            </div>
+          )}
+          <PeriodLogButton profile={profile} onUpdateProfile={onUpdateProfile} />
+        </div>
+        <div className="mt-6">
+          <PhaseTimeline state={state} />
+        </div>
+      </Card>
+    ),
+
+    'log-today':       () => <SymptomTracker key="log-today" log={log} onUpdate={updateLog} />,
+    'goal-rings':      () => <GoalRings key="goal-rings" log={log} goals={profile.goals} targets={targets} />,
+
+    'protein-tracker': () => (
+      <Card key="protein-tracker" className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '160ms' }}>
+        <div className="flex items-center justify-between mb-5">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Voeding vandaag</div>
+          {targets.calorieDelta > 0 && (
+            <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
+              +{targets.calorieDelta} kcal voor {state.phaseMeta.label.toLowerCase()}
+            </div>
+          )}
+        </div>
+        <div className="space-y-6">
+          <TrackerRow
+            label="Calorieën"
+            value={log.calories}
+            target={targets.calories}
+            unit="kcal"
+            increments={[100, 250, 500]}
+            onAdd={addCalories}
+            onSet={setCalories}
+          />
+          <TrackerRow
+            label="Eiwitten"
+            value={log.protein}
+            target={targets.protein}
+            unit="g"
+            increments={[10, 20, 30]}
+            onAdd={addProtein}
+            onSet={setProtein}
+          />
+          <HydrationRow
+            glasses={log.hydration}
+            target={waterGlassTarget}
+            onChange={setWater}
+          />
+        </div>
+      </Card>
+    ),
+
+    'basal-temp': () => (
+      <BasalTemperatureCard
+        key="basal-temp"
+        todayTemp={log.temperature}
+        todayISO={todayISO}
+        onChange={setTemperature}
+        ovulationDetection={ovulationDetection}
+      />
+    ),
+
+    'ovulation': () => (
+      <OvulationTracker
+        key="ovulation"
+        ovulation={log.ovulation}
+        onUpdate={updateLog}
+        autoDetectedISO={ovulationDetection?.ovulationISO}
+      />
+    ),
+
+    'bleeding-details': () =>
+      periodLoggedToday
+        ? <BleedingDetailsCard key="bleeding-details" bleeding={log.bleeding} onUpdate={updateLog} />
+        : null,
+
+    'sport-tracker': () => (
+      <SportTrackerCard
+        key="sport-tracker"
+        phase={state.phase}
+        intensity={log.sportIntensity}
+        onChange={setSportIntensity}
+      />
+    ),
+
+    'wellbeing': () => (
+      <CollapsibleCard
+        key="wellbeing"
+        id="wellbeing"
+        title="Welzijn"
+        className="mb-5"
+        style={{ animationDelay: '200ms' }}
+      >
+        <div className="space-y-6">
+          <SleepTracker hours={log.sleep} onChange={setSleep} />
+          <div className="h-px bg-cream-200/70" />
+          <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
+        </div>
+      </CollapsibleCard>
+    ),
+
+    'cycle-history':  () => <CycleHistoryStrip key="cycle-history" profile={profile} />,
+    'weekly-history': () => <WeeklyHistoryStrip key="weekly-history" profile={profile} todayLog={log} />,
+
+    'gut': () => (
+      <CollapsibleCard
+        key="gut"
+        id="gut"
+        title="Darmgezondheid"
+        headerExtra={
+          <span className="text-[11px] text-ink-400">
+            {Object.values(log.gut).filter(Boolean).length} of 3
+          </span>
+        }
+        className="mb-5"
+        style={{ animationDelay: '240ms' }}
+      >
+        <GutChecklist gut={log.gut} onToggle={toggleGut} />
+      </CollapsibleCard>
+    ),
+
+    'nutrient-focus': () => (
+      <CollapsibleCard
+        key="nutrient-focus"
+        id="focus"
+        title="Nutriëntenfocus"
+        className="mb-5"
+        style={{ animationDelay: '280ms' }}
+      >
+        <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
+        <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
+        <div className="flex flex-wrap gap-2">
+          {targets.focus.foods.map((f) => (
+            <span
+              key={f}
+              className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200 text-ink-600"
+            >
+              {f}
+            </span>
+          ))}
+        </div>
+      </CollapsibleCard>
+    ),
+
+    'journal': () => (
+      <Card key="journal" className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '340ms' }}>
+        <JournalNote note={log.note} onChange={setNote} />
+      </Card>
+    ),
+
+    'tip-of-day': () => (
+      <TipVanDeDag
+        key="tip-of-day"
+        phase={state.phase}
+        log={log}
+        goals={profile.goals}
+        targets={targets}
+        name={profile.name}
+      />
+    ),
+
+    'insights': () => (
+      <Card key="insights" className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '380ms' }}>
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">
+          <Sparkles className="w-3.5 h-3.5" />
+          Dagelijks inzicht
+        </div>
+        <p className="font-display text-[19px] leading-snug text-ink-700">
+          {insight.text}
+        </p>
+      </Card>
+    ),
+
+    'selfcare-general': () =>
+      state.phase === PHASES.MENSTRUAL
+        ? <MenstrualSelfCareCards key="selfcare-general" />
+        : null,
+  };
+
   return (
     <div className="min-h-dvh px-5 py-8 pb-28 max-w-md mx-auto">
       {/* Header */}
@@ -2779,185 +3193,10 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
         waterGlassTarget={waterGlassTarget}
       />
 
-      {/* Cycle ring — the hero card */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
-        <div className="flex flex-col items-center">
-          <CycleRing state={state} ovulationDay={ovulationCycleDay} />
-          <div className="flex items-center gap-2 mt-5 flex-wrap justify-center">
-            <PhaseIcon className="w-4 h-4 shrink-0" style={{ color: state.phaseMeta.hue }} />
-            <div className="font-display text-xl text-ink-700">{state.phaseMeta.label}</div>
-            <span className="text-ink-400">·</span>
-            <div className="text-sm text-ink-500">{state.phaseMeta.subtitle}</div>
-            <PhaseInfoButton phase={state.phase} onOpen={() => setPhaseInfo(state.phase)} />
-          </div>
-          <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
-            {state.phaseMeta.blurb}
-          </p>
-          {state.hasData && (
-            <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-cream-100 border border-cream-200">
-              <span className="text-[11px] text-ink-400">Volgende periode</span>
-              <span className="text-[11px] font-medium text-ink-600">
-                {formatNextPeriod(state.daysUntilNext)}
-              </span>
-            </div>
-          )}
-          <PeriodLogButton profile={profile} onUpdateProfile={onUpdateProfile} />
-        </div>
-        <div className="mt-6">
-          <PhaseTimeline state={state} />
-        </div>
-      </Card>
-
-      {/* Bleeding details — only rendered while a period is currently logged */}
-      {periodLoggedToday && (
-        <BleedingDetailsCard
-          bleeding={log.bleeding}
-          onUpdate={updateLog}
-        />
-      )}
-
-      {/* Goal progress rings */}
-      <GoalRings log={log} goals={profile.goals} targets={targets} />
-
-      {/* Symptom tracker */}
-      <SymptomTracker log={log} onUpdate={updateLog} />
-
-      {/* Basal temperature with 14-day mini chart + ovulation hint */}
-      <BasalTemperatureCard
-        todayTemp={log.temperature}
-        todayISO={todayISO}
-        onChange={setTemperature}
-        ovulationDetection={ovulationDetection}
-      />
-
-      {/* Ovulation tracker (felt / read-from-temp) */}
-      <OvulationTracker
-        ovulation={log.ovulation}
-        onUpdate={updateLog}
-        autoDetectedISO={ovulationDetection?.ovulationISO}
-      />
-
-      {/* Sport intensity + per-phase advice */}
-      <SportTrackerCard
-        phase={state.phase}
-        intensity={log.sportIntensity}
-        onChange={setSportIntensity}
-      />
-
-      {/* Self-care rituals — only meaningful during the menstrual phase */}
-      {state.phase === PHASES.MENSTRUAL && <MenstrualSelfCareCards />}
-
-      {/* Recent cycles (only renders once there's ≥1 completed cycle) */}
-      <CycleHistoryStrip profile={profile} />
-
-      {/* Today's nourishment */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '160ms' }}>
-        <div className="flex items-center justify-between mb-5">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Voeding vandaag</div>
-          {targets.calorieDelta > 0 && (
-            <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
-              +{targets.calorieDelta} kcal voor {state.phaseMeta.label.toLowerCase()}
-            </div>
-          )}
-        </div>
-        <div className="space-y-6">
-          <TrackerRow
-            label="Calorieën"
-            value={log.calories}
-            target={targets.calories}
-            unit="kcal"
-            increments={[100, 250, 500]}
-            onAdd={addCalories}
-            onSet={setCalories}
-          />
-          <TrackerRow
-            label="Eiwitten"
-            value={log.protein}
-            target={targets.protein}
-            unit="g"
-            increments={[10, 20, 30]}
-            onAdd={addProtein}
-            onSet={setProtein}
-          />
-          <HydrationRow
-            glasses={log.hydration}
-            target={waterGlassTarget}
-            onChange={setWater}
-          />
-        </div>
-      </Card>
-
-      {/* Wellbeing — sleep + movement */}
-      <CollapsibleCard
-        id="wellbeing"
-        title="Welzijn"
-        className="mb-5"
-        style={{ animationDelay: '200ms' }}
-      >
-        <div className="space-y-6">
-          <SleepTracker hours={log.sleep} onChange={setSleep} />
-          <div className="h-px bg-cream-200/70" />
-          <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
-        </div>
-      </CollapsibleCard>
-
-      {/* Tip van de dag */}
-      <TipVanDeDag phase={state.phase} log={log} goals={profile.goals} targets={targets} name={profile.name} />
-
-      {/* Weekly nourishment history */}
-      <WeeklyHistoryStrip profile={profile} todayLog={log} />
-
-      {/* Gut health checklist */}
-      <CollapsibleCard
-        id="gut"
-        title="Darmgezondheid"
-        headerExtra={
-          <span className="text-[11px] text-ink-400">
-            {Object.values(log.gut).filter(Boolean).length} of 3
-          </span>
-        }
-        className="mb-5"
-        style={{ animationDelay: '240ms' }}
-      >
-        <GutChecklist gut={log.gut} onToggle={toggleGut} />
-      </CollapsibleCard>
-
-      {/* Nutrient focus */}
-      <CollapsibleCard
-        id="focus"
-        title="Nutriëntenfocus"
-        className="mb-5"
-        style={{ animationDelay: '280ms' }}
-      >
-        <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
-        <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
-        <div className="flex flex-wrap gap-2">
-          {targets.focus.foods.map((f) => (
-            <span
-              key={f}
-              className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200 text-ink-600"
-            >
-              {f}
-            </span>
-          ))}
-        </div>
-      </CollapsibleCard>
-
-      {/* Journal note */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '340ms' }}>
-        <JournalNote note={log.note} onChange={setNote} />
-      </Card>
-
-      {/* Daily insight */}
-      <Card className="p-6 anim-fade-up" style={{ animationDelay: '380ms' }}>
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">
-          <Sparkles className="w-3.5 h-3.5" />
-          Dagelijks inzicht
-        </div>
-        <p className="font-display text-[19px] leading-snug text-ink-700">
-          {insight.text}
-        </p>
-      </Card>
+      {cardOrder.map((id) => {
+        const renderer = cardRenderers[id];
+        return renderer ? renderer() : null;
+      })}
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
         Aura · v1.3
