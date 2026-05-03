@@ -11,7 +11,7 @@ import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
   BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
-  Thermometer, Info, Heart, Dumbbell,
+  Thermometer, Info, Heart, Dumbbell, Plus, Pencil,
 } from 'lucide-react';
 
 import {
@@ -457,6 +457,208 @@ function NumberValue({ value, unit, target, label, onChange }) {
         aria-label={label ? `${label} in ${unit}` : `${unit} ingevoerd`}
       />
       <span className="text-ink-400 text-sm">/ {target} {unit}</span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Manual food entry — type a meal directly into the day log          */
+/* ------------------------------------------------------------------ */
+
+// Lichte input-parser: lege string of niet-numerieke invoer wordt 0.
+// Negatieve waarden zijn niet toegestaan; we cappen op 99999 zoals de
+// rest van de tracker zodat één foutieve toetsaanslag niet de progress
+// ring forever pegt.
+function parseFoodNumber(raw) {
+  if (raw == null) return 0;
+  const s = String(raw).trim().replace(',', '.');
+  if (!s) return 0;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(99999, Math.round(n));
+}
+
+function ManualFoodEntryModal({ onClose, onAdd }) {
+  const [name,    setName]    = useState('');
+  const [kcal,    setKcal]    = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs,   setCarbs]   = useState('');
+  const [fat,     setFat]     = useState('');
+  const [error,   setError]   = useState('');
+
+  const nameRef = useRef(null);
+
+  useEffect(() => {
+    nameRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError('Geef het product of gerecht een naam.');
+      nameRef.current?.focus();
+      return;
+    }
+    onAdd({
+      name:    trimmed.slice(0, 80),
+      kcal:    parseFoodNumber(kcal),
+      protein: parseFoodNumber(protein),
+      carbs:   parseFoodNumber(carbs),
+      fat:     parseFoodNumber(fat),
+    });
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center px-4 py-6 bg-ink-700/40 backdrop-blur-sm anim-fade-up"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="manual-food-title"
+    >
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md bg-cream-50 rounded-2xl shadow-glow overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 pt-6 pb-2 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sage-100 border border-sage-200 flex items-center justify-center shrink-0">
+            <Pencil className="w-5 h-5 text-sage-600" aria-hidden="true" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Voeding</div>
+            <h2 id="manual-food-title" className="font-display text-[22px] text-ink-700 leading-snug">
+              Handmatig invoeren
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Sluiten"
+            className="w-9 h-9 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-400 hover:text-ink-700 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 pt-2 space-y-4">
+          <p className="text-xs text-ink-500 leading-relaxed">
+            Vul minimaal de naam in. Calorieën en macro's zijn optioneel — alleen
+            kcal en eiwitten worden bij je dagtotaal opgeteld.
+          </p>
+
+          <Field>
+            <label htmlFor="manual-food-name" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+              Naam <span className="text-terracotta-600 normal-case tracking-normal">*</span>
+            </label>
+            <input
+              id="manual-food-name"
+              ref={nameRef}
+              type="text"
+              value={name}
+              onChange={(e) => { setName(e.target.value); if (error) setError(''); }}
+              placeholder="bv. Havermout met blauwe bessen"
+              maxLength={80}
+              className={inputCx}
+              required
+            />
+            {error && (
+              <div className="text-xs text-terracotta-600 mt-1.5" role="alert">{error}</div>
+            )}
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field>
+              <label htmlFor="manual-food-kcal" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+                Calorieën <span className="text-ink-400/70 normal-case tracking-normal">(kcal)</span>
+              </label>
+              <input
+                id="manual-food-kcal"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="99999"
+                value={kcal}
+                onChange={(e) => setKcal(e.target.value)}
+                placeholder="0"
+                className={inputCx}
+              />
+            </Field>
+            <Field>
+              <label htmlFor="manual-food-protein" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+                Eiwitten <span className="text-ink-400/70 normal-case tracking-normal">(g)</span>
+              </label>
+              <input
+                id="manual-food-protein"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="99999"
+                value={protein}
+                onChange={(e) => setProtein(e.target.value)}
+                placeholder="0"
+                className={inputCx}
+              />
+            </Field>
+            <Field>
+              <label htmlFor="manual-food-carbs" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+                Koolhydraten <span className="text-ink-400/70 normal-case tracking-normal">(g)</span>
+              </label>
+              <input
+                id="manual-food-carbs"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="99999"
+                value={carbs}
+                onChange={(e) => setCarbs(e.target.value)}
+                placeholder="0"
+                className={inputCx}
+              />
+            </Field>
+            <Field>
+              <label htmlFor="manual-food-fat" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+                Vetten <span className="text-ink-400/70 normal-case tracking-normal">(g)</span>
+              </label>
+              <input
+                id="manual-food-fat"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="99999"
+                value={fat}
+                onChange={(e) => setFat(e.target.value)}
+                placeholder="0"
+                className={inputCx}
+              />
+            </Field>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
+                         hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
+            >
+              Annuleren
+            </button>
+            <button
+              type="submit"
+              className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
+                         hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Toevoegen aan dag
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }
@@ -3467,6 +3669,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   // voor de huidige fase; we houden de phase-key in state zodat een
   // toekomstige aanroep "open uitleg voor andere fase" makkelijk past.
   const [phaseInfo, setPhaseInfo] = useState(null);
+  const [manualFoodOpen, setManualFoodOpen] = useState(false);
 
   const todayISO = useMemo(() => isoDate(), []);
 
@@ -3543,6 +3746,26 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   const streak = useMemo(() => getStreak(log), [log]);
 
   const waterGlassTarget = Math.max(6, Math.round(targets.hydrationL * 4));
+
+  const addManualFood = (entry) => {
+    // We bewaren de meal-rij voor later detail-overzicht én rekenen de
+    // macro's door naar het dagtotaal. Carbs/fats hebben (nog) geen eigen
+    // teller op het dashboard, maar blijven bewaard in `meals` zodat ze
+    // niet verloren gaan.
+    const meal = {
+      name:    entry.name,
+      kcal:    entry.kcal    || 0,
+      protein: entry.protein || 0,
+      carbs:   entry.carbs   || 0,
+      fat:     entry.fat     || 0,
+      time:    new Date().toTimeString().slice(0, 5),
+    };
+    updateLog({
+      calories: Math.min(99999, log.calories + meal.kcal),
+      protein:  Math.min(99999, log.protein  + meal.protein),
+      meals:    [...(Array.isArray(log.meals) ? log.meals : []), meal],
+    });
+  };
 
   const addProtein  = (g)    => updateLog({ protein:  Math.min(99999, log.protein  + g) });
   const setProtein  = (g)    => updateLog({ protein:  g });
@@ -3638,6 +3861,17 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
             onChange={setWater}
           />
         </div>
+        <button
+          type="button"
+          onClick={() => setManualFoodOpen(true)}
+          className="mt-5 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+                     border border-sage-200 bg-sage-50 text-sage-700 text-sm font-medium
+                     hover:bg-sage-100 hover:border-sage-300 active:scale-[0.99] transition"
+          aria-label="Voeg handmatig een voedingsitem toe aan vandaag"
+        >
+          <Plus className="w-4 h-4" aria-hidden="true" />
+          Handmatig invoeren
+        </button>
       </Card>
     ),
 
@@ -3827,6 +4061,13 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
       {phaseInfo && (
         <PhaseInfoModal phase={phaseInfo} onClose={() => setPhaseInfo(null)} />
+      )}
+
+      {manualFoodOpen && (
+        <ManualFoodEntryModal
+          onClose={() => setManualFoodOpen(false)}
+          onAdd={addManualFood}
+        />
       )}
     </div>
   );
