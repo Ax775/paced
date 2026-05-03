@@ -20,8 +20,9 @@
  * SECURITY.md / the Privacy & Disclaimer screen for the full statement.
  */
 
-const PROFILE_KEY = 'aura.profile';
-const LOG_PREFIX  = 'aura.log.';
+const PROFILE_KEY    = 'aura.profile';
+const LOG_PREFIX     = 'aura.log.';
+const CARD_ORDER_KEY = 'aura.cardOrder';
 
 /* ------------------------------------------------------------------ */
 /*  Profile                                                            */
@@ -45,6 +46,40 @@ export function saveProfile(profile) {
 
 export function clearProfile() {
   try { localStorage.removeItem(PROFILE_KEY); } catch { /* no-op */ }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Card order                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Volgorde van de kaarten op het dashboard. `null` betekent: gebruik de
+ * standaardvolgorde uit CARD_REGISTRY in app.jsx — zo blijft storage
+ * dom en hoeft het niets te weten over welke kaarten er bestaan.
+ *
+ * @returns {string[]|null}
+ */
+export function loadCardOrder() {
+  try {
+    const raw = localStorage.getItem(CARD_ORDER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((id) => typeof id === 'string');
+  } catch {
+    return null;
+  }
+}
+
+/** Pass `null` to reset to the default registry order. */
+export function saveCardOrder(order) {
+  try {
+    if (order == null) {
+      localStorage.removeItem(CARD_ORDER_KEY);
+    } else {
+      localStorage.setItem(CARD_ORDER_KEY, JSON.stringify(order));
+    }
+  } catch { /* no-op */ }
 }
 
 /* ------------------------------------------------------------------ */
