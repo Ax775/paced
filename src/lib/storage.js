@@ -129,6 +129,14 @@ export function emptyLog() {
     // Sportintensiteit — losstaand van `movement` (minuten) zodat de
     // gebruikster ook alleen het type kan loggen zonder een tijdsduur.
     sportIntensity: '',  // '' | 'rest' | 'light' | 'moderate' | 'intense'
+    // Subjectief welzijn — losstaand van `symptoms` (1–5 schalen voor
+    // energy/mood/cramps/bloating). Hier slaan we de eenvoudigere
+    // dagelijkse stemming en energie op + de chip-multiselect lijst van
+    // lichamelijke symptomen. `null` betekent "niet ingevuld" zodat we
+    // het onderscheid zien met "expliciet 1 (slecht)".
+    energie:    null,    // null | 1..5
+    stemming:   null,    // null | 1..5
+    symptomen:  [],      // ['Buikkrampen', 'Hoofdpijn', …]
     gut: {
       probiotics: false,
       fiber:      false,
@@ -153,7 +161,8 @@ export function loadLog(date = new Date()) {
     return {
       ...base,
       ...parsed,
-      meals:     Array.isArray(parsed.meals) ? parsed.meals : [],
+      meals:     Array.isArray(parsed.meals)     ? parsed.meals     : [],
+      symptomen: Array.isArray(parsed.symptomen) ? parsed.symptomen : [],
       gut:       { ...base.gut,       ...(parsed.gut       || {}) },
       symptoms:  { ...base.symptoms,  ...(parsed.symptoms  || {}) },
       ovulation: { ...base.ovulation, ...(parsed.ovulation || {}) },
@@ -214,6 +223,9 @@ export function logHasData(log) {
     log.temperature > 0 ||
     !!log.sportIntensity ||
     (log.note || '').length > 0 ||
+    log.energie  != null ||
+    log.stemming != null ||
+    (Array.isArray(log.symptomen) && log.symptomen.length > 0) ||
     Object.values(log.gut       || {}).some(Boolean) ||
     Object.values(log.symptoms  || {}).some(v => v > 0) ||
     Object.values(log.ovulation || {}).some(Boolean) ||
