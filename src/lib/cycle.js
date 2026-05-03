@@ -512,6 +512,73 @@ export function detectOvulationFromTemperatureSeries(series) {
 }
 
 /**
+ * Voorspel de eerste dag van de volgende menstruatie.
+ *
+ * Accepteert:
+ *   - een array ISO-datums (profile.periodHistory)
+ *   - of een enkele Date / ISO-string als laatste menstruatiestart
+ *
+ * Geeft `null` terug zonder data zodat de UI een fallback kan tonen.
+ *
+ * @param {string[]|string|Date} input
+ * @param {number} cycleLength
+ * @returns {string|null} ISO-datum van de voorspelde menstruatiestart
+ */
+export function predictNextPeriod(input, cycleLength) {
+  const len = clampCycleLength(cycleLength);
+  let last = null;
+  if (Array.isArray(input)) {
+    if (input.length === 0) return null;
+    const sorted = input.slice().sort();
+    last = sorted[sorted.length - 1];
+  } else if (input) {
+    last = input;
+  }
+  if (!last) return null;
+  const start = atMidnight(last);
+  const next = new Date(start);
+  next.setDate(start.getDate() + len);
+  return toISODate(next);
+}
+
+/**
+ * Bereken het vruchtbaar venster en de ovulatiedag voor een gegeven
+ * cyclus. Standaard: dag 10–17 vruchtbaar, dag 14 ovulatie (28-daags
+ * referentiemodel — proportioneel geschaald voor afwijkende lengtes).
+ *
+ * @param {string|Date} periodStart  Eerste dag van de menstruatie
+ * @param {number} cycleLength       Cycluslengte in dagen
+ * @returns {{ start: string, end: string, ovulation: string,
+ *             startDay: number, endDay: number, ovulationDay: number } | null}
+ */
+export function getFertileWindow(periodStart, cycleLength) {
+  if (!periodStart) return null;
+  const len = clampCycleLength(cycleLength);
+  // Schaal evenredig met 28-daags referentiemodel zodat een kortere of
+  // langere cyclus zijn venster netjes meebeweegt.
+  const ratio        = len / 28;
+  const startDay     = Math.max(1, Math.round(10 * ratio));
+  const endDay       = Math.min(len, Math.round(17 * ratio));
+  const ovulationDay = Math.min(len, Math.round(14 * ratio));
+
+  const base = atMidnight(periodStart);
+  const offset = (n) => {
+    const d = new Date(base);
+    d.setDate(base.getDate() + (n - 1));
+    return toISODate(d);
+  };
+
+  return {
+    start:        offset(startDay),
+    end:          offset(endDay),
+    ovulation:    offset(ovulationDay),
+    startDay,
+    endDay,
+    ovulationDay,
+  };
+}
+
+/**
  * Completed cycles derived from the profile's period history.
  *
  * One entry per gap between consecutive logged starts, chronological
