@@ -69,3 +69,74 @@ export function getDailyInsight(phase, date = new Date(), name = '') {
     date:  toISODate(date),
   };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Self-care kaarten — uitgebreid voor de menstruatiefase             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Vijf categorieën self-care suggesties die worden getoond als
+ * uitklapbare kaarten in de menstruatiefase. Het zijn rituelen,
+ * geen prestaties — bewust mild geschreven, geen "moet"-taal.
+ *
+ * Elke kaart heeft 2–3 concrete suggesties zodat de gebruiker
+ * niet hoeft te kiezen uit een lange lijst maar wel iets nieuws
+ * kan ontdekken.
+ */
+export const MENSTRUAL_SELFCARE = [
+  {
+    id:       'music',
+    icon:     '🎵',
+    title:    'Cosy vibes playlist',
+    intro:    'Geluid dat de schouders laat zakken.',
+    items: [
+      { headline: 'Ambient & lo-fi', body: 'Zachte beats zonder tekst — perfect tijdens werk of een rustige avond.' },
+      { headline: 'Akoestische ballades', body: 'Norah Jones, Lianne La Havas, Phoebe Bridgers. Warm en kalm.' },
+      { headline: 'Klassieke piano', body: 'Ludovico Einaudi of Ólafur Arnalds — bijna meditatief.' },
+    ],
+  },
+  {
+    id:       'bath',
+    icon:     '🛁',
+    title:    'Magnesium voetenbadje',
+    intro:    'Tien minuten warm water werken meer dan je denkt.',
+    items: [
+      { headline: 'De basis', body: 'Een teiltje warm water (37–40 °C), 2 eetlepels magnesiumvlokken (Epsom).' },
+      { headline: 'Geur erbij', body: 'Een paar druppels lavendel of rozemarijn voor extra ontspanning.' },
+      { headline: 'Maak het ritueel', body: 'Combineer met thee en een boek — niet je telefoon.' },
+    ],
+  },
+  {
+    id:       'drinks',
+    icon:     '☕',
+    title:    'Warme dranken',
+    intro:    'Iets warms in je handen kalmeert het zenuwstelsel.',
+    items: [
+      { headline: 'Golden latte', body: 'Warme melk + kurkuma + snufje peper + honing. Ontstekingsremmend.' },
+      { headline: 'Warme cacao', body: 'Pure cacao + havermelk + kaneel. Magnesium voor je krampen.' },
+      { headline: 'Kruidenthee', body: 'Frambozenblad, gember of kamille — kalm en ondersteunend.' },
+    ],
+  },
+  {
+    id:       'nature',
+    icon:     '🌿',
+    title:    'Natuur wandeling',
+    intro:    'Een korte wandeling reset je hoofd zonder uit te putten.',
+    items: [
+      { headline: '15 minuten is genoeg', body: 'Geen rondje hardlopen — gewoon buiten zijn, langzaam tempo.' },
+      { headline: 'Zonder telefoon', body: 'Kijk omhoog, hoor wat er is. Je lichaam doet de rest.' },
+      { headline: 'Park of bos boven stoep', body: 'Groen verlaagt cortisol meetbaar — kies de route die dat geeft.' },
+    ],
+  },
+  {
+    id:       'books',
+    icon:     '📚',
+    title:    'Lees je door de pijn',
+    intro:    '3 boeken voor zachte dagen.',
+    items: [
+      { headline: 'In Praise of Slow — Carl Honoré', body: 'Een hartelijke ode aan vertragen. Geen schuldgevoel, alleen perspectief.' },
+      { headline: 'Big Magic — Elizabeth Gilbert', body: 'Over creativiteit zonder druk — past goed bij naar binnen keren.' },
+      { headline: 'The Comfort Book — Matt Haig', body: 'Korte hoofdstukken, lichtvoetig en troostend. Ideaal voor een uurtje.' },
+    ],
+  },
+];
