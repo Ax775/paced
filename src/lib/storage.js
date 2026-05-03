@@ -71,6 +71,29 @@ export function emptyLog() {
     sleep:     0,         // hours slept last night
     movement:  0,         // minutes of activity today
     note:      '',        // free-text journal note (max 280 chars)
+    // Basaaltemperatuur in °C (35–38 typische range). 0 = niet ingevoerd —
+    // bewust 0 in plaats van null zodat de bestaande deep-merge niet hoeft
+    // te onderscheiden tussen "leeg" en "ontbrekend".
+    temperature: 0,
+    // Eisprongmarkering. Beide booleans kunnen tegelijk true zijn (gevoeld
+    // én afgelezen van temperatuurstijging). `auto` is gereserveerd voor
+    // detectie door de cycle-engine — het log slaat alleen handmatige
+    // input op, niet de afgeleide.
+    ovulation: {
+      felt:     false,
+      fromTemp: false,
+    },
+    // Bloedingdetails — alleen gevuld op menstruatiedagen. Leeg = niet
+    // ingevuld; we zoeken nooit op deze velden zonder eerst te checken.
+    bleeding: {
+      clots:     '',     // '' | 'none' | 'light' | 'heavy'
+      clarity:   '',     // '' | 'clear' | 'normal' | 'dark'
+      heaviness: '',     // '' | 'light' | 'normal' | 'heavy' | 'very-heavy'
+      color:     '',     // '' | 'light-pink' | 'red' | 'dark-red' | 'brown'
+    },
+    // Sportintensiteit — losstaand van `movement` (minuten) zodat de
+    // gebruikster ook alleen het type kan loggen zonder een tijdsduur.
+    sportIntensity: '',  // '' | 'rest' | 'light' | 'moderate' | 'intense'
     gut: {
       probiotics: false,
       fiber:      false,
@@ -95,9 +118,11 @@ export function loadLog(date = new Date()) {
     return {
       ...base,
       ...parsed,
-      meals:    Array.isArray(parsed.meals) ? parsed.meals : [],
-      gut:      { ...base.gut,      ...(parsed.gut      || {}) },
-      symptoms: { ...base.symptoms, ...(parsed.symptoms || {}) },
+      meals:     Array.isArray(parsed.meals) ? parsed.meals : [],
+      gut:       { ...base.gut,       ...(parsed.gut       || {}) },
+      symptoms:  { ...base.symptoms,  ...(parsed.symptoms  || {}) },
+      ovulation: { ...base.ovulation, ...(parsed.ovulation || {}) },
+      bleeding:  { ...base.bleeding,  ...(parsed.bleeding  || {}) },
     };
   } catch {
     return emptyLog();
@@ -114,10 +139,28 @@ export function saveLog(date, log) {
 export function updateLog(date, patch) {
   const current = loadLog(date);
   const next = { ...current, ...patch };
-  if (patch.gut)      next.gut      = { ...current.gut,      ...patch.gut };
-  if (patch.symptoms) next.symptoms = { ...current.symptoms, ...patch.symptoms };
+  if (patch.gut)       next.gut       = { ...current.gut,       ...patch.gut };
+  if (patch.symptoms)  next.symptoms  = { ...current.symptoms,  ...patch.symptoms };
+  if (patch.ovulation) next.ovulation = { ...current.ovulation, ...patch.ovulation };
+  if (patch.bleeding)  next.bleeding  = { ...current.bleeding,  ...patch.bleeding };
   saveLog(date, next);
   return next;
+}
+
+/**
+ * Load the last `days` daily logs as `[{ date, log }, …]` (oldest → newest,
+ * inclusive of today). Used by the temperature trend chart and the
+ * temperature-based ovulation detector — both read pure history without
+ * mutating anything, so this stays a thin scan helper.
+ */
+export function loadRecentLogs(days = 14, today = new Date()) {
+  const out = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    out.push({ date: d, iso: isoDate(d), log: loadLog(d) });
+  }
+  return out;
 }
 
 /* ------------------------------------------------------------------ */
@@ -133,9 +176,13 @@ export function logHasData(log) {
     log.hydration > 0 ||
     log.sleep     > 0 ||
     log.movement  > 0 ||
+    log.temperature > 0 ||
+    !!log.sportIntensity ||
     (log.note || '').length > 0 ||
-    Object.values(log.gut      || {}).some(Boolean) ||
-    Object.values(log.symptoms || {}).some(v => v > 0)
+    Object.values(log.gut       || {}).some(Boolean) ||
+    Object.values(log.symptoms  || {}).some(v => v > 0) ||
+    Object.values(log.ovulation || {}).some(Boolean) ||
+    Object.values(log.bleeding  || {}).some(v => v && v.length > 0)
   );
 }
 
