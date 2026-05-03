@@ -11,18 +11,22 @@ import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
   BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
+  Thermometer, Info, Heart, Dumbbell,
 } from 'lucide-react';
 
 import {
-  getCycleState, PHASES, PHASE_META,
+  getCycleState, PHASES, PHASE_META, PHASE_HORMONES, PHASE_SPORTS,
+  SPORT_INTENSITIES,
   logPeriodStart, unlogPeriodStart, isPeriodLoggedOn,
-  getCycleHistory,
+  getCycleHistory, isValidTemperature, TEMP_MIN, TEMP_MAX,
+  detectOvulationFromTemperatureSeries, toISODate,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
-import { getDailyInsight, TIPS } from './lib/insights.js';
+import { getDailyInsight, TIPS, MENSTRUAL_SELFCARE } from './lib/insights.js';
 import {
   loadProfile, saveProfile, clearProfile,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
+  loadRecentLogs,
 } from './lib/storage.js';
 
 /* ------------------------------------------------------------------ */
@@ -130,8 +134,10 @@ function useDailyLog(date = new Date()) {
   const update = useCallback((patch) => {
     setLog((current) => {
       const next = { ...current, ...patch };
-      if (patch.gut)      next.gut      = { ...current.gut,      ...patch.gut };
-      if (patch.symptoms) next.symptoms = { ...current.symptoms, ...patch.symptoms };
+      if (patch.gut)       next.gut       = { ...current.gut,       ...patch.gut };
+      if (patch.symptoms)  next.symptoms  = { ...current.symptoms,  ...patch.symptoms };
+      if (patch.ovulation) next.ovulation = { ...current.ovulation, ...patch.ovulation };
+      if (patch.bleeding)  next.bleeding  = { ...current.bleeding,  ...patch.bleeding };
       saveLog(date, next);
       return next;
     });
@@ -177,7 +183,7 @@ function shortMonth(iso) {
 /* ------------------------------------------------------------------ */
 
 function exportCSV(profile) {
-  const rows = ['date,cycleDay,phase,mood,energy,cramps,bloating,calories,protein,water,sleep,movement,note'];
+  const rows = ['date,cycleDay,phase,mood,energy,cramps,bloating,calories,protein,water,sleep,movement,temperature,sportIntensity,ovulationFelt,ovulationFromTemp,bleedingHeaviness,bleedingColor,bleedingClots,bleedingClarity,note'];
   const today = new Date();
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
@@ -185,6 +191,8 @@ function exportCSV(profile) {
     const log = loadLog(d);
     const state = getCycleState(profile, d);
     const s = log.symptoms || {};
+    const o = log.ovulation || {};
+    const b = log.bleeding || {};
     rows.push([
       isoDate(d),
       state.cycleDay ?? '',
@@ -193,11 +201,19 @@ function exportCSV(profile) {
       s.energy   || '',
       s.cramps   || '',
       s.bloating || '',
-      log.calories  || '',
-      log.protein   || '',
-      log.hydration || '',
-      log.sleep     || '',
-      log.movement  || '',
+      log.calories     || '',
+      log.protein      || '',
+      log.hydration    || '',
+      log.sleep        || '',
+      log.movement     || '',
+      log.temperature  || '',
+      log.sportIntensity || '',
+      o.felt     ? '1' : '',
+      o.fromTemp ? '1' : '',
+      b.heaviness || '',
+      b.color     || '',
+      b.clots     || '',
+      b.clarity   || '',
       `"${(log.note || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`,
     ].join(','));
   }
@@ -911,6 +927,620 @@ function JournalNote({ note, onChange }) {
       />
       <div className="flex justify-end mt-1">
         <span className="text-[10px] text-ink-400/60">{(note || '').length}/280</span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Basal temperature tracker + 14-day mini chart                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tekstuele input voor basaaltemperatuur. We slaan op als number (°C),
+ * maar de UI staat tijdelijke ongeldige tussenstanden toe ("36.") zodat
+ * typen niet hapert. Pas op blur of Enter committen we de waarde.
+ */
+function TemperatureInput({ value, onChange }) {
+  const [draft, setDraft] = useState(value > 0 ? String(value) : '');
+  const lastValueRef = useRef(value);
+
+  useEffect(() => {
+    if (value !== lastValueRef.current) {
+      lastValueRef.current = value;
+      setDraft(value > 0 ? String(value) : '');
+    }
+  }, [value]);
+
+  const commit = () => {
+    const cleaned = draft.replace(',', '.').trim();
+    if (cleaned === '') {
+      if (value !== 0) onChange(0);
+      return;
+    }
+    const num = Number(cleaned);
+    if (!isValidTemperature(num)) {
+      // Out of plausible range → reset draft to last good value, no commit.
+      setDraft(value > 0 ? String(value) : '');
+      return;
+    }
+    const rounded = Math.round(num * 10) / 10;
+    setDraft(String(rounded));
+    if (rounded !== value) onChange(rounded);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text"
+        inputMode="decimal"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9.,]/g, '').slice(0, 5))}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+        placeholder="36.5"
+        aria-label="Basaaltemperatuur in graden Celsius"
+        className="w-[5.5rem] text-center bg-cream-50 border border-cream-200 rounded-xl px-2 py-2 text-ink-700 text-base
+                   focus:outline-none focus:border-sage-300 focus:ring-2 focus:ring-sage-200/60 transition"
+      />
+      <span className="text-sm text-ink-400">°C</span>
+      {value > 0 && (
+        <button
+          type="button"
+          onClick={() => { setDraft(''); onChange(0); }}
+          aria-label="Wis basaaltemperatuur"
+          className="ml-auto text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-2 px-2 py-2 min-h-[44px]"
+        >
+          wis
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Mini-lijngrafiek over 14 dagen basaaltemperatuur. Tekent een gladde
+ * polyline + dots voor dagen mét meting; dagen zonder meting krijgen
+ * een grijze stippel-marker op de baseline. Schaalt automatisch op de
+ * min/max van de aanwezige metingen, met een minimum venster van 0.6 °C
+ * zodat dagelijkse 0.1 °C ruis niet de hele grafiek vult.
+ */
+function TemperatureMiniChart({ series }) {
+  const W = 320;
+  const H = 88;
+  const padX = 8;
+  const padY = 10;
+  const valid = series.filter((s) => s.temperature > 0);
+  if (valid.length === 0) {
+    return (
+      <div className="text-[11px] text-ink-400 italic text-center py-6">
+        Nog geen metingen — log dagelijks 's ochtends voor een trend.
+      </div>
+    );
+  }
+
+  const minRaw = Math.min(...valid.map((s) => s.temperature));
+  const maxRaw = Math.max(...valid.map((s) => s.temperature));
+  const span = Math.max(0.6, maxRaw - minRaw);
+  const center = (minRaw + maxRaw) / 2;
+  const lo = center - span / 2 - 0.05;
+  const hi = center + span / 2 + 0.05;
+
+  const xFor = (i) => padX + (i * (W - 2 * padX)) / Math.max(1, series.length - 1);
+  const yFor = (t) => padY + (1 - (t - lo) / (hi - lo)) * (H - 2 * padY);
+  const baselineY = padY + (H - 2 * padY) / 2;
+
+  const points = series
+    .map((s, i) => (s.temperature > 0 ? `${xFor(i)},${yFor(s.temperature)}` : null))
+    .filter(Boolean);
+
+  return (
+    <div>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        className="w-full h-[88px]"
+        aria-label={`Basaaltemperatuur trend over ${series.length} dagen`}
+      >
+        <line
+          x1={padX} x2={W - padX} y1={baselineY} y2={baselineY}
+          stroke="#EDE6D3" strokeWidth="1" strokeDasharray="3 4"
+        />
+        {points.length > 1 && (
+          <polyline
+            points={points.join(' ')}
+            fill="none"
+            stroke="#6B8559"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+        {series.map((s, i) => {
+          const x = xFor(i);
+          if (s.temperature > 0) {
+            return (
+              <circle
+                key={s.iso}
+                cx={x} cy={yFor(s.temperature)}
+                r={s.isToday ? 3.5 : 2.3}
+                fill={s.isToday ? '#42533A' : '#87A074'}
+                stroke="#FBF9F3"
+                strokeWidth="1"
+              />
+            );
+          }
+          return (
+            <circle
+              key={s.iso}
+              cx={x} cy={baselineY}
+              r="1.4"
+              fill="#C6D3BB"
+              opacity="0.55"
+            />
+          );
+        })}
+      </svg>
+      <div className="flex items-center justify-between text-[10px] text-ink-400 mt-1">
+        <span>{lo.toFixed(1)}°C</span>
+        <span>{valid.length} van {series.length} dagen</span>
+        <span>{hi.toFixed(1)}°C</span>
+      </div>
+    </div>
+  );
+}
+
+function BasalTemperatureCard({ todayTemp, todayISO, onChange, ovulationDetection }) {
+  // Bouw de 14-daagse serie. We pakken de huidige dag uit `todayTemp`
+  // (live React state) en de overige 13 uit storage zodat de grafiek
+  // direct meebeweegt met typen.
+  const series = useMemo(() => {
+    const recent = loadRecentLogs(14);
+    return recent.map((entry) => ({
+      iso:    entry.iso,
+      isToday: entry.iso === todayISO,
+      temperature: entry.iso === todayISO ? todayTemp : (entry.log.temperature || 0),
+    }));
+  }, [todayTemp, todayISO]);
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '100ms' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Thermometer className="w-3.5 h-3.5 text-ink-400" />
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Basaaltemperatuur</div>
+        </div>
+        {todayTemp > 0 && (
+          <div className="font-display text-ink-700 text-[18px] leading-none">
+            {todayTemp.toFixed(1)}<span className="text-ink-400 text-xs ml-1">°C</span>
+          </div>
+        )}
+      </div>
+      <TemperatureInput value={todayTemp} onChange={onChange} />
+      <p className="text-[11px] text-ink-400 mt-2 leading-relaxed">
+        Meet 's ochtends, vóór opstaan. Een aanhoudende stijging van ~0.2°C wijst op een eisprong.
+      </p>
+      <div className="mt-4">
+        <TemperatureMiniChart series={series} />
+      </div>
+      {ovulationDetection?.ovulationISO && (
+        <div className="mt-3 px-3 py-2.5 rounded-xl bg-sage-50 border border-sage-200 flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-sage-600 shrink-0" />
+          <div className="text-[12px] text-sage-700 leading-snug">
+            Mogelijke eisprong rond <strong>{formatShortDate(ovulationDetection.ovulationISO)}</strong>
+            <span className="text-sage-600/80"> · op basis van temperatuurstijging</span>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function formatShortDate(iso) {
+  if (!iso) return '';
+  const d = new Date(`${iso}T00:00:00`);
+  return d.toLocaleDateString('nl', { day: 'numeric', month: 'short' });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Ovulation tracker — felt vs read-from-temp                         */
+/* ------------------------------------------------------------------ */
+
+function OvulationTracker({ ovulation, onUpdate, autoDetectedISO }) {
+  const opts = [
+    {
+      id:     'felt',
+      label:  'Gevoeld',
+      hint:   'Krampje, glijmige afscheiding, libido-piek',
+      active: !!ovulation.felt,
+    },
+    {
+      id:     'fromTemp',
+      label:  'Afgelezen van temperatuur',
+      hint:   'Aanhoudende stijging van ~0.2°C',
+      active: !!ovulation.fromTemp,
+    },
+  ];
+  const anyMarked = opts.some((o) => o.active);
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '120ms' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Heart className="w-3.5 h-3.5 text-ink-400" />
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Eisprong vandaag</div>
+        </div>
+        {anyMarked && (
+          <div className="text-[11px] text-sage-700 bg-sage-50 border border-sage-200 px-2 py-0.5 rounded-full">
+            Gemarkeerd
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        {opts.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => onUpdate({ ovulation: { [o.id]: !o.active } })}
+            aria-pressed={o.active}
+            className={`text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] ${
+              o.active
+                ? 'bg-sage-100 border-sage-300 text-sage-700'
+                : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                o.active ? 'bg-sage-500 border-sage-500' : 'border-cream-300 bg-cream-50'
+              }`}>
+                {o.active && <Check className="w-2.5 h-2.5 text-cream-50" />}
+              </span>
+              <span className="text-sm font-medium">{o.label}</span>
+            </div>
+            <div className="text-[11px] text-ink-400 mt-1 ml-6">{o.hint}</div>
+          </button>
+        ))}
+      </div>
+      {autoDetectedISO && (
+        <p className="text-[11px] text-sage-700 mt-3 leading-relaxed">
+          🌿 Aura herkent een temperatuurstijging rond {formatShortDate(autoDetectedISO)}.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Bleeding details — sub-options under menstruation                  */
+/* ------------------------------------------------------------------ */
+
+const BLEEDING_GROUPS = [
+  {
+    key:    'heaviness',
+    label:  'Hevigheid',
+    options: [
+      { id: 'light',      label: 'Licht'       },
+      { id: 'normal',     label: 'Normaal'     },
+      { id: 'heavy',      label: 'Hevig'       },
+      { id: 'very-heavy', label: 'Zeer hevig'  },
+    ],
+  },
+  {
+    key:    'color',
+    label:  'Kleur',
+    options: [
+      { id: 'light-pink',  label: 'Lichtroze',  swatch: '#F4C9CB' },
+      { id: 'red',         label: 'Rood',       swatch: '#C44848' },
+      { id: 'dark-red',    label: 'Donkerrood', swatch: '#8A2A2A' },
+      { id: 'brown',       label: 'Bruin',      swatch: '#6B4226' },
+    ],
+  },
+  {
+    key:    'clots',
+    label:  'Klonters',
+    options: [
+      { id: 'none',  label: 'Geen'  },
+      { id: 'light', label: 'Licht' },
+      { id: 'heavy', label: 'Veel'  },
+    ],
+  },
+  {
+    key:    'clarity',
+    label:  'Helderheid',
+    options: [
+      { id: 'clear',  label: 'Helder'  },
+      { id: 'normal', label: 'Normaal' },
+      { id: 'dark',   label: 'Donker'  },
+    ],
+  },
+];
+
+function BleedingDetailsCard({ bleeding, onUpdate }) {
+  const setField = (key, value) => {
+    const current = bleeding[key];
+    onUpdate({ bleeding: { [key]: current === value ? '' : value } });
+  };
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '60ms' }}>
+      <div className="flex items-center gap-2 mb-4">
+        <Droplet className="w-3.5 h-3.5 text-terracotta-500" />
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Bloedingdetails</div>
+      </div>
+      <p className="text-[12px] text-ink-500 mb-5 leading-relaxed">
+        Hoe kleiner de details die je opvolgt, hoe scherper het patroon dat Aura over de maanden ziet.
+      </p>
+      <div className="space-y-5">
+        {BLEEDING_GROUPS.map((group) => {
+          const value = bleeding[group.key] || '';
+          return (
+            <div key={group.key}>
+              <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2.5">
+                {group.label}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {group.options.map((o) => {
+                  const active = value === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setField(group.key, o.id)}
+                      className={`min-h-[44px] flex items-center gap-2 px-3.5 py-2 rounded-full border text-xs transition active:scale-95 ${
+                        active
+                          ? 'bg-terracotta-100 border-terracotta-300 text-terracotta-600 font-medium'
+                          : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-terracotta-200'
+                      }`}
+                    >
+                      {o.swatch && (
+                        <span
+                          aria-hidden="true"
+                          className="w-3 h-3 rounded-full border border-cream-300"
+                          style={{ background: o.swatch }}
+                        />
+                      )}
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Sport intensity tracker + per-phase suggestions                    */
+/* ------------------------------------------------------------------ */
+
+function SportTrackerCard({ phase, intensity, onChange }) {
+  const advice = PHASE_SPORTS[phase];
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '160ms' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Dumbbell className="w-3.5 h-3.5 text-ink-400" />
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Sport vandaag</div>
+        </div>
+        {intensity && (
+          <div className="text-[11px] text-sage-700 bg-sage-50 border border-sage-200 px-2 py-0.5 rounded-full">
+            Gelogd
+          </div>
+        )}
+      </div>
+
+      {advice && (
+        <div className="mb-5 px-4 py-3.5 rounded-xl bg-sage-50/70 border border-sage-200/70">
+          <div className="text-[11px] uppercase tracking-[0.14em] text-sage-700 mb-1">
+            Advies voor {PHASE_META[phase].label.toLowerCase()}
+          </div>
+          <div className="font-display text-base text-ink-700 mb-1">{advice.headline}</div>
+          <p className="text-[12px] text-ink-500 leading-relaxed mb-3">{advice.why}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {advice.examples.map((ex) => (
+              <span
+                key={ex}
+                className="text-[11px] px-2.5 py-1 rounded-full bg-cream-50 border border-cream-200 text-ink-600"
+              >
+                {ex}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2.5">
+        Hoe voelde jouw beweging?
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {SPORT_INTENSITIES.map((opt) => {
+          const active = intensity === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange(active ? '' : opt.id)}
+              className={`text-left px-3.5 py-3 rounded-xl border transition active:scale-[0.99] min-h-[44px] ${
+                active
+                  ? 'bg-sage-100 border-sage-300 text-sage-700'
+                  : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+              }`}
+            >
+              <div className="text-sm font-medium">{opt.label}</div>
+              <div className="text-[10px] text-ink-400 mt-0.5 leading-snug">{opt.hint}</div>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Self-care cards — extended for the menstrual phase                 */
+/* ------------------------------------------------------------------ */
+
+function MenstrualSelfCareCards() {
+  const [openId, setOpenId] = useState(null);
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '180ms' }}>
+      <div className="flex items-center gap-2 mb-2">
+        <Heart className="w-3.5 h-3.5 text-terracotta-500" />
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Zachte rituelen</div>
+      </div>
+      <p className="text-[12px] text-ink-500 mb-4 leading-relaxed">
+        Vijf categorieën om uit te kiezen — geen verplichting, alleen ideeën.
+      </p>
+      <div className="space-y-2">
+        {MENSTRUAL_SELFCARE.map((card) => {
+          const open = openId === card.id;
+          return (
+            <div key={card.id}>
+              <button
+                type="button"
+                onClick={() => setOpenId(open ? null : card.id)}
+                aria-expanded={open}
+                className={`w-full text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] ${
+                  open ? 'bg-terracotta-100/60 border-terracotta-300' : 'bg-cream-50 border-cream-200 hover:border-terracotta-200'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl shrink-0" aria-hidden="true">{card.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-ink-700">{card.title}</div>
+                    <div className="text-[11px] text-ink-400 mt-0.5">{card.intro}</div>
+                  </div>
+                  <ChevronDown
+                    className="w-4 h-4 text-ink-400 shrink-0 transition-transform duration-300"
+                    style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    aria-hidden="true"
+                  />
+                </div>
+              </button>
+              {open && (
+                <div className="mt-1.5 ml-2 px-4 py-4 rounded-xl bg-cream-100/60 border border-cream-200 space-y-3 anim-fade-up">
+                  {card.items.map((item) => (
+                    <div key={item.headline}>
+                      <div className="text-[12px] font-medium text-ink-700 mb-0.5">{item.headline}</div>
+                      <div className="text-[12px] text-ink-500 leading-relaxed">{item.body}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Phase hormone-info modal + (i) trigger                             */
+/* ------------------------------------------------------------------ */
+
+function PhaseInfoButton({ phase, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Hormonale uitleg over ${PHASE_META[phase].label}`}
+      className="inline-flex items-center justify-center w-7 h-7 rounded-full text-ink-400
+                 hover:text-sage-600 hover:bg-sage-50 active:scale-95 transition"
+    >
+      <Info aria-hidden="true" className="w-4 h-4" />
+    </button>
+  );
+}
+
+function PhaseInfoModal({ phase, onClose }) {
+  const closeRef = useRef(null);
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!phase) return null;
+  const meta = PHASE_META[phase];
+  const info = PHASE_HORMONES[phase];
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center px-4 py-6 bg-ink-700/40 backdrop-blur-sm anim-fade-up"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="phase-info-title"
+    >
+      <div
+        className="w-full max-w-md bg-cream-50 rounded-2xl shadow-glow overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 pt-6 pb-4 flex items-start gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: meta.bg }}
+          >
+            <Sparkles className="w-5 h-5" style={{ color: meta.hue }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">
+              {meta.label} · {meta.subtitle}
+            </div>
+            <h2 id="phase-info-title" className="font-display text-[22px] text-ink-700 leading-snug">
+              {info.title}
+            </h2>
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            aria-label="Uitleg sluiten"
+            className="w-9 h-9 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-400 hover:text-ink-700 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 space-y-4">
+          <div>
+            <div className="text-[12px] font-medium text-ink-700 mb-1">{info.summary}</div>
+            <p className="text-sm text-ink-500 leading-relaxed">{info.body}</p>
+          </div>
+          <div className="px-4 py-3.5 rounded-xl bg-cream-100/60 border border-cream-200">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1">
+              {info.moodHeadline}
+            </div>
+            <p className="text-sm text-ink-600 leading-relaxed">{info.mood}</p>
+          </div>
+          <div
+            className="px-4 py-3.5 rounded-xl border"
+            style={{ background: meta.bg + '99', borderColor: meta.hue + '55' }}
+          >
+            <p className="text-sm font-medium leading-relaxed" style={{ color: meta.hue }}>
+              {info.affirmation}
+            </p>
+          </div>
+        </div>
+
+        <div className="px-6 pb-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-xl bg-sage-500 text-cream-50 py-3 text-sm font-medium hover:bg-sage-600 active:scale-[0.98] transition"
+          >
+            Begrepen
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1891,7 +2521,7 @@ const PHASE_ICONS = {
   [PHASES.LUTEAL]:     Flower2,
 };
 
-function CycleRing({ state }) {
+function CycleRing({ state, ovulationDay }) {
   const size = 220;
   const r = 92;
   const c = 2 * Math.PI * r;
@@ -1912,6 +2542,20 @@ function CycleRing({ state }) {
       };
     });
   }, [state.phaseMap, state.cycleLength, c]);
+
+  // Plaats een ovulatie-marker op de ring als de eisprongdag bekend is.
+  // SVG is `-rotate-90`, dus dag 1 begint bovenaan (12 uur). We rekenen
+  // de hoek terug naar gewone XY-coordinaten zodat de marker goed
+  // gepositioneerd is, ongeacht de rotatie van de hele <svg>.
+  const ovulationPos = useMemo(() => {
+    if (!ovulationDay || !state.cycleLength) return null;
+    const t = (ovulationDay - 1) / state.cycleLength; // 0..1 over cyclus
+    const angle = -Math.PI / 2 + t * 2 * Math.PI;
+    return {
+      x: size / 2 + r * Math.cos(angle),
+      y: size / 2 + r * Math.sin(angle),
+    };
+  }, [ovulationDay, state.cycleLength]);
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
@@ -1940,6 +2584,21 @@ function CycleRing({ state }) {
           style={{ transition: 'stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
       </svg>
+      {ovulationPos && (
+        <div
+          aria-label="Eisprong-indicator"
+          className="absolute pointer-events-none anim-breathe"
+          style={{
+            left: ovulationPos.x - 9,
+            top:  ovulationPos.y - 9,
+            width: 18, height: 18,
+          }}
+        >
+          <div className="w-full h-full rounded-full bg-cream-50 border-2 border-sage-500 shadow-soft flex items-center justify-center">
+            <span className="block w-1.5 h-1.5 rounded-full bg-sage-500" />
+          </div>
+        </div>
+      )}
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Dag</div>
         <div className="font-display text-[54px] leading-none text-ink-700">
@@ -1984,6 +2643,36 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   const PhaseIcon = PHASE_ICONS[state.phase];
 
   const [log, commitLog, restoreLog] = useDailyLog();
+
+  // Hormone-info modal state. The (i)-icoontje opent altijd een uitleg
+  // voor de huidige fase; we houden de phase-key in state zodat een
+  // toekomstige aanroep "open uitleg voor andere fase" makkelijk past.
+  const [phaseInfo, setPhaseInfo] = useState(null);
+
+  const todayISO = useMemo(() => isoDate(), []);
+
+  // Detecteer ovulatie uit de laatste 21 dagen basaaltemperatuur.
+  // We herberekenen alleen wanneer de temperatuur van vandaag verandert
+  // — eerdere dagen mutaties zijn zeldzaam en het volgende laden van de
+  // dashboard-component pakt die alsnog op.
+  const ovulationDetection = useMemo(() => {
+    const recent = loadRecentLogs(21);
+    const liveSeries = recent.map((e) => ({
+      date: e.iso,
+      temperature: e.iso === todayISO ? log.temperature : e.log.temperature,
+    }));
+    return detectOvulationFromTemperatureSeries(liveSeries);
+  }, [log.temperature, todayISO]);
+
+  // Cyclus-dag van de gedetecteerde eisprong, voor de marker op de ring.
+  const ovulationCycleDay = useMemo(() => {
+    if (!ovulationDetection?.ovulationISO || !profile?.lastPeriodStart) return null;
+    const d = new Date(`${ovulationDetection.ovulationISO}T00:00:00`);
+    const start = new Date(`${toISODate(profile.lastPeriodStart)}T00:00:00`);
+    const diff = Math.round((d - start) / (24 * 60 * 60 * 1000));
+    if (diff < 0 || diff >= state.cycleLength) return null;
+    return diff + 1;
+  }, [ovulationDetection, profile?.lastPeriodStart, state.cycleLength]);
 
   // ── Undo toast ───────────────────────────────────────────────────
   // Captures the pre-update log so the user can revert the last save
@@ -2045,6 +2734,10 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   const setSleep    = (h)    => updateLog({ sleep: h });
   const setMovement = (m)    => updateLog({ movement: m });
   const setNote     = (txt)  => updateLog({ note: txt });
+  const setTemperature  = (t)    => updateLog({ temperature: t });
+  const setSportIntensity = (id) => updateLog({ sportIntensity: id });
+
+  const periodLoggedToday = isPeriodLoggedOn(profile);
 
   const displayName = profile.name ? profile.name.split(' ')[0] : null;
 
@@ -2089,12 +2782,13 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       {/* Cycle ring — the hero card */}
       <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
         <div className="flex flex-col items-center">
-          <CycleRing state={state} />
+          <CycleRing state={state} ovulationDay={ovulationCycleDay} />
           <div className="flex items-center gap-2 mt-5 flex-wrap justify-center">
             <PhaseIcon className="w-4 h-4 shrink-0" style={{ color: state.phaseMeta.hue }} />
             <div className="font-display text-xl text-ink-700">{state.phaseMeta.label}</div>
             <span className="text-ink-400">·</span>
             <div className="text-sm text-ink-500">{state.phaseMeta.subtitle}</div>
+            <PhaseInfoButton phase={state.phase} onOpen={() => setPhaseInfo(state.phase)} />
           </div>
           <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
             {state.phaseMeta.blurb}
@@ -2114,11 +2808,44 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
         </div>
       </Card>
 
+      {/* Bleeding details — only rendered while a period is currently logged */}
+      {periodLoggedToday && (
+        <BleedingDetailsCard
+          bleeding={log.bleeding}
+          onUpdate={updateLog}
+        />
+      )}
+
       {/* Goal progress rings */}
       <GoalRings log={log} goals={profile.goals} targets={targets} />
 
       {/* Symptom tracker */}
       <SymptomTracker log={log} onUpdate={updateLog} />
+
+      {/* Basal temperature with 14-day mini chart + ovulation hint */}
+      <BasalTemperatureCard
+        todayTemp={log.temperature}
+        todayISO={todayISO}
+        onChange={setTemperature}
+        ovulationDetection={ovulationDetection}
+      />
+
+      {/* Ovulation tracker (felt / read-from-temp) */}
+      <OvulationTracker
+        ovulation={log.ovulation}
+        onUpdate={updateLog}
+        autoDetectedISO={ovulationDetection?.ovulationISO}
+      />
+
+      {/* Sport intensity + per-phase advice */}
+      <SportTrackerCard
+        phase={state.phase}
+        intensity={log.sportIntensity}
+        onChange={setSportIntensity}
+      />
+
+      {/* Self-care rituals — only meaningful during the menstrual phase */}
+      {state.phase === PHASES.MENSTRUAL && <MenstrualSelfCareCards />}
 
       {/* Recent cycles (only renders once there's ≥1 completed cycle) */}
       <CycleHistoryStrip profile={profile} />
@@ -2237,6 +2964,10 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       </div>
 
       <UndoToast visible={!!toast} dismissing={toastDismissing} onUndo={handleUndo} />
+
+      {phaseInfo && (
+        <PhaseInfoModal phase={phaseInfo} onClose={() => setPhaseInfo(null)} />
+      )}
     </div>
   );
 }
@@ -2318,6 +3049,26 @@ const SYMPTOM_ICONS = Object.fromEntries(SYMPTOM_META.map(s => [s.id, s.icons]))
 const DAY_NAMES   = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
 const MONTH_NAMES = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
 
+// Compacte vertaalmaps voor de Logboek-summary. Houden we hier zodat we
+// de grotere `BLEEDING_GROUPS`/`SPORT_INTENSITIES` arrays niet dubbel
+// hoeven door te lussen in een hot path (logboek rendert tot 31 entries).
+const BLEEDING_LABELS = {
+  light:        'Licht',
+  normal:       'Normaal',
+  heavy:        'Hevig',
+  'very-heavy': 'Zeer hevig',
+  'light-pink': 'Lichtroze',
+  red:          'Rood',
+  'dark-red':   'Donkerrood',
+  brown:        'Bruin',
+  none:         'Geen klonters',
+  clear:        'Helder',
+  dark:         'Donker',
+};
+const SPORT_INTENSITY_LABELS = Object.fromEntries(
+  SPORT_INTENSITIES.map((s) => [s.id, s.label])
+);
+
 function formatLogDate(date, isToday) {
   if (isToday) return 'Vandaag';
   const yesterday = new Date();
@@ -2331,6 +3082,14 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
   const syms = log.symptoms || {};
   const symptomsLogged = Object.entries(syms).filter(([, v]) => v > 0);
   const waterTarget = Math.max(6, Math.round(targets.hydrationL * 4));
+  const ovulationMarked = !!(log.ovulation?.felt || log.ovulation?.fromTemp);
+  const bleeding = log.bleeding || {};
+  const bleedingSummary = [bleeding.heaviness, bleeding.color, bleeding.clots]
+    .filter((v) => v && v.length > 0)
+    .map((id) => BLEEDING_LABELS[id] || id)
+    .slice(0, 3)
+    .join(' · ');
+  const sportLabel = SPORT_INTENSITY_LABELS[log.sportIntensity] || '';
 
   return (
     <Card
@@ -2396,8 +3155,8 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                   <div className="text-[11px] text-ink-500 w-16 text-right shrink-0">{log.hydration} gl</div>
                 </div>
               )}
-              {(log.sleep > 0 || log.movement > 0) && (
-                <div className="flex items-center gap-3 mt-1">
+              {(log.sleep > 0 || log.movement > 0 || log.temperature > 0 || sportLabel) && (
+                <div className="flex items-center gap-3 mt-1 flex-wrap">
                   {log.sleep > 0 && (
                     <div className="flex items-center gap-1 text-[11px] text-ink-400">
                       <Moon className="w-3 h-3" />{log.sleep}h
@@ -2408,6 +3167,27 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                       <Activity className="w-3 h-3" />{log.movement}m
                     </div>
                   )}
+                  {log.temperature > 0 && (
+                    <div className="flex items-center gap-1 text-[11px] text-ink-400">
+                      <Thermometer className="w-3 h-3" />{log.temperature.toFixed(1)}°
+                    </div>
+                  )}
+                  {sportLabel && (
+                    <div className="flex items-center gap-1 text-[11px] text-ink-400">
+                      <Dumbbell className="w-3 h-3" />{sportLabel}
+                    </div>
+                  )}
+                  {ovulationMarked && (
+                    <div className="flex items-center gap-1 text-[11px] text-sage-600">
+                      <Heart className="w-3 h-3" />Eisprong
+                    </div>
+                  )}
+                </div>
+              )}
+              {bleedingSummary && (
+                <div className="flex items-center gap-1 mt-1 text-[11px] text-terracotta-500">
+                  <Droplet className="w-3 h-3" />
+                  <span>{bleedingSummary}</span>
                 </div>
               )}
               {symptomsLogged.length > 0 && (
