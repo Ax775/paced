@@ -131,8 +131,8 @@ export const MENSTRUAL_SELFCARE = [
   {
     id:       'books',
     icon:     '📚',
-    title:    'Lees je door de pijn',
-    intro:    '3 boeken voor zachte dagen.',
+    title:    'Boeken voor zachte dagen',
+    intro:    'Drie aanraders om bij thee te lezen.',
     items: [
       { headline: 'In Praise of Slow — Carl Honoré', body: 'Een hartelijke ode aan vertragen. Geen schuldgevoel, alleen perspectief.' },
       { headline: 'Big Magic — Elizabeth Gilbert', body: 'Over creativiteit zonder druk — past goed bij naar binnen keren.' },
