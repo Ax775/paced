@@ -2580,7 +2580,7 @@ function Onboarding({ onComplete }) {
     const validDate   = form.lastPeriodStart && !isNaN(parsedDate.getTime());
     const profile = {
       name:            String(form.name || '').trim().slice(0, 60),
-      cycleLength:     Number(form.cycleLength),
+      cycleLength:     Number(form.cycleLength) || 28,
       mensDuration:    Number(form.mensDuration) || 5,
       lastPeriodStart: validDate ? form.lastPeriodStart : new Date().toISOString().slice(0, 10),
       age:             Number(form.age)      || 28,
@@ -3116,11 +3116,18 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
       showToast('Notificaties worden niet ondersteund in deze browser');
       return;
     }
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      setNotifEnabled(true);
-      showToast('Notificaties ingeschakeld ✓');
-    } else {
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        setNotifEnabled(true);
+        showToast('Notificaties ingeschakeld ✓');
+      } else {
+        showToast('Notificaties geblokkeerd');
+      }
+    } catch {
+      // Sommige browsers gooien SecurityError/NotAllowedError (insecure
+      // context, iframe-permission policy, of permission al hard geweigerd).
+      // Een ongevangen rejection hier crasht de toggle-flow zonder uitleg.
       showToast('Notificaties geblokkeerd');
     }
   };
