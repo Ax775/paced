@@ -24,7 +24,7 @@ import {
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import { getDailyInsight, TIPS, MENSTRUAL_SELFCARE } from './lib/insights.js';
 import {
-  loadProfile, saveProfile, clearProfile,
+  loadProfile, saveProfile, clearAllData, safeSetItem,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
   loadRecentLogs,
 } from './lib/storage.js';
@@ -55,11 +55,9 @@ function CollapsibleCard({ id, title, headerExtra, className = '', style, childr
   const toggle = () => {
     setCollapsed((prev) => {
       const next = !prev;
-      try {
-        const map = readCollapsedMap();
-        map[id] = next;
-        localStorage.setItem(COLLAPSED_KEY, JSON.stringify(map));
-      } catch { /* storage unavailable — state still updates in memory */ }
+      const map = readCollapsedMap();
+      map[id] = next;
+      safeSetItem(COLLAPSED_KEY, JSON.stringify(map));
       return next;
     });
   };
@@ -182,6 +180,20 @@ function shortMonth(iso) {
 /*  CSV export                                                         */
 /* ------------------------------------------------------------------ */
 
+// OWASP CSV-injection mitigation: prefix waarden die met `=`, `+`, `-`, `@`,
+// TAB of CR beginnen met een single quote zodat Excel/LibreOffice ze als
+// tekst behandelt en niet als formule executeert.
+function csvSafe(v) {
+  const s = String(v ?? '');
+  if (!s) return s;
+  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+}
+
+function csvCell(v) {
+  const safe = csvSafe(v);
+  return `"${safe.replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`;
+}
+
 function exportCSV(profile) {
   const rows = ['date,cycleDay,phase,mood,energy,cramps,bloating,calories,protein,water,sleep,movement,temperature,sportIntensity,ovulationFelt,ovulationFromTemp,bleedingHeaviness,bleedingColor,bleedingClots,bleedingClarity,note'];
   const today = new Date();
@@ -196,7 +208,7 @@ function exportCSV(profile) {
     rows.push([
       isoDate(d),
       state.cycleDay ?? '',
-      state.phase,
+      csvSafe(state.phase),
       s.mood     || '',
       s.energy   || '',
       s.cramps   || '',
@@ -207,14 +219,14 @@ function exportCSV(profile) {
       log.sleep        || '',
       log.movement     || '',
       log.temperature  || '',
-      log.sportIntensity || '',
+      csvSafe(log.sportIntensity || ''),
       o.felt     ? '1' : '',
       o.fromTemp ? '1' : '',
-      b.heaviness || '',
-      b.color     || '',
-      b.clots     || '',
-      b.clarity   || '',
-      `"${(log.note || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`,
+      csvSafe(b.heaviness || ''),
+      csvSafe(b.color     || ''),
+      csvSafe(b.clots     || ''),
+      csvSafe(b.clarity   || ''),
+      csvCell(log.note || ''),
     ].join(','));
   }
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
@@ -1576,8 +1588,7 @@ function PWAInstallBanner() {
   };
 
   const handleDismiss = () => {
-    try { localStorage.setItem('aura.pwa.dismissed', '1'); }
-    catch { /* private mode — banner just won't persist its dismissal */ }
+    safeSetItem('aura.pwa.dismissed', '1');
     setVisible(false);
   };
 
@@ -4142,6 +4153,8 @@ function App() {
   const [profile, setProfile] = useState(() => loadProfile());
   const [tab, setTab] = useState('home');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [storageError, setStorageError] = useState('');
+  const storageErrorTimer = useRef(null);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('aura.theme') || 'auto'; }
     catch { return 'auto'; }
@@ -4149,8 +4162,7 @@ function App() {
 
   const handleThemeChange = useCallback((newTheme) => {
     setTheme(newTheme);
-    try { localStorage.setItem('aura.theme', newTheme); }
-    catch { /* private mode / quota — theme still applies in-memory */ }
+    safeSetItem('aura.theme', newTheme);
     const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const dark = newTheme === 'dark' || (newTheme === 'auto' && sysDark);
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
@@ -4167,13 +4179,25 @@ function App() {
     // them quickly. Nothing leaves the device.
     const onError    = (e) => console.error('[Aura] uncaught:',  e.error || e.message || e);
     const onRejected = (e) => console.error('[Aura] rejection:', e.reason);
+    // QuotaExceededError of private-mode-failure: maak het zichtbaar zodat
+    // de gebruiker weet dat een tap niet bewaard is. Anders denkt iemand
+    // dat data is opgeslagen en blijkt na refresh dat alles weg is.
+    const onStorageErr = (e) => {
+      console.error('[Aura] storage write failed:', e.detail);
+      setStorageError('Opslaan mislukt — mogelijk vol geheugen. Exporteer en wis oude data.');
+      clearTimeout(storageErrorTimer.current);
+      storageErrorTimer.current = setTimeout(() => setStorageError(''), 6000);
+    };
     window.addEventListener('storage',            onStorage);
     window.addEventListener('error',              onError);
     window.addEventListener('unhandledrejection', onRejected);
+    window.addEventListener('aura:storage-error', onStorageErr);
     return () => {
       window.removeEventListener('storage',            onStorage);
       window.removeEventListener('error',              onError);
       window.removeEventListener('unhandledrejection', onRejected);
+      window.removeEventListener('aura:storage-error', onStorageErr);
+      clearTimeout(storageErrorTimer.current);
     };
   }, []);
 
@@ -4188,7 +4212,7 @@ function App() {
   const handleReset = () => setShowResetConfirm(true);
 
   const confirmReset = () => {
-    clearProfile();
+    clearAllData();
     setProfile(null);
     setTab('home');
     setShowResetConfirm(false);
@@ -4196,6 +4220,15 @@ function App() {
 
   return (
     <>
+      {storageError && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-4 py-3 rounded-xl bg-terracotta-500 text-cream-50 text-sm shadow-lg anim-fade-up max-w-sm text-center"
+        >
+          {storageError}
+        </div>
+      )}
       {showResetConfirm && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm"
@@ -4208,9 +4241,9 @@ function App() {
             aria-describedby="reset-dialog-desc"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="reset-dialog-title" className="font-display text-[22px] text-ink-700 mb-2">Profiel resetten?</h2>
+            <h2 id="reset-dialog-title" className="font-display text-[22px] text-ink-700 mb-2">Alles wissen?</h2>
             <p id="reset-dialog-desc" className="text-sm text-ink-500 leading-relaxed mb-6">
-              Weet je het zeker? Alle profieldata wordt gewist. Je dagelijkse logs blijven bewaard.
+              Weet je het zeker? Je profiel én <strong>alle dagelijkse logs</strong> (cyclus, symptomen, voeding, notities) worden definitief van dit apparaat verwijderd. Deze actie kan niet ongedaan worden gemaakt.
             </p>
             <div className="flex gap-3">
               <button
@@ -4226,7 +4259,7 @@ function App() {
                 onClick={confirmReset}
                 className="flex-1 min-h-[44px] py-3 rounded-xl bg-terracotta-400 text-cream-50 text-sm font-medium hover:bg-terracotta-500 transition active:scale-[0.98]"
               >
-                Ja, reset
+                Ja, wis alles
               </button>
             </div>
           </div>

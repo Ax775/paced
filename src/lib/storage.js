@@ -24,6 +24,30 @@ const PROFILE_KEY = 'aura.profile';
 const LOG_PREFIX  = 'aura.log.';
 
 /* ------------------------------------------------------------------ */
+/*  Storage helpers                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Centrale write-helper. Vangt QuotaExceededError / private-mode-failures op
+ * en stuurt een `aura:storage-error` window-event zodat de UI een toast kan
+ * tonen. Returnt `true` bij succes, `false` bij faal — zo kan een caller die
+ * dat wil ook lokaal feedback geven.
+ */
+export function safeSetItem(key, value) {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err) {
+    try {
+      window.dispatchEvent(new CustomEvent('aura:storage-error', {
+        detail: { key, error: err },
+      }));
+    } catch { /* no window in test env */ }
+    return false;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Profile                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -38,13 +62,31 @@ export function loadProfile() {
 }
 
 export function saveProfile(profile) {
-  try {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  } catch { /* quota / private mode — fail silently */ }
+  return safeSetItem(PROFILE_KEY, JSON.stringify(profile));
 }
 
 export function clearProfile() {
   try { localStorage.removeItem(PROFILE_KEY); } catch { /* no-op */ }
+}
+
+/**
+ * Volledige wipe: profiel + alle daglogs + UI-state-keys (theme, pwa-dismiss,
+ * collapsed-map). Scant `localStorage` op alles wat met `aura.` of `aura_`
+ * begint, zodat een per-ongeluk-toegevoegde aura-key niet achterblijft na
+ * een "alles wissen". Dit is de enige correcte invulling van de "reset"-
+ * UI-belofte; `clearProfile()` alleen laat gevoelige cyclus-/log-data staan.
+ */
+export function clearAllData() {
+  try {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('aura.') || k.startsWith('aura_'))) keys.push(k);
+    }
+    keys.forEach((k) => {
+      try { localStorage.removeItem(k); } catch { /* per-key best-effort */ }
+    });
+  } catch { /* localStorage unavailable */ }
 }
 
 /* ------------------------------------------------------------------ */
@@ -130,9 +172,7 @@ export function loadLog(date = new Date()) {
 }
 
 export function saveLog(date, log) {
-  try {
-    localStorage.setItem(logKey(date), JSON.stringify(log));
-  } catch { /* no-op */ }
+  return safeSetItem(logKey(date), JSON.stringify(log));
 }
 
 /** Merge a partial update into today's log — ergonomic for React handlers. */
