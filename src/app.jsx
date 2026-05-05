@@ -28,6 +28,7 @@ import {
   loadProfile, saveProfile, clearProfile,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
   loadRecentLogs, loadCardOrder, saveCardOrder,
+  setStorageErrorHandler, notifyStorageError,
 } from './lib/storage.js';
 import { generateCsvExport, csvExportFilename } from './lib/export.js';
 
@@ -119,7 +120,7 @@ function CollapsibleCard({ id, title, headerExtra, className = '', style, childr
         const map = readCollapsedMap();
         map[id] = next;
         localStorage.setItem(COLLAPSED_KEY, JSON.stringify(map));
-      } catch { /* storage unavailable — state still updates in memory */ }
+      } catch (err) { notifyStorageError(err); }
       return next;
     });
   };
@@ -2284,7 +2285,7 @@ function PWAInstallBanner() {
 
   const handleDismiss = () => {
     try { localStorage.setItem('aura.pwa.dismissed', '1'); }
-    catch { /* private mode — banner just won't persist its dismissal */ }
+    catch (err) { notifyStorageError(err); }
     setVisible(false);
   };
 
@@ -5336,14 +5337,32 @@ function App() {
     try { return localStorage.getItem('aura.theme') || 'auto'; }
     catch { return 'auto'; }
   });
+  // Toast voor opslagfouten — eerder werden quota/private-mode errors
+  // stilletjes geslikt, waardoor de gebruikster dacht dat een entry
+  // bewaard was terwijl die bij reload weg was.
+  const [storageErrorMsg, setStorageErrorMsg] = useState('');
+  const storageErrorTimerRef = useRef(null);
 
   const handleThemeChange = useCallback((newTheme) => {
     setTheme(newTheme);
     try { localStorage.setItem('aura.theme', newTheme); }
-    catch { /* private mode / quota — theme still applies in-memory */ }
+    catch (err) { notifyStorageError(err); }
     const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const dark = newTheme === 'dark' || (newTheme === 'auto' && sysDark);
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  }, []);
+
+  useEffect(() => {
+    setStorageErrorHandler((err) => {
+      console.error('[Aura] storage save failed:', err);
+      setStorageErrorMsg('Opslaan mislukt — mogelijk vol geheugen');
+      if (storageErrorTimerRef.current) clearTimeout(storageErrorTimerRef.current);
+      storageErrorTimerRef.current = setTimeout(() => setStorageErrorMsg(''), 4000);
+    });
+    return () => {
+      setStorageErrorHandler(null);
+      if (storageErrorTimerRef.current) clearTimeout(storageErrorTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -5462,6 +5481,15 @@ function App() {
             setWelcomeNeeded(false);
           }}
         />
+      )}
+      {storageErrorMsg && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-4 py-2.5 rounded-full bg-terracotta-500 text-cream-50 text-sm shadow-lg anim-fade-up whitespace-nowrap max-w-[90vw]"
+        >
+          {storageErrorMsg}
+        </div>
       )}
     </>
   );
