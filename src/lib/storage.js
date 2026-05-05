@@ -20,9 +20,12 @@
  * SECURITY.md / the Privacy & Disclaimer screen for the full statement.
  */
 
-const PROFILE_KEY    = 'aura.profile';
-const LOG_PREFIX     = 'aura.log.';
-const CARD_ORDER_KEY = 'aura.cardOrder';
+const SCHEMA_VERSION = 1;
+
+const PROFILE_KEY        = 'aura.profile';
+const LOG_PREFIX         = 'aura.log.';
+const CARD_ORDER_KEY     = 'aura.cardOrder';
+const SCHEMA_VERSION_KEY = 'aura_schema_version';
 
 /* ------------------------------------------------------------------ */
 /*  Storage error reporting                                            */
@@ -50,6 +53,10 @@ export function notifyStorageError(err) {
 /** @returns {object|null} */
 export function loadProfile() {
   try {
+    const storedVersion = Number(localStorage.getItem(SCHEMA_VERSION_KEY));
+    if (!storedVersion || storedVersion < SCHEMA_VERSION) {
+      console.warn('Schema versie mismatch, migratie mogelijk nodig');
+    }
     const raw = localStorage.getItem(PROFILE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
@@ -60,6 +67,7 @@ export function loadProfile() {
 export function saveProfile(profile) {
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+    localStorage.setItem(SCHEMA_VERSION_KEY, String(SCHEMA_VERSION));
   } catch (err) { notifyStorageError(err); }
 }
 
@@ -203,6 +211,7 @@ export function loadLog(date = new Date()) {
       bleeding:  { ...base.bleeding,  ...(parsed.bleeding  || {}) },
     };
   } catch {
+    notifyStorageError('Logboekdata hersteld na corruptie');
     return emptyLog();
   }
 }
