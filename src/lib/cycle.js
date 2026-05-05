@@ -442,6 +442,32 @@ export function isPeriodLoggedOn(profile, day = new Date()) {
   return profile.periodHistory.includes(toISODate(day));
 }
 
+/**
+ * True when `today` falls within the user's currently running period
+ * (between `lastPeriodStart` and `lastPeriodStart + mensDuration - 1`).
+ * Used by the UI to hide the "menstruatie begon vandaag" CTA while
+ * the bleed is already active — the user shouldn't re-log a start
+ * during the same bleed.
+ *
+ * mensDuration defaults to 5 days when missing or invalid.
+ */
+export function isPeriodActive(profile, today = new Date()) {
+  if (!profile?.lastPeriodStart) return false;
+  const dur = Number(profile.mensDuration);
+  const safeDur = Number.isFinite(dur) && dur > 0 ? Math.min(15, Math.round(dur)) : 5;
+  const diff = daysBetween(profile.lastPeriodStart, today);
+  return diff >= 0 && diff < safeDur;
+}
+
+/**
+ * Day-of-period for `today` (1-indexed) when a period is active,
+ * otherwise null. Mirrors `isPeriodActive`.
+ */
+export function periodDayOf(profile, today = new Date()) {
+  if (!isPeriodActive(profile, today)) return null;
+  return daysBetween(profile.lastPeriodStart, today) + 1;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Basal temperature & ovulation detection                            */
 /* ------------------------------------------------------------------ */

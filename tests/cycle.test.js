@@ -26,6 +26,8 @@ import {
   logPeriodStart,
   unlogPeriodStart,
   isPeriodLoggedOn,
+  isPeriodActive,
+  periodDayOf,
   getCycleHistory,
   isValidTemperature,
   TEMP_MIN,
@@ -484,5 +486,68 @@ describe('getCycleHistory', () => {
     expect(gaps).toHaveLength(2);
     expect(gaps[0].start).toBe('2026-02-28');
     expect(gaps[1].start).toBe('2026-03-30');
+  });
+});
+
+/* ────────────────────  isPeriodActive / periodDayOf  ─────────────────── */
+
+describe('isPeriodActive', () => {
+  it('returns false without a profile or lastPeriodStart', () => {
+    expect(isPeriodActive(null)).toBe(false);
+    expect(isPeriodActive({})).toBe(false);
+    expect(isPeriodActive({ mensDuration: 5 })).toBe(false);
+  });
+
+  it('returns true on the day the period started', () => {
+    const today = new Date(2026, 4, 1);
+    expect(
+      isPeriodActive({ lastPeriodStart: '2026-05-01', mensDuration: 5 }, today)
+    ).toBe(true);
+  });
+
+  it('stays true through the menstruation duration', () => {
+    const profile = { lastPeriodStart: '2026-05-01', mensDuration: 5 };
+    expect(isPeriodActive(profile, new Date(2026, 4, 2))).toBe(true);
+    expect(isPeriodActive(profile, new Date(2026, 4, 4))).toBe(true);
+    // Day 5 (zero-indexed offset 4) is the last active day; day 6 is not.
+    expect(isPeriodActive(profile, new Date(2026, 4, 5))).toBe(true);
+    expect(isPeriodActive(profile, new Date(2026, 4, 6))).toBe(false);
+  });
+
+  it('falls back to a 5-day default when mensDuration is missing or invalid', () => {
+    const profile = { lastPeriodStart: '2026-05-01' };
+    expect(isPeriodActive(profile, new Date(2026, 4, 5))).toBe(true);
+    expect(isPeriodActive(profile, new Date(2026, 4, 6))).toBe(false);
+
+    const noisy = { lastPeriodStart: '2026-05-01', mensDuration: 'abc' };
+    expect(isPeriodActive(noisy, new Date(2026, 4, 5))).toBe(true);
+  });
+
+  it('returns false for dates before the period started', () => {
+    expect(
+      isPeriodActive(
+        { lastPeriodStart: '2026-05-05', mensDuration: 5 },
+        new Date(2026, 4, 1)
+      )
+    ).toBe(false);
+  });
+});
+
+describe('periodDayOf', () => {
+  it('returns null when the period is not active', () => {
+    expect(periodDayOf(null)).toBe(null);
+    expect(
+      periodDayOf(
+        { lastPeriodStart: '2026-05-01', mensDuration: 5 },
+        new Date(2026, 4, 10)
+      )
+    ).toBe(null);
+  });
+
+  it('is 1-indexed from the period start day', () => {
+    const profile = { lastPeriodStart: '2026-05-01', mensDuration: 5 };
+    expect(periodDayOf(profile, new Date(2026, 4, 1))).toBe(1);
+    expect(periodDayOf(profile, new Date(2026, 4, 3))).toBe(3);
+    expect(periodDayOf(profile, new Date(2026, 4, 5))).toBe(5);
   });
 });
