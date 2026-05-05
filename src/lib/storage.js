@@ -25,6 +25,25 @@ const LOG_PREFIX     = 'aura.log.';
 const CARD_ORDER_KEY = 'aura.cardOrder';
 
 /* ------------------------------------------------------------------ */
+/*  Storage error reporting                                            */
+/* ------------------------------------------------------------------ */
+
+// Single optional callback so the UI layer can surface "save failed"
+// to the user (quota exceeded, private-mode block, disk full).
+// Previously we swallowed these errors silently, which meant a user
+// could enter data, see no warning, and lose it on reload.
+let storageErrorHandler = null;
+
+export function setStorageErrorHandler(fn) {
+  storageErrorHandler = typeof fn === 'function' ? fn : null;
+}
+
+export function notifyStorageError(err) {
+  if (!storageErrorHandler) return;
+  try { storageErrorHandler(err); } catch { /* handler itself failed — nothing we can do */ }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Profile                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -41,11 +60,26 @@ export function loadProfile() {
 export function saveProfile(profile) {
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  } catch { /* quota / private mode — fail silently */ }
+  } catch (err) { notifyStorageError(err); }
 }
 
+/**
+ * Wis ALLE Aura-data uit localStorage (profiel, logs, kaartvolgorde,
+ * thema, dismiss-flags). Een "reset" mag geen sporen achterlaten — een
+ * volgende gebruiker op hetzelfde toestel zou anders oude logs zien
+ * verschijnen na een nieuwe onboarding.
+ */
+export function clearAllData() {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('aura'));
+    keys.forEach(k => localStorage.removeItem(k));
+  } catch (err) { notifyStorageError(err); }
+}
+
+// Backwards-compat: een "profiel reset" wist nu álle data, niet alleen
+// het profielobject. Oude callers blijven werken zonder rename.
 export function clearProfile() {
-  try { localStorage.removeItem(PROFILE_KEY); } catch { /* no-op */ }
+  clearAllData();
 }
 
 /* ------------------------------------------------------------------ */
@@ -79,7 +113,7 @@ export function saveCardOrder(order) {
     } else {
       localStorage.setItem(CARD_ORDER_KEY, JSON.stringify(order));
     }
-  } catch { /* no-op */ }
+  } catch (err) { notifyStorageError(err); }
 }
 
 /* ------------------------------------------------------------------ */
@@ -176,7 +210,7 @@ export function loadLog(date = new Date()) {
 export function saveLog(date, log) {
   try {
     localStorage.setItem(logKey(date), JSON.stringify(log));
-  } catch { /* no-op */ }
+  } catch (err) { notifyStorageError(err); }
 }
 
 /** Merge a partial update into today's log — ergonomic for React handlers. */
