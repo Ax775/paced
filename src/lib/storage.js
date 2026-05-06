@@ -20,8 +20,31 @@
  * SECURITY.md / the Privacy & Disclaimer screen for the full statement.
  */
 
-const PROFILE_KEY = 'aura.profile';
-const LOG_PREFIX  = 'aura.log.';
+const SCHEMA_VERSION = 1;
+
+const PROFILE_KEY        = 'aura.profile';
+const LOG_PREFIX         = 'aura.log.';
+const CARD_ORDER_KEY     = 'aura.cardOrder';
+const SCHEMA_VERSION_KEY = 'aura_schema_version';
+
+/* ------------------------------------------------------------------ */
+/*  Storage error reporting                                            */
+/* ------------------------------------------------------------------ */
+
+// Single optional callback so the UI layer can surface "save failed"
+// to the user (quota exceeded, private-mode block, disk full).
+// Previously we swallowed these errors silently, which meant a user
+// could enter data, see no warning, and lose it on reload.
+let storageErrorHandler = null;
+
+export function setStorageErrorHandler(fn) {
+  storageErrorHandler = typeof fn === 'function' ? fn : null;
+}
+
+export function notifyStorageError(err) {
+  if (!storageErrorHandler) return;
+  try { storageErrorHandler(err); } catch { /* handler itself failed — nothing we can do */ }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Profile                                                            */
@@ -30,6 +53,10 @@ const LOG_PREFIX  = 'aura.log.';
 /** @returns {object|null} */
 export function loadProfile() {
   try {
+    const storedVersion = Number(localStorage.getItem(SCHEMA_VERSION_KEY));
+    if (!storedVersion || storedVersion < SCHEMA_VERSION) {
+      console.warn('Schema versie mismatch, migratie mogelijk nodig');
+    }
     const raw = localStorage.getItem(PROFILE_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
@@ -40,11 +67,61 @@ export function loadProfile() {
 export function saveProfile(profile) {
   try {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-  } catch { /* quota / private mode — fail silently */ }
+    localStorage.setItem(SCHEMA_VERSION_KEY, String(SCHEMA_VERSION));
+  } catch (err) { notifyStorageError(err); }
 }
 
+/**
+ * Wis ALLE Aura-data uit localStorage (profiel, logs, kaartvolgorde,
+ * thema, dismiss-flags). Een "reset" mag geen sporen achterlaten — een
+ * volgende gebruiker op hetzelfde toestel zou anders oude logs zien
+ * verschijnen na een nieuwe onboarding.
+ */
+export function clearAllData() {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('aura'));
+    keys.forEach(k => localStorage.removeItem(k));
+  } catch (err) { notifyStorageError(err); }
+}
+
+// Backwards-compat: een "profiel reset" wist nu álle data, niet alleen
+// het profielobject. Oude callers blijven werken zonder rename.
 export function clearProfile() {
-  try { localStorage.removeItem(PROFILE_KEY); } catch { /* no-op */ }
+  clearAllData();
+}
+
+/* ------------------------------------------------------------------ */
+/*  Card order                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Volgorde van de kaarten op het dashboard. `null` betekent: gebruik de
+ * standaardvolgorde uit CARD_REGISTRY in app.jsx — zo blijft storage
+ * dom en hoeft het niets te weten over welke kaarten er bestaan.
+ *
+ * @returns {string[]|null}
+ */
+export function loadCardOrder() {
+  try {
+    const raw = localStorage.getItem(CARD_ORDER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((id) => typeof id === 'string');
+  } catch {
+    return null;
+  }
+}
+
+/** Pass `null` to reset to the default registry order. */
+export function saveCardOrder(order) {
+  try {
+    if (order == null) {
+      localStorage.removeItem(CARD_ORDER_KEY);
+    } else {
+      localStorage.setItem(CARD_ORDER_KEY, JSON.stringify(order));
+    }
+  } catch (err) { notifyStorageError(err); }
 }
 
 /* ------------------------------------------------------------------ */
@@ -94,6 +171,14 @@ export function emptyLog() {
     // Sportintensiteit — losstaand van `movement` (minuten) zodat de
     // gebruikster ook alleen het type kan loggen zonder een tijdsduur.
     sportIntensity: '',  // '' | 'rest' | 'light' | 'moderate' | 'intense'
+    // Subjectief welzijn — losstaand van `symptoms` (1–5 schalen voor
+    // energy/mood/cramps/bloating). Hier slaan we de eenvoudigere
+    // dagelijkse stemming en energie op + de chip-multiselect lijst van
+    // lichamelijke symptomen. `null` betekent "niet ingevuld" zodat we
+    // het onderscheid zien met "expliciet 1 (slecht)".
+    energie:    null,    // null | 1..5
+    stemming:   null,    // null | 1..5
+    symptomen:  [],      // ['Buikkrampen', 'Hoofdpijn', …]
     gut: {
       probiotics: false,
       fiber:      false,
@@ -118,13 +203,15 @@ export function loadLog(date = new Date()) {
     return {
       ...base,
       ...parsed,
-      meals:     Array.isArray(parsed.meals) ? parsed.meals : [],
+      meals:     Array.isArray(parsed.meals)     ? parsed.meals     : [],
+      symptomen: Array.isArray(parsed.symptomen) ? parsed.symptomen : [],
       gut:       { ...base.gut,       ...(parsed.gut       || {}) },
       symptoms:  { ...base.symptoms,  ...(parsed.symptoms  || {}) },
       ovulation: { ...base.ovulation, ...(parsed.ovulation || {}) },
       bleeding:  { ...base.bleeding,  ...(parsed.bleeding  || {}) },
     };
   } catch {
+    notifyStorageError('Logboekdata hersteld na corruptie');
     return emptyLog();
   }
 }
@@ -132,7 +219,7 @@ export function loadLog(date = new Date()) {
 export function saveLog(date, log) {
   try {
     localStorage.setItem(logKey(date), JSON.stringify(log));
-  } catch { /* no-op */ }
+  } catch (err) { notifyStorageError(err); }
 }
 
 /** Merge a partial update into today's log — ergonomic for React handlers. */
@@ -179,6 +266,9 @@ export function logHasData(log) {
     log.temperature > 0 ||
     !!log.sportIntensity ||
     (log.note || '').length > 0 ||
+    log.energie  != null ||
+    log.stemming != null ||
+    (Array.isArray(log.symptomen) && log.symptomen.length > 0) ||
     Object.values(log.gut       || {}).some(Boolean) ||
     Object.values(log.symptoms  || {}).some(v => v > 0) ||
     Object.values(log.ovulation || {}).some(Boolean) ||

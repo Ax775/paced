@@ -11,7 +11,7 @@ import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
   BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
-  Thermometer, Info, Heart, Dumbbell,
+  Thermometer, Info, Heart, Dumbbell, Plus, Pencil,
 } from 'lucide-react';
 
 import {
@@ -19,15 +19,76 @@ import {
   SPORT_INTENSITIES,
   logPeriodStart, unlogPeriodStart, isPeriodLoggedOn,
   getCycleHistory, isValidTemperature, TEMP_MIN, TEMP_MAX,
-  detectOvulationFromTemperatureSeries, toISODate,
+  detectOvulationFromTemperatureSeries, toISODate, atMidnight,
+  predictNextPeriod, getFertileWindow,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import { getDailyInsight, TIPS, MENSTRUAL_SELFCARE } from './lib/insights.js';
 import {
   loadProfile, saveProfile, clearProfile,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
-  loadRecentLogs,
+  loadRecentLogs, loadCardOrder, saveCardOrder,
+  setStorageErrorHandler, notifyStorageError,
 } from './lib/storage.js';
+import { generateCsvExport, csvExportFilename } from './lib/export.js';
+
+/* ------------------------------------------------------------------ */
+/*  Dashboard card registry                                            */
+/* ------------------------------------------------------------------ */
+
+// Bron-van-waarheid voor welke kaarten op het dashboard staan en in welke
+// volgorde ze standaard verschijnen. De gebruiker kan de volgorde
+// aanpassen op de profielpagina; de opgeslagen volgorde wordt tegen deze
+// lijst gevalideerd zodat hernoemde of nieuwe kaart-IDs niet kapot gaan.
+//
+// Kaarten met `alwaysVisible: true` kunnen niet verborgen worden — denk
+// aan de cyclusring en de check-in: zonder die twee is het scherm leeg.
+// (Verbergen wordt op dit moment nog niet ondersteund in de UI; het veld
+// staat hier zodat de registry een toekomstige toggle kan dragen.)
+export const CARD_REGISTRY = [
+  { id: 'cycle-phase',      label: 'Cyclus & fase',          alwaysVisible: true  },
+  { id: 'log-today',        label: 'Dagelijkse check-in',    alwaysVisible: true  },
+  { id: 'goal-rings',       label: 'Doelen overzicht',       alwaysVisible: false },
+  { id: 'protein-tracker',  label: 'Voeding (eiwit & water)',alwaysVisible: false },
+  { id: 'basal-temp',       label: 'Basaaltemperatuur',      alwaysVisible: false },
+  { id: 'ovulation',        label: 'Ovulatie',               alwaysVisible: false },
+  { id: 'bleeding-details', label: 'Bloedverlies details',   alwaysVisible: false },
+  { id: 'sport-tracker',    label: 'Sport & intensiteit',    alwaysVisible: false },
+  { id: 'wellbeing',        label: 'Welzijn (energie & stemming)', alwaysVisible: false },
+  { id: 'cycle-calendar',   label: 'Cyclus-kalender',        alwaysVisible: false },
+  { id: 'sleep-movement',   label: 'Slaap & beweging',       alwaysVisible: false },
+  { id: 'cycle-history',    label: 'Cyclusgeschiedenis',     alwaysVisible: false },
+  { id: 'weekly-history',   label: 'Week-overzicht',         alwaysVisible: false },
+  { id: 'gut',              label: 'Darmgezondheid',         alwaysVisible: false },
+  { id: 'nutrient-focus',   label: 'Nutriëntenfocus',        alwaysVisible: false },
+  { id: 'journal',          label: 'Notitie',                alwaysVisible: false },
+  { id: 'tip-of-day',       label: 'Tip van de dag',         alwaysVisible: false },
+  { id: 'insights',         label: 'Dagelijks inzicht',      alwaysVisible: false },
+  { id: 'selfcare-general', label: 'Zelfzorg tips',          alwaysVisible: false },
+];
+
+const CARD_DEFAULT_ORDER = CARD_REGISTRY.map((c) => c.id);
+const CARD_ID_SET        = new Set(CARD_DEFAULT_ORDER);
+
+// Validate + heal a saved order: drop unknown IDs, append any new
+// registry entries to the end. This way users who upgrade after we add
+// a new card don't have to re-customize — the new card just shows up at
+// the bottom of their existing layout.
+export function resolveCardOrder(saved) {
+  if (!Array.isArray(saved)) return CARD_DEFAULT_ORDER.slice();
+  const seen = new Set();
+  const valid = [];
+  for (const id of saved) {
+    if (CARD_ID_SET.has(id) && !seen.has(id)) {
+      valid.push(id);
+      seen.add(id);
+    }
+  }
+  for (const id of CARD_DEFAULT_ORDER) {
+    if (!seen.has(id)) valid.push(id);
+  }
+  return valid;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Small presentational primitives                                    */
@@ -59,7 +120,7 @@ function CollapsibleCard({ id, title, headerExtra, className = '', style, childr
         const map = readCollapsedMap();
         map[id] = next;
         localStorage.setItem(COLLAPSED_KEY, JSON.stringify(map));
-      } catch { /* storage unavailable — state still updates in memory */ }
+      } catch (err) { notifyStorageError(err); }
       return next;
     });
   };
@@ -226,6 +287,32 @@ function exportCSV(profile) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * "Voor arts" CSV — kleinere, leesbare kolomset gericht op een gesprek
+ * bij de huisarts of gynaecoloog. Pure transformatie via
+ * `generateCsvExport`; deze wrapper verzorgt alleen de browser-glue
+ * (logs verzamelen → Blob → download).
+ */
+function exportDoctorCSV(profile) {
+  const today = new Date();
+  const entries = [];
+  for (let i = 89; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const log = loadLog(d);
+    const state = getCycleState(profile, d);
+    entries.push({ iso: isoDate(d), log, phase: state.phase });
+  }
+  const csv  = generateCsvExport(entries);
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = csvExportFilename(today);
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Apple Health XML export (feature 7)                               */
 /* ------------------------------------------------------------------ */
@@ -375,6 +462,208 @@ function NumberValue({ value, unit, target, label, onChange }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Manual food entry — type a meal directly into the day log          */
+/* ------------------------------------------------------------------ */
+
+// Lichte input-parser: lege string of niet-numerieke invoer wordt 0.
+// Negatieve waarden zijn niet toegestaan; we cappen op 99999 zoals de
+// rest van de tracker zodat één foutieve toetsaanslag niet de progress
+// ring forever pegt.
+function parseFoodNumber(raw) {
+  if (raw == null) return 0;
+  const s = String(raw).trim().replace(',', '.');
+  if (!s) return 0;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(99999, Math.round(n));
+}
+
+function ManualFoodEntryModal({ onClose, onAdd }) {
+  const [name,    setName]    = useState('');
+  const [kcal,    setKcal]    = useState('');
+  const [protein, setProtein] = useState('');
+  const [carbs,   setCarbs]   = useState('');
+  const [fat,     setFat]     = useState('');
+  const [error,   setError]   = useState('');
+
+  const nameRef = useRef(null);
+
+  useEffect(() => {
+    nameRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError('Geef het product of gerecht een naam.');
+      nameRef.current?.focus();
+      return;
+    }
+    onAdd({
+      name:    trimmed.slice(0, 80),
+      kcal:    parseFoodNumber(kcal),
+      protein: parseFoodNumber(protein),
+      carbs:   parseFoodNumber(carbs),
+      fat:     parseFoodNumber(fat),
+    });
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center px-4 py-6 bg-ink-700/40 backdrop-blur-sm anim-fade-up"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="manual-food-title"
+    >
+      <form
+        onSubmit={handleSubmit}
+        className="w-full max-w-md bg-cream-50 rounded-2xl shadow-glow overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 pt-6 pb-2 flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sage-100 border border-sage-200 flex items-center justify-center shrink-0">
+            <Pencil className="w-5 h-5 text-sage-600" aria-hidden="true" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Voeding</div>
+            <h2 id="manual-food-title" className="font-display text-[22px] text-ink-700 leading-snug">
+              Handmatig invoeren
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Sluiten"
+            className="w-9 h-9 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-400 hover:text-ink-700 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 pb-6 pt-2 space-y-4">
+          <p className="text-xs text-ink-500 leading-relaxed">
+            Vul minimaal de naam in. Calorieën en macro's zijn optioneel — alleen
+            kcal en eiwitten worden bij je dagtotaal opgeteld.
+          </p>
+
+          <Field>
+            <label htmlFor="manual-food-name" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+              Naam <span className="text-terracotta-600 normal-case tracking-normal">*</span>
+            </label>
+            <input
+              id="manual-food-name"
+              ref={nameRef}
+              type="text"
+              value={name}
+              onChange={(e) => { setName(e.target.value); if (error) setError(''); }}
+              placeholder="bv. Havermout met blauwe bessen"
+              maxLength={80}
+              className={inputCx}
+              required
+            />
+            {error && (
+              <div className="text-xs text-terracotta-600 mt-1.5" role="alert">{error}</div>
+            )}
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field>
+              <label htmlFor="manual-food-kcal" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+                Calorieën <span className="text-ink-400/70 normal-case tracking-normal">(kcal)</span>
+              </label>
+              <input
+                id="manual-food-kcal"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="99999"
+                value={kcal}
+                onChange={(e) => setKcal(e.target.value)}
+                placeholder="0"
+                className={inputCx}
+              />
+            </Field>
+            <Field>
+              <label htmlFor="manual-food-protein" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+                Eiwitten <span className="text-ink-400/70 normal-case tracking-normal">(g)</span>
+              </label>
+              <input
+                id="manual-food-protein"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="99999"
+                value={protein}
+                onChange={(e) => setProtein(e.target.value)}
+                placeholder="0"
+                className={inputCx}
+              />
+            </Field>
+            <Field>
+              <label htmlFor="manual-food-carbs" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+                Koolhydraten <span className="text-ink-400/70 normal-case tracking-normal">(g)</span>
+              </label>
+              <input
+                id="manual-food-carbs"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="99999"
+                value={carbs}
+                onChange={(e) => setCarbs(e.target.value)}
+                placeholder="0"
+                className={inputCx}
+              />
+            </Field>
+            <Field>
+              <label htmlFor="manual-food-fat" className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1.5">
+                Vetten <span className="text-ink-400/70 normal-case tracking-normal">(g)</span>
+              </label>
+              <input
+                id="manual-food-fat"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="99999"
+                value={fat}
+                onChange={(e) => setFat(e.target.value)}
+                placeholder="0"
+                className={inputCx}
+              />
+            </Field>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500
+                         hover:bg-cream-200 transition flex items-center gap-1.5 text-sm"
+            >
+              Annuleren
+            </button>
+            <button
+              type="submit"
+              className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
+                         hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Toevoegen aan dag
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function TrackerRow({ icon: Icon, label, value, target, unit, increments, onAdd, onSet }) {
   return (
     <div>
@@ -512,6 +801,394 @@ function SymptomTracker({ log, onUpdate }) {
         })}
       </div>
     </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Wellbeing — energie / stemming / symptomen                         */
+/* ------------------------------------------------------------------ */
+
+// 5-puntsschalen: emoji's per niveau, inclusief alt-tekst voor a11y.
+const ENERGIE_LEVELS = [
+  { val: 1, icon: '😴', label: 'Uitgeput' },
+  { val: 2, icon: '💤', label: 'Slaperig' },
+  { val: 3, icon: '🙂', label: 'Oké' },
+  { val: 4, icon: '⚡', label: 'Energiek' },
+  { val: 5, icon: '🔥', label: 'Vol energie' },
+];
+
+const STEMMING_LEVELS = [
+  { val: 1, icon: '😢', label: 'Verdrietig' },
+  { val: 2, icon: '😕', label: 'Onrustig' },
+  { val: 3, icon: '😐', label: 'Neutraal' },
+  { val: 4, icon: '🙂', label: 'Tevreden' },
+  { val: 5, icon: '😄', label: 'Blij' },
+];
+
+// Multi-select chips. Bewust een vlakke array zodat de logbook-renderer
+// gewoon strings kan tonen zonder een extra meta-lookup te hoeven doen.
+export const SYMPTOMEN_OPTIONS = [
+  'Buikkrampen',
+  'Hoofdpijn',
+  'Rugpijn',
+  'Opgeblazen gevoel',
+  'Gevoelige borsten',
+  'Acne',
+  'Misselijkheid',
+  'Vermoeidheid',
+  'Concentratieproblemen',
+  'Slaapproblemen',
+  'Libido hoog',
+  'Libido laag',
+];
+
+function WellbeingCard({ log, onUpdate }) {
+  const energie  = log.energie  ?? null;
+  const stemming = log.stemming ?? null;
+  const symptomen = Array.isArray(log.symptomen) ? log.symptomen : [];
+
+  const setScale = (key, val) => {
+    // Tweede tap op dezelfde waarde wist het — consistent met de
+    // bestaande SymptomTracker zodat de gebruikster één gebaar kent.
+    const current = key === 'energie' ? energie : stemming;
+    onUpdate({ [key]: current === val ? null : val });
+  };
+
+  const toggleSymptom = (name) => {
+    const next = symptomen.includes(name)
+      ? symptomen.filter((s) => s !== name)
+      : [...symptomen, name];
+    onUpdate({ symptomen: next });
+  };
+
+  const anyLogged = energie != null || stemming != null || symptomen.length > 0;
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '90ms' }}>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <Heart className="w-3.5 h-3.5 text-ink-400" />
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Welzijn vandaag</div>
+        </div>
+        {anyLogged && (
+          <div className="text-[11px] text-sage-600 bg-sage-50 border border-sage-200 px-2 py-0.5 rounded-full">
+            Gelogd
+          </div>
+        )}
+      </div>
+
+      <ScaleRow
+        label="Energie"
+        value={energie}
+        levels={ENERGIE_LEVELS}
+        onPick={(n) => setScale('energie', n)}
+      />
+
+      <div className="h-px bg-cream-200/70 my-5" />
+
+      <ScaleRow
+        label="Stemming"
+        value={stemming}
+        levels={STEMMING_LEVELS}
+        onPick={(n) => setScale('stemming', n)}
+      />
+
+      <div className="h-px bg-cream-200/70 my-5" />
+
+      <div>
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="text-sm font-medium text-ink-600">Symptomen</div>
+          {symptomen.length > 0 && (
+            <div className="text-[11px] text-ink-400">{symptomen.length} geselecteerd</div>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {SYMPTOMEN_OPTIONS.map((name) => {
+            const active = symptomen.includes(name);
+            return (
+              <button
+                key={name}
+                type="button"
+                aria-pressed={active}
+                onClick={() => toggleSymptom(name)}
+                className={`min-h-[44px] px-3 py-1.5 rounded-full border text-xs transition active:scale-95 ${
+                  active
+                    ? 'bg-terracotta-100 border-terracotta-300 text-terracotta-600 font-medium'
+                    : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-terracotta-200'
+                }`}
+              >
+                {name}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
+          Tip — meerdere selecties zijn welkom; tik nogmaals om te wissen.
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function ScaleRow({ label, value, levels, onPick }) {
+  const activeLevel = levels.find((l) => l.val === value);
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="text-sm font-medium text-ink-600">{label}</div>
+        {activeLevel ? (
+          <div className="text-[11px] text-ink-500">
+            <span className="text-base leading-none mr-1">{activeLevel.icon}</span>
+            {activeLevel.label}
+          </div>
+        ) : (
+          <div className="text-[10px] text-ink-400/70">tik om te kiezen</div>
+        )}
+      </div>
+      <div className="flex gap-1.5">
+        {levels.map(({ val, icon, label: lvLabel }) => {
+          const active = value === val;
+          return (
+            <button
+              key={val}
+              type="button"
+              onClick={() => onPick(val)}
+              aria-label={`${label}: ${lvLabel}`}
+              aria-pressed={active}
+              className={`flex-1 min-h-[44px] py-3 rounded-xl border transition active:scale-95 text-lg leading-none ${
+                active
+                  ? 'bg-sage-100 border-sage-300 shadow-soft'
+                  : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+              }`}
+            >
+              {icon}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Cycle calendar — 6-week mini grid with predictions                 */
+/* ------------------------------------------------------------------ */
+
+const CAL_DAY_HEADERS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+
+// Kleurpalet — bewust geen Tailwind classes zodat we de tinten dynamisch
+// kunnen mengen (toekomst = lagere opacity) zonder een dynamic-class
+// purge probleem in productie.
+const CAL_COLORS = {
+  period:    '#e8748a',   // roze/rood
+  fertile:   '#6dbf82',   // lichtgroen
+  ovulation: '#3d9e57',   // groen
+};
+
+/**
+ * Bouw 42 dagen (6 weken × 7) startend op de maandag vóór "vandaag".
+ * Elke dag krijgt een tag: 'period' | 'fertile' | 'ovulation' | null,
+ * plus `predicted: boolean` als de markering voorspeld is i.p.v. gelogd.
+ */
+function buildCalendarGrid(profile, today) {
+  const start = atMidnight(today);
+  // Maandag-start: getDay() geeft 0 voor zondag.
+  const dow = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - dow - 7); // begin een week vóór deze week
+
+  const cycleLength = profile?.cycleLength || 28;
+  const periodLen   = profile?.mensDuration || 5;
+  const history     = Array.isArray(profile?.periodHistory) ? profile.periodHistory : [];
+  const lastStart   = profile?.lastPeriodStart || null;
+
+  // Verzamel "echte" menstruatie-bereiken uit het verleden.
+  const loggedPeriodSet = new Set();
+  for (const iso of history) {
+    const d = new Date(`${iso}T00:00:00`);
+    for (let i = 0; i < periodLen; i++) {
+      const day = new Date(d);
+      day.setDate(d.getDate() + i);
+      loggedPeriodSet.add(toISODate(day));
+    }
+  }
+
+  // Voorspelde toekomstige menstruaties: vanaf laatste bekende start
+  // schuiven we 6 cycli vooruit zodat de hele 6-weeks grid bedekt is.
+  const predictedPeriodSet = new Set();
+  if (lastStart) {
+    const base = new Date(`${toISODate(lastStart)}T00:00:00`);
+    for (let c = 1; c <= 6; c++) {
+      const cstart = new Date(base);
+      cstart.setDate(base.getDate() + cycleLength * c);
+      for (let i = 0; i < periodLen; i++) {
+        const day = new Date(cstart);
+        day.setDate(cstart.getDate() + i);
+        predictedPeriodSet.add(toISODate(day));
+      }
+    }
+  }
+
+  // Vruchtbaar venster + ovulatie per voorspelde cyclus.
+  const fertileSet = new Set();
+  const ovulationSet = new Set();
+  if (lastStart) {
+    const baseISO = toISODate(lastStart);
+    // Huidige + 5 toekomstige cycli
+    for (let c = 0; c <= 5; c++) {
+      const cBase = new Date(`${baseISO}T00:00:00`);
+      cBase.setDate(cBase.getDate() + cycleLength * c);
+      const window = getFertileWindow(cBase, cycleLength);
+      if (!window) continue;
+      const wStart = new Date(`${window.start}T00:00:00`);
+      const wEnd   = new Date(`${window.end}T00:00:00`);
+      for (let d = new Date(wStart); d <= wEnd; d.setDate(d.getDate() + 1)) {
+        fertileSet.add(toISODate(d));
+      }
+      ovulationSet.add(window.ovulation);
+    }
+  }
+
+  const todayISO = toISODate(today);
+  const out = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const iso = toISODate(d);
+    const isToday  = iso === todayISO;
+    const isFuture = d.getTime() > atMidnight(today).getTime();
+
+    let tag = null;
+    let predicted = false;
+    if (loggedPeriodSet.has(iso)) {
+      tag = 'period';
+    } else if (predictedPeriodSet.has(iso)) {
+      tag = 'period';
+      predicted = true;
+    } else if (ovulationSet.has(iso)) {
+      tag = 'ovulation';
+      predicted = isFuture;
+    } else if (fertileSet.has(iso)) {
+      tag = 'fertile';
+      predicted = isFuture;
+    }
+
+    out.push({
+      iso,
+      day: d.getDate(),
+      isToday,
+      isFuture,
+      tag,
+      predicted,
+    });
+  }
+  return out;
+}
+
+function CycleCalendarCard({ profile }) {
+  const today = useMemo(() => new Date(), []);
+  const grid  = useMemo(() => buildCalendarGrid(profile, today), [profile, today]);
+  const [selected, setSelected] = useState(null);
+
+  const cycleLength = profile?.cycleLength || 28;
+  const nextStartISO = useMemo(() => {
+    const history = Array.isArray(profile?.periodHistory) ? profile.periodHistory : [];
+    if (history.length > 0) return predictNextPeriod(history, cycleLength);
+    if (profile?.lastPeriodStart) return predictNextPeriod(profile.lastPeriodStart, cycleLength);
+    return null;
+  }, [profile, cycleLength]);
+
+  const tagLabel = (cell) => {
+    if (!cell.tag) return cell.predicted ? '' : 'Geen markering';
+    const base = cell.tag === 'period'    ? 'Menstruatie'
+              : cell.tag === 'fertile'    ? 'Vruchtbaar venster'
+              :                              'Ovulatie';
+    return cell.predicted ? `${base} (voorspeld)` : base;
+  };
+
+  const swatch = (kind) => {
+    if (kind === 'period')    return CAL_COLORS.period;
+    if (kind === 'fertile')   return CAL_COLORS.fertile;
+    if (kind === 'ovulation') return CAL_COLORS.ovulation;
+    return null;
+  };
+
+  const tooltipCell = selected ? grid.find((c) => c.iso === selected) : null;
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '110ms' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Cyclus-kalender</div>
+        {nextStartISO && (
+          <div className="text-[11px] text-terracotta-600 bg-terracotta-100 px-2 py-0.5 rounded-full">
+            volgende: {formatShortDate(nextStartISO)}
+          </div>
+        )}
+      </div>
+
+      {/* Day-of-week headers */}
+      <div className="grid grid-cols-7 gap-1 mb-1.5">
+        {CAL_DAY_HEADERS.map((d) => (
+          <div key={d} className="text-[10px] uppercase tracking-wider text-ink-400 text-center">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* 6×7 grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {grid.map((cell) => {
+          const bg = swatch(cell.tag);
+          const opacity = cell.predicted ? 0.4 : 1;
+          const isSelected = selected === cell.iso;
+          return (
+            <button
+              key={cell.iso}
+              type="button"
+              onClick={() => setSelected(isSelected ? null : cell.iso)}
+              aria-label={`${cell.iso} — ${tagLabel(cell) || 'geen'}`}
+              aria-pressed={isSelected}
+              className={`relative aspect-square rounded-lg flex items-center justify-center text-[11px] transition active:scale-95 ${
+                bg ? 'text-cream-50 font-medium' : 'text-ink-500 bg-cream-50 border border-cream-200'
+              } ${cell.isToday ? 'ring-2 ring-sage-500 ring-offset-1 ring-offset-cream-50' : ''}`}
+              style={bg ? { background: bg, opacity } : undefined}
+            >
+              {cell.day}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tooltip / detail row */}
+      {tooltipCell && (
+        <div className="mt-3 px-3 py-2.5 rounded-xl bg-cream-100/80 border border-cream-200 text-[12px] text-ink-600 leading-snug anim-fade-up">
+          <div className="font-medium text-ink-700">{formatShortDate(tooltipCell.iso)}</div>
+          <div className="text-ink-500">{tagLabel(tooltipCell) || 'Geen markering — gewone cyclusdag.'}</div>
+        </div>
+      )}
+
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-3 mt-4">
+        <LegendDot color={CAL_COLORS.period}    label="Menstruatie" />
+        <LegendDot color={CAL_COLORS.fertile}   label="Vruchtbaar" />
+        <LegendDot color={CAL_COLORS.ovulation} label="Ovulatie" />
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full border-2 border-sage-500" aria-hidden="true" />
+          <span className="text-[11px] text-ink-500">Vandaag</span>
+        </div>
+      </div>
+      <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
+        Lichtere kleuren zijn voorspellingen — ze worden steviger naarmate je meer logt.
+      </p>
+    </Card>
+  );
+}
+
+function LegendDot({ color, label }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="w-3 h-3 rounded-full" style={{ background: color }} aria-hidden="true" />
+      <span className="text-[11px] text-ink-500">{label}</span>
+    </div>
   );
 }
 
@@ -755,43 +1432,74 @@ function PeriodLogButton({ profile, onUpdateProfile }) {
 
 function GutChecklist({ gut, onToggle }) {
   const items = [
-    { id: 'probiotics', label: 'Probiotica',      hint: 'Yoghurt, kefir, capsule…',              icon: Sparkles },
-    { id: 'fiber',      label: 'Vezelrijke maaltijd', hint: 'Groenten, peulvruchten, volkoren',  icon: Wheat },
-    { id: 'fermented',  label: 'Gefermenteerd',  hint: 'Zuurkool, kimchi, miso, kombucha',      icon: Salad },
+    { id: 'probiotics', label: 'Probiotica',          hint: 'Yoghurt, kefir, capsule…',             icon: Sparkles },
+    { id: 'fiber',      label: 'Vezelrijke maaltijd', hint: 'Groenten, peulvruchten, volkoren',     icon: Wheat },
+    { id: 'fermented',  label: 'Gefermenteerd',       hint: 'Zuurkool, kimchi, miso, kombucha',     icon: Salad },
   ];
+  const doneCount = items.reduce((n, { id }) => n + (gut[id] ? 1 : 0), 0);
+  const total = items.length;
+  const allDone = doneCount === total;
+
   return (
-    <div className="space-y-2">
-      {items.map(({ id, label, hint, icon: Icon }) => {
-        const on = !!gut[id];
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onToggle(id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left
-                        active:scale-[0.99] ${
-                          on
-                            ? 'bg-sage-100 border-sage-300'
-                            : 'bg-cream-50 border-cream-200 hover:border-sage-200'
-                        }`}
-          >
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition ${
-                on ? 'bg-sage-300 text-cream-50' : 'bg-cream-100 text-ink-400'
-              }`}
+    <div>
+      <p className="text-sm text-ink-500 leading-relaxed mb-2">
+        Drie kleine gewoontes voor een gezonde darmflora — tik aan wat je vandaag binnen kreeg.
+      </p>
+      <p className="text-[11px] text-ink-400 mb-4">
+        Schaal: {doneCount} van {total} gewoontes {allDone ? '— alle drie gehaald 🌿' : 'gehaald vandaag'}.
+      </p>
+
+      <div className="space-y-2">
+        {items.map(({ id, label, hint, icon: Icon }) => {
+          const on = !!gut[id];
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onToggle(id)}
+              aria-pressed={on}
+              aria-label={`${label}${on ? ' — gelogd, tik om te wissen' : ' — tik om te loggen'}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left
+                          active:scale-[0.99] ${
+                            on
+                              ? 'bg-sage-100 border-sage-300'
+                              : 'bg-cream-50 border-cream-200 hover:border-sage-200'
+                          }`}
             >
-              {on ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
-            </div>
-            <div className="min-w-0">
-              <div className={`text-sm font-medium ${on ? 'text-sage-700' : 'text-ink-600'}`}>{label}</div>
-              <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
-            </div>
-            {on && (
-              <div className="ml-auto text-[10px] uppercase tracking-wider text-sage-600">Klaar</div>
-            )}
-          </button>
-        );
-      })}
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition ${
+                  on ? 'bg-sage-300 text-cream-50' : 'bg-cream-100 text-ink-400'
+                }`}
+              >
+                {on ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className={`text-sm font-medium ${on ? 'text-sage-700' : 'text-ink-600'}`}>{label}</div>
+                <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
+              </div>
+              <div className="ml-auto text-[10px] uppercase tracking-wider shrink-0">
+                {on ? (
+                  <span className="text-sage-600">Gelogd · tik om te wissen</span>
+                ) : (
+                  <span className="text-ink-400">Tik om te loggen</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {doneCount === 0 ? (
+        <div className="mt-4 rounded-xl border border-dashed border-cream-200 bg-cream-50/60 px-4 py-3">
+          <div className="text-xs text-ink-500 leading-relaxed">
+            Nog niets gelogd vandaag. Eén keuze is al genoeg — een kop yoghurt of een schep zuurkool telt.
+          </div>
+        </div>
+      ) : (
+        <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
+          Tip — meerdere gewoontes mogen samen; tik nogmaals om te wissen.
+        </p>
+      )}
     </div>
   );
 }
@@ -1577,7 +2285,7 @@ function PWAInstallBanner() {
 
   const handleDismiss = () => {
     try { localStorage.setItem('aura.pwa.dismissed', '1'); }
-    catch { /* private mode — banner just won't persist its dismissal */ }
+    catch (err) { notifyStorageError(err); }
     setVisible(false);
   };
 
@@ -1656,6 +2364,192 @@ function ReminderBanner({ profile }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  First-run welcome modal — drie stappen, lichtgewicht               */
+/* ------------------------------------------------------------------ */
+
+const CYCLE_PRESETS = [
+  { id: 'short',  label: 'Kort',      hint: '21–25 dagen', value: 23 },
+  { id: 'medium', label: 'Gemiddeld', hint: '26–31 dagen', value: 28 },
+  { id: 'long',   label: 'Lang',      hint: '32–38 dagen', value: 35 },
+];
+
+function defaultLastPeriodISO() {
+  // 14 dagen geleden — typische middenfase, geeft een neutraal beginpunt
+  // voor iemand die het écht niet meer weet.
+  const d = new Date();
+  d.setDate(d.getDate() - 14);
+  return toISODate(d);
+}
+
+function WelcomeModal({ profile, onComplete }) {
+  const [step, setStep] = useState(0);
+  const [lastPeriod, setLastPeriod] = useState(
+    profile?.lastPeriodStart || defaultLastPeriodISO()
+  );
+  const [avgCycle, setAvgCycle] = useState(
+    profile?.cycleLength || 28
+  );
+
+  const finish = (overrides = {}) => {
+    const patch = {
+      ...profile,
+      lastPeriodStart: overrides.lastPeriod ?? lastPeriod,
+      cycleLength:     overrides.avgCycle   ?? avgCycle,
+      onboardingDone:  true,
+    };
+    saveProfile(patch);
+    onComplete(patch);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center px-4 py-6 bg-ink-700/40 backdrop-blur-sm anim-fade-up"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="welcome-modal-title"
+    >
+      <div className="w-full max-w-md bg-cream-50 rounded-2xl shadow-glow overflow-hidden">
+        {/* Step indicator */}
+        <div className="flex justify-center gap-2 pt-6">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="rounded-full transition-all duration-400"
+              style={{
+                width:      i === step ? 24 : 8,
+                height:     8,
+                background: i === step ? '#6B8559' : i < step ? '#A8BA98' : 'var(--progress-track)',
+              }}
+            />
+          ))}
+        </div>
+
+        <div className="px-6 pt-5 pb-6">
+          {step === 0 && (
+            <>
+              <h2 id="welcome-modal-title" className="font-display text-[26px] text-ink-700 leading-tight mb-2">
+                Welkom bij Aura 🌸
+              </h2>
+              <p className="text-sm text-ink-500 leading-relaxed mb-2">
+                Aura helpt je je cyclus te begrijpen en je lichaam beter te leren kennen.
+              </p>
+              <p className="text-sm text-ink-500 leading-relaxed mb-6">
+                Drie korte vragen, dan ben je klaar.
+              </p>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
+                           hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2"
+              >
+                Volgende <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="w-full mt-3 text-[12px] text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 py-2 min-h-[44px]"
+              >
+                Sla over
+              </button>
+            </>
+          )}
+
+          {step === 1 && (
+            <>
+              <h2 id="welcome-modal-title" className="font-display text-[24px] text-ink-700 leading-tight mb-2">
+                Wanneer begon je laatste menstruatie?
+              </h2>
+              <p className="text-sm text-ink-500 leading-relaxed mb-5">
+                Geen idee? Een schatting werkt prima — je kunt dit later aanpassen.
+              </p>
+              <input
+                type="date"
+                value={lastPeriod}
+                onChange={(e) => setLastPeriod(e.target.value)}
+                className={inputCx}
+                aria-label="Datum laatste menstruatiestart"
+              />
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setStep(0)}
+                  className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500 text-sm hover:bg-cream-200 transition flex items-center gap-1.5"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Terug
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+                >
+                  Volgende <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="w-full mt-3 text-[12px] text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 py-2 min-h-[44px]"
+              >
+                Sla over
+              </button>
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <h2 id="welcome-modal-title" className="font-display text-[24px] text-ink-700 leading-tight mb-2">
+                Hoe lang duurt jouw cyclus gemiddeld?
+              </h2>
+              <p className="text-sm text-ink-500 leading-relaxed mb-5">
+                Aura leert je ritme vanzelf — kies wat het dichtst klopt.
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {CYCLE_PRESETS.map((preset) => {
+                  const active = avgCycle === preset.value;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => setAvgCycle(preset.value)}
+                      className={`text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] min-h-[44px] ${
+                        active
+                          ? 'bg-sage-100 border-sage-300 text-sage-700'
+                          : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+                      }`}
+                    >
+                      <div className="text-sm font-medium">
+                        {preset.label} <span className="text-ink-400 font-normal">· {preset.hint}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="px-4 py-3 rounded-xl bg-cream-100 border border-cream-200 text-ink-500 text-sm hover:bg-cream-200 transition flex items-center gap-1.5"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Terug
+                </button>
+                <button
+                  type="button"
+                  onClick={() => finish()}
+                  className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+                >
+                  Aan de slag <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Onboarding — 3-step conversational flow                            */
 /* ------------------------------------------------------------------ */
 
@@ -1686,7 +2580,7 @@ function Onboarding({ onComplete }) {
     const validDate   = form.lastPeriodStart && !isNaN(parsedDate.getTime());
     const profile = {
       name:            String(form.name || '').trim().slice(0, 60),
-      cycleLength:     Number(form.cycleLength),
+      cycleLength:     Number(form.cycleLength) || 28,
       mensDuration:    Number(form.mensDuration) || 5,
       lastPeriodStart: validDate ? form.lastPeriodStart : new Date().toISOString().slice(0, 10),
       age:             Number(form.age)      || 28,
@@ -2026,6 +2920,153 @@ function Onboarding({ onComplete }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Card order editor — drag-to-reorder dashboard layout               */
+/* ------------------------------------------------------------------ */
+
+// HTML5 drag-and-drop op de rijen, plus pijltoetsen voor toetsenbord-
+// gebruikers. Auto-save bij elke wijziging — geen aparte "opslaan"-knop
+// want dat zou de directe feedback breken die maakt dat slepen leuk
+// voelt.
+function CardOrderEditor() {
+  const [order, setOrder] = useState(() => resolveCardOrder(loadCardOrder()));
+  const [dragId, setDragId]       = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  const labelById = useMemo(() => {
+    const map = {};
+    for (const c of CARD_REGISTRY) map[c.id] = c;
+    return map;
+  }, []);
+
+  const commit = (next) => {
+    setOrder(next);
+    saveCardOrder(next);
+  };
+
+  const move = (id, delta) => {
+    const idx = order.indexOf(id);
+    if (idx < 0) return;
+    const target = idx + delta;
+    if (target < 0 || target >= order.length) return;
+    const next = order.slice();
+    [next[idx], next[target]] = [next[target], next[idx]];
+    commit(next);
+  };
+
+  const reorderTo = (sourceId, targetId) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const next = order.filter((id) => id !== sourceId);
+    const targetIdx = next.indexOf(targetId);
+    if (targetIdx < 0) return;
+    next.splice(targetIdx, 0, sourceId);
+    commit(next);
+  };
+
+  const handleReset = () => {
+    saveCardOrder(null);
+    setOrder(CARD_REGISTRY.map((c) => c.id));
+  };
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Schermindeling aanpassen</div>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="text-[11px] text-ink-500 hover:text-sage-700 underline-offset-2 hover:underline transition"
+        >
+          Standaard volgorde herstellen
+        </button>
+      </div>
+      <p className="text-[12px] text-ink-500 mb-4 leading-relaxed">
+        Sleep de kaarten in de gewenste volgorde, of gebruik de pijltjes.
+        Wijzigingen worden meteen bewaard.
+      </p>
+      <ul className="space-y-1.5" aria-label="Kaartvolgorde">
+        {order.map((id, idx) => {
+          const meta = labelById[id];
+          if (!meta) return null;
+          const isDragging = dragId === id;
+          const isOver     = dragOverId === id && dragId && dragId !== id;
+          return (
+            <li
+              key={id}
+              draggable
+              onDragStart={(e) => {
+                setDragId(id);
+                e.dataTransfer.effectAllowed = 'move';
+                // Sommige browsers tonen geen drag-image zonder payload.
+                try { e.dataTransfer.setData('text/plain', id); } catch { /* no-op */ }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (dragOverId !== id) setDragOverId(id);
+              }}
+              onDragLeave={() => {
+                if (dragOverId === id) setDragOverId(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                reorderTo(dragId, id);
+                setDragId(null);
+                setDragOverId(null);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setDragOverId(null);
+              }}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition select-none
+                ${isDragging ? 'opacity-50 border-sage-300 bg-sage-50' : 'border-cream-200 bg-cream-50'}
+                ${isOver ? 'border-sage-400 bg-sage-100/60' : ''}`}
+            >
+              <span
+                aria-hidden="true"
+                className="text-ink-400 cursor-grab active:cursor-grabbing px-1 select-none text-base leading-none"
+                title="Sleep om te verplaatsen"
+              >
+                ⠿
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-ink-700 truncate">{meta.label}</div>
+                {meta.alwaysVisible && (
+                  <div className="text-[10px] text-ink-400 mt-0.5">(altijd zichtbaar)</div>
+                )}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => move(id, -1)}
+                  disabled={idx === 0}
+                  aria-label={`${meta.label} omhoog`}
+                  className="w-8 h-8 rounded-lg border border-cream-200 bg-cream-50 text-ink-500
+                             hover:border-sage-200 hover:text-sage-700 transition
+                             disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(id, +1)}
+                  disabled={idx === order.length - 1}
+                  aria-label={`${meta.label} omlaag`}
+                  className="w-8 h-8 rounded-lg border border-cream-200 bg-cream-50 text-ink-500
+                             hover:border-sage-200 hover:text-sage-700 transition
+                             disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  ↓
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -2075,11 +3116,18 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
       showToast('Notificaties worden niet ondersteund in deze browser');
       return;
     }
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      setNotifEnabled(true);
-      showToast('Notificaties ingeschakeld ✓');
-    } else {
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === 'granted') {
+        setNotifEnabled(true);
+        showToast('Notificaties ingeschakeld ✓');
+      } else {
+        showToast('Notificaties geblokkeerd');
+      }
+    } catch {
+      // Sommige browsers gooien SecurityError/NotAllowedError (insecure
+      // context, iframe-permission policy, of permission al hard geweigerd).
+      // Een ongevangen rejection hier crasht de toggle-flow zonder uitleg.
       showToast('Notificaties geblokkeerd');
     }
   };
@@ -2343,6 +3391,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         </div>
       </Card>
 
+      {/* Schermindeling — drag-to-reorder dashboard cards */}
+      <CardOrderEditor />
+
       {/* Save */}
       <button
         type="button"
@@ -2357,10 +3408,19 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         {saved ? <><Check className="w-4 h-4" /> Opgeslagen!</> : 'Wijzigingen opslaan'}
       </button>
 
-      {/* Export */}
+      {/* Gegevens — exports voor jezelf, je arts, of een andere app */}
       <Card className="p-6 mb-5 anim-fade-up">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Exporteren</div>
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">Gegevens</div>
         <div className="space-y-2">
+          <button
+            type="button"
+            onClick={() => exportDoctorCSV(profile)}
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-sage-200 bg-sage-50
+                       text-sage-700 text-sm hover:bg-sage-100 transition"
+          >
+            <span aria-hidden="true">📥</span>
+            Exporteer naar CSV (voor arts)
+          </button>
           <button
             type="button"
             onClick={() => exportCSV(profile)}
@@ -2368,7 +3428,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
                        text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
           >
             <Download className="w-4 h-4" />
-            CSV exporteren (90 dagen)
+            CSV exporteren (90 dagen, alle velden)
           </button>
           <button
             type="button"
@@ -2653,6 +3713,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   // voor de huidige fase; we houden de phase-key in state zodat een
   // toekomstige aanroep "open uitleg voor andere fase" makkelijk past.
   const [phaseInfo, setPhaseInfo] = useState(null);
+  const [manualFoodOpen, setManualFoodOpen] = useState(false);
 
   const todayISO = useMemo(() => isoDate(), []);
 
@@ -2730,6 +3791,26 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
   const waterGlassTarget = Math.max(6, Math.round(targets.hydrationL * 4));
 
+  const addManualFood = (entry) => {
+    // We bewaren de meal-rij voor later detail-overzicht én rekenen de
+    // macro's door naar het dagtotaal. Carbs/fats hebben (nog) geen eigen
+    // teller op het dashboard, maar blijven bewaard in `meals` zodat ze
+    // niet verloren gaan.
+    const meal = {
+      name:    entry.name,
+      kcal:    entry.kcal    || 0,
+      protein: entry.protein || 0,
+      carbs:   entry.carbs   || 0,
+      fat:     entry.fat     || 0,
+      time:    new Date().toTimeString().slice(0, 5),
+    };
+    updateLog({
+      calories: Math.min(99999, log.calories + meal.kcal),
+      protein:  Math.min(99999, log.protein  + meal.protein),
+      meals:    [...(Array.isArray(log.meals) ? log.meals : []), meal],
+    });
+  };
+
   const addProtein  = (g)    => updateLog({ protein:  Math.min(99999, log.protein  + g) });
   const setProtein  = (g)    => updateLog({ protein:  g });
   const addCalories = (kcal) => updateLog({ calories: Math.min(99999, log.calories + kcal) });
@@ -2745,6 +3826,240 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
   const periodLoggedToday = isPeriodLoggedOn(profile);
 
   const displayName = profile.name ? profile.name.split(' ')[0] : null;
+
+  // Volgorde van de kaarten — geladen op mount; Dashboard wordt opnieuw
+  // gemount bij elke tabswitch, dus aanpassingen vanuit Instellingen
+  // worden vanzelf zichtbaar zodra de gebruiker terug naar 'home' gaat.
+  const cardOrder = useMemo(() => resolveCardOrder(loadCardOrder()), []);
+
+  // Per-id renderers. Conditionele kaarten (bleeding-details,
+  // selfcare-general, cycle-history, weekly-history) returnen `null`
+  // wanneer ze niet relevant zijn — de positie blijft gereserveerd zodat
+  // de volgorde stabiel blijft als de conditie omslaat.
+  const cardRenderers = {
+    'cycle-phase': () => (
+      <Card key="cycle-phase" className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
+        <div className="flex flex-col items-center">
+          <CycleRing state={state} ovulationDay={ovulationCycleDay} />
+          <div className="flex items-center gap-2 mt-5 flex-wrap justify-center">
+            <PhaseIcon className="w-4 h-4 shrink-0" style={{ color: state.phaseMeta.hue }} />
+            <div className="font-display text-xl text-ink-700">{state.phaseMeta.label}</div>
+            <span className="text-ink-400">·</span>
+            <div className="text-sm text-ink-500">{state.phaseMeta.subtitle}</div>
+            <PhaseInfoButton phase={state.phase} onOpen={() => setPhaseInfo(state.phase)} />
+          </div>
+          <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
+            {state.phaseMeta.blurb}
+          </p>
+          {state.hasData && (
+            <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-cream-100 border border-cream-200">
+              <span className="text-[11px] text-ink-400">Volgende periode</span>
+              <span className="text-[11px] font-medium text-ink-600">
+                {formatNextPeriod(state.daysUntilNext)}
+              </span>
+            </div>
+          )}
+          <PeriodLogButton profile={profile} onUpdateProfile={onUpdateProfile} />
+        </div>
+        <div className="mt-6">
+          <PhaseTimeline state={state} />
+        </div>
+      </Card>
+    ),
+
+    'log-today':       () => <SymptomTracker key="log-today" log={log} onUpdate={updateLog} />,
+    'goal-rings':      () => <GoalRings key="goal-rings" log={log} goals={profile.goals} targets={targets} />,
+
+    'protein-tracker': () => (
+      <Card key="protein-tracker" className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '160ms' }}>
+        <div className="flex items-center justify-between mb-5">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Voeding vandaag</div>
+          {targets.calorieDelta > 0 && (
+            <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
+              +{targets.calorieDelta} kcal voor {state.phaseMeta.label.toLowerCase()}
+            </div>
+          )}
+        </div>
+        <div className="space-y-6">
+          <TrackerRow
+            label="Calorieën"
+            value={log.calories}
+            target={targets.calories}
+            unit="kcal"
+            increments={[100, 250, 500]}
+            onAdd={addCalories}
+            onSet={setCalories}
+          />
+          <TrackerRow
+            label="Eiwitten"
+            value={log.protein}
+            target={targets.protein}
+            unit="g"
+            increments={[10, 20, 30]}
+            onAdd={addProtein}
+            onSet={setProtein}
+          />
+          <HydrationRow
+            glasses={log.hydration}
+            target={waterGlassTarget}
+            onChange={setWater}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setManualFoodOpen(true)}
+          className="mt-5 w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+                     border border-sage-200 bg-sage-50 text-sage-700 text-sm font-medium
+                     hover:bg-sage-100 hover:border-sage-300 active:scale-[0.99] transition"
+          aria-label="Voeg handmatig een voedingsitem toe aan vandaag"
+        >
+          <Plus className="w-4 h-4" aria-hidden="true" />
+          Handmatig invoeren
+        </button>
+      </Card>
+    ),
+
+    'basal-temp': () => (
+      <BasalTemperatureCard
+        key="basal-temp"
+        todayTemp={log.temperature}
+        todayISO={todayISO}
+        onChange={setTemperature}
+        ovulationDetection={ovulationDetection}
+      />
+    ),
+
+    'ovulation': () => (
+      <OvulationTracker
+        key="ovulation"
+        ovulation={log.ovulation}
+        onUpdate={updateLog}
+        autoDetectedISO={ovulationDetection?.ovulationISO}
+      />
+    ),
+
+    'bleeding-details': () =>
+      periodLoggedToday
+        ? <BleedingDetailsCard key="bleeding-details" bleeding={log.bleeding} onUpdate={updateLog} />
+        : null,
+
+    'sport-tracker': () => (
+      <SportTrackerCard
+        key="sport-tracker"
+        phase={state.phase}
+        intensity={log.sportIntensity}
+        onChange={setSportIntensity}
+      />
+    ),
+
+    'wellbeing': () => (
+      <WellbeingCard key="wellbeing" log={log} onUpdate={updateLog} />
+    ),
+
+    'cycle-calendar': () => (
+      <CycleCalendarCard key="cycle-calendar" profile={profile} />
+    ),
+
+    'sleep-movement': () => (
+      <CollapsibleCard
+        key="sleep-movement"
+        id="sleep-movement"
+        title="Slaap & beweging"
+        className="mb-5"
+        style={{ animationDelay: '200ms' }}
+      >
+        <div className="space-y-6">
+          <SleepTracker hours={log.sleep} onChange={setSleep} />
+          <div className="h-px bg-cream-200/70" />
+          <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
+        </div>
+      </CollapsibleCard>
+    ),
+
+    'cycle-history':  () => <CycleHistoryStrip key="cycle-history" profile={profile} />,
+    'weekly-history': () => <WeeklyHistoryStrip key="weekly-history" profile={profile} todayLog={log} />,
+
+    'gut': () => {
+      const gutDone = Object.values(log.gut).filter(Boolean).length;
+      return (
+        <CollapsibleCard
+          key="gut"
+          id="gut"
+          title="Darmgezondheid"
+          headerExtra={
+            gutDone > 0 ? (
+              <span className="text-[11px] text-sage-600 bg-sage-50 border border-sage-200 px-2 py-0.5 rounded-full">
+                {gutDone} van 3 gelogd
+              </span>
+            ) : (
+              <span className="text-[11px] text-ink-400">0 van 3</span>
+            )
+          }
+          className="mb-5"
+          style={{ animationDelay: '240ms' }}
+        >
+          <GutChecklist gut={log.gut} onToggle={toggleGut} />
+        </CollapsibleCard>
+      );
+    },
+
+    'nutrient-focus': () => (
+      <CollapsibleCard
+        key="nutrient-focus"
+        id="focus"
+        title="Nutriëntenfocus"
+        className="mb-5"
+        style={{ animationDelay: '280ms' }}
+      >
+        <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
+        <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
+        <div className="flex flex-wrap gap-2">
+          {targets.focus.foods.map((f) => (
+            <span
+              key={f}
+              className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200 text-ink-600"
+            >
+              {f}
+            </span>
+          ))}
+        </div>
+      </CollapsibleCard>
+    ),
+
+    'journal': () => (
+      <Card key="journal" className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '340ms' }}>
+        <JournalNote note={log.note} onChange={setNote} />
+      </Card>
+    ),
+
+    'tip-of-day': () => (
+      <TipVanDeDag
+        key="tip-of-day"
+        phase={state.phase}
+        log={log}
+        goals={profile.goals}
+        targets={targets}
+        name={profile.name}
+      />
+    ),
+
+    'insights': () => (
+      <Card key="insights" className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '380ms' }}>
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">
+          <Sparkles className="w-3.5 h-3.5" />
+          Dagelijks inzicht
+        </div>
+        <p className="font-display text-[19px] leading-snug text-ink-700">
+          {insight.text}
+        </p>
+      </Card>
+    ),
+
+    'selfcare-general': () =>
+      state.phase === PHASES.MENSTRUAL
+        ? <MenstrualSelfCareCards key="selfcare-general" />
+        : null,
+  };
 
   return (
     <div className="min-h-dvh px-5 py-8 pb-28 max-w-md mx-auto">
@@ -2784,185 +4099,10 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
         waterGlassTarget={waterGlassTarget}
       />
 
-      {/* Cycle ring — the hero card */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '40ms' }}>
-        <div className="flex flex-col items-center">
-          <CycleRing state={state} ovulationDay={ovulationCycleDay} />
-          <div className="flex items-center gap-2 mt-5 flex-wrap justify-center">
-            <PhaseIcon className="w-4 h-4 shrink-0" style={{ color: state.phaseMeta.hue }} />
-            <div className="font-display text-xl text-ink-700">{state.phaseMeta.label}</div>
-            <span className="text-ink-400">·</span>
-            <div className="text-sm text-ink-500">{state.phaseMeta.subtitle}</div>
-            <PhaseInfoButton phase={state.phase} onOpen={() => setPhaseInfo(state.phase)} />
-          </div>
-          <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
-            {state.phaseMeta.blurb}
-          </p>
-          {state.hasData && (
-            <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-cream-100 border border-cream-200">
-              <span className="text-[11px] text-ink-400">Volgende periode</span>
-              <span className="text-[11px] font-medium text-ink-600">
-                {formatNextPeriod(state.daysUntilNext)}
-              </span>
-            </div>
-          )}
-          <PeriodLogButton profile={profile} onUpdateProfile={onUpdateProfile} />
-        </div>
-        <div className="mt-6">
-          <PhaseTimeline state={state} />
-        </div>
-      </Card>
-
-      {/* Bleeding details — only rendered while a period is currently logged */}
-      {periodLoggedToday && (
-        <BleedingDetailsCard
-          bleeding={log.bleeding}
-          onUpdate={updateLog}
-        />
-      )}
-
-      {/* Goal progress rings */}
-      <GoalRings log={log} goals={profile.goals} targets={targets} />
-
-      {/* Symptom tracker */}
-      <SymptomTracker log={log} onUpdate={updateLog} />
-
-      {/* Basal temperature with 14-day mini chart + ovulation hint */}
-      <BasalTemperatureCard
-        todayTemp={log.temperature}
-        todayISO={todayISO}
-        onChange={setTemperature}
-        ovulationDetection={ovulationDetection}
-      />
-
-      {/* Ovulation tracker (felt / read-from-temp) */}
-      <OvulationTracker
-        ovulation={log.ovulation}
-        onUpdate={updateLog}
-        autoDetectedISO={ovulationDetection?.ovulationISO}
-      />
-
-      {/* Sport intensity + per-phase advice */}
-      <SportTrackerCard
-        phase={state.phase}
-        intensity={log.sportIntensity}
-        onChange={setSportIntensity}
-      />
-
-      {/* Self-care rituals — only meaningful during the menstrual phase */}
-      {state.phase === PHASES.MENSTRUAL && <MenstrualSelfCareCards />}
-
-      {/* Recent cycles (only renders once there's ≥1 completed cycle) */}
-      <CycleHistoryStrip profile={profile} />
-
-      {/* Today's nourishment */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '160ms' }}>
-        <div className="flex items-center justify-between mb-5">
-          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Voeding vandaag</div>
-          {targets.calorieDelta > 0 && (
-            <div className="text-[11px] text-sage-600 bg-sage-100 px-2.5 py-1 rounded-full">
-              +{targets.calorieDelta} kcal voor {state.phaseMeta.label.toLowerCase()}
-            </div>
-          )}
-        </div>
-        <div className="space-y-6">
-          <TrackerRow
-            label="Calorieën"
-            value={log.calories}
-            target={targets.calories}
-            unit="kcal"
-            increments={[100, 250, 500]}
-            onAdd={addCalories}
-            onSet={setCalories}
-          />
-          <TrackerRow
-            label="Eiwitten"
-            value={log.protein}
-            target={targets.protein}
-            unit="g"
-            increments={[10, 20, 30]}
-            onAdd={addProtein}
-            onSet={setProtein}
-          />
-          <HydrationRow
-            glasses={log.hydration}
-            target={waterGlassTarget}
-            onChange={setWater}
-          />
-        </div>
-      </Card>
-
-      {/* Wellbeing — sleep + movement */}
-      <CollapsibleCard
-        id="wellbeing"
-        title="Welzijn"
-        className="mb-5"
-        style={{ animationDelay: '200ms' }}
-      >
-        <div className="space-y-6">
-          <SleepTracker hours={log.sleep} onChange={setSleep} />
-          <div className="h-px bg-cream-200/70" />
-          <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
-        </div>
-      </CollapsibleCard>
-
-      {/* Tip van de dag */}
-      <TipVanDeDag phase={state.phase} log={log} goals={profile.goals} targets={targets} name={profile.name} />
-
-      {/* Weekly nourishment history */}
-      <WeeklyHistoryStrip profile={profile} todayLog={log} />
-
-      {/* Gut health checklist */}
-      <CollapsibleCard
-        id="gut"
-        title="Darmgezondheid"
-        headerExtra={
-          <span className="text-[11px] text-ink-400">
-            {Object.values(log.gut).filter(Boolean).length} of 3
-          </span>
-        }
-        className="mb-5"
-        style={{ animationDelay: '240ms' }}
-      >
-        <GutChecklist gut={log.gut} onToggle={toggleGut} />
-      </CollapsibleCard>
-
-      {/* Nutrient focus */}
-      <CollapsibleCard
-        id="focus"
-        title="Nutriëntenfocus"
-        className="mb-5"
-        style={{ animationDelay: '280ms' }}
-      >
-        <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
-        <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
-        <div className="flex flex-wrap gap-2">
-          {targets.focus.foods.map((f) => (
-            <span
-              key={f}
-              className="text-xs px-3 py-1.5 rounded-full bg-cream-100 border border-cream-200 text-ink-600"
-            >
-              {f}
-            </span>
-          ))}
-        </div>
-      </CollapsibleCard>
-
-      {/* Journal note */}
-      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '340ms' }}>
-        <JournalNote note={log.note} onChange={setNote} />
-      </Card>
-
-      {/* Daily insight */}
-      <Card className="p-6 anim-fade-up" style={{ animationDelay: '380ms' }}>
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">
-          <Sparkles className="w-3.5 h-3.5" />
-          Dagelijks inzicht
-        </div>
-        <p className="font-display text-[19px] leading-snug text-ink-700">
-          {insight.text}
-        </p>
-      </Card>
+      {cardOrder.map((id) => {
+        const renderer = cardRenderers[id];
+        return renderer ? renderer() : null;
+      })}
 
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
         Aura · v1.3
@@ -2972,6 +4112,13 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
 
       {phaseInfo && (
         <PhaseInfoModal phase={phaseInfo} onClose={() => setPhaseInfo(null)} />
+      )}
+
+      {manualFoodOpen && (
+        <ManualFoodEntryModal
+          onClose={() => setManualFoodOpen(false)}
+          onAdd={addManualFood}
+        />
       )}
     </div>
   );
@@ -3095,6 +4242,9 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
     .slice(0, 3)
     .join(' · ');
   const sportLabel = SPORT_INTENSITY_LABELS[log.sportIntensity] || '';
+  const energieIcon  = log.energie  != null ? ENERGIE_LEVELS[log.energie - 1]?.icon  : null;
+  const stemmingIcon = log.stemming != null ? STEMMING_LEVELS[log.stemming - 1]?.icon : null;
+  const symptomenList = Array.isArray(log.symptomen) ? log.symptomen : [];
 
   return (
     <Card
@@ -3200,6 +4350,34 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                   {symptomsLogged.map(([id, val]) => (
                     <span key={id} className="text-base leading-none" title={id}>
                       {SYMPTOM_ICONS[id]?.[val - 1] ?? ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {(energieIcon || stemmingIcon) && (
+                <div className="flex items-center gap-3 mt-1 text-[11px] text-ink-500">
+                  {energieIcon && (
+                    <span title="Energie" className="flex items-center gap-1">
+                      <span className="text-ink-400">Energie</span>
+                      <span className="text-base leading-none">{energieIcon}</span>
+                    </span>
+                  )}
+                  {stemmingIcon && (
+                    <span title="Stemming" className="flex items-center gap-1">
+                      <span className="text-ink-400">Stemming</span>
+                      <span className="text-base leading-none">{stemmingIcon}</span>
+                    </span>
+                  )}
+                </div>
+              )}
+              {symptomenList.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {symptomenList.map((name) => (
+                    <span
+                      key={name}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-terracotta-100/70 border border-terracotta-200 text-terracotta-600"
+                    >
+                      {name}
                     </span>
                   ))}
                 </div>
@@ -4143,22 +5321,60 @@ class ErrorBoundary extends React.Component {
 /*  Root                                                               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * True wanneer er nog geen enkele dagelijkse log is opgeslagen — gebruikt
+ * door de welcome-modal om te detecteren of dit echt een eerste opening
+ * is. We scannen lokaal naar `aura.log.*` keys want we hebben geen index
+ * van logs (één key per dag is bewust gehouden — zie storage.js).
+ */
+function hasAnyLogs() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('aura.log.')) return true;
+    }
+  } catch { /* private mode — pretend the user has logs so we don't loop */ return true; }
+  return false;
+}
+
 function App() {
   const [profile, setProfile] = useState(() => loadProfile());
   const [tab, setTab] = useState('home');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // We controleren één keer bij mount of er logs bestaan — als de
+  // gebruikster begint met loggen mag de welkomstmodal niet midden in
+  // een sessie alsnog verschijnen.
+  const [welcomeNeeded, setWelcomeNeeded] = useState(() => !hasAnyLogs());
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('aura.theme') || 'auto'; }
     catch { return 'auto'; }
   });
+  // Toast voor opslagfouten — eerder werden quota/private-mode errors
+  // stilletjes geslikt, waardoor de gebruikster dacht dat een entry
+  // bewaard was terwijl die bij reload weg was.
+  const [storageErrorMsg, setStorageErrorMsg] = useState('');
+  const storageErrorTimerRef = useRef(null);
 
   const handleThemeChange = useCallback((newTheme) => {
     setTheme(newTheme);
     try { localStorage.setItem('aura.theme', newTheme); }
-    catch { /* private mode / quota — theme still applies in-memory */ }
+    catch (err) { notifyStorageError(err); }
     const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const dark = newTheme === 'dark' || (newTheme === 'auto' && sysDark);
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  }, []);
+
+  useEffect(() => {
+    setStorageErrorHandler((err) => {
+      console.error('[Aura] storage save failed:', err);
+      setStorageErrorMsg('Opslaan mislukt — mogelijk vol geheugen');
+      if (storageErrorTimerRef.current) clearTimeout(storageErrorTimerRef.current);
+      storageErrorTimerRef.current = setTimeout(() => setStorageErrorMsg(''), 4000);
+    });
+    return () => {
+      setStorageErrorHandler(null);
+      if (storageErrorTimerRef.current) clearTimeout(storageErrorTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -4269,6 +5485,24 @@ function App() {
       <BottomNav active={tab} onSelect={setTab} />
       <PWAInstallBanner />
       <ReminderBanner profile={profile} />
+      {welcomeNeeded && profile && profile.onboardingDone !== true && (
+        <WelcomeModal
+          profile={profile}
+          onComplete={(next) => {
+            setProfile(next);
+            setWelcomeNeeded(false);
+          }}
+        />
+      )}
+      {storageErrorMsg && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] px-4 py-2.5 rounded-full bg-terracotta-500 text-cream-50 text-sm shadow-lg anim-fade-up whitespace-nowrap max-w-[90vw]"
+        >
+          {storageErrorMsg}
+        </div>
+      )}
     </>
   );
 }
