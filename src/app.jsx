@@ -3701,7 +3701,7 @@ function PhaseTimeline({ state }) {
   );
 }
 
-function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
+function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) {
   const state   = useMemo(() => getCycleState(profile), [profile]);
   const targets = useMemo(() => getDailyTargets(profile, state.phase), [profile, state.phase]);
   const insight = useMemo(() => getDailyInsight(state.phase, new Date(), profile.name ? profile.name.split(' ')[0] : ''), [state.phase, profile.name]);
@@ -4013,7 +4013,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
       >
         <div className="font-display text-xl text-ink-700 mb-1">{targets.focus.headline}</div>
         <p className="text-sm text-ink-500 leading-relaxed mb-4">{targets.focus.why}</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 mb-4">
           {targets.focus.foods.map((f) => (
             <span
               key={f}
@@ -4023,6 +4023,16 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings }) {
             </span>
           ))}
         </div>
+        {onOpenVoeding && (
+          <button
+            type="button"
+            onClick={onOpenVoeding}
+            className="inline-flex items-center gap-1.5 text-sm text-sage-600 hover:text-sage-700 font-medium transition"
+          >
+            Bekijk recepten in Voeding
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
       </CollapsibleCard>
     ),
 
@@ -4865,13 +4875,37 @@ function TipVanDeDag({ phase, log, goals, targets, name }) {
     tip = `Je dronk gisteren gemiddeld ${(yLog.hydration * 0.25).toFixed(1)}L — probeer vandaag ${litres}L te halen 💧`;
   }
 
+  const dismissKey = `aura.tip.dismissed.${isoDate()}`;
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(dismissKey) === '1'; } catch { return false; }
+  });
+
+  if (dismissed) return null;
+
+  const handleDismiss = () => {
+    try { localStorage.setItem(dismissKey, '1'); } catch (err) { notifyStorageError(err); }
+    setDismissed(true);
+  };
+
   return (
     <Card className="p-5 mb-5 anim-fade-up">
-      <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">
-        <Sparkles className="w-3.5 h-3.5" />
-        Tip van de dag
+      <div className="flex items-start gap-2">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">
+            <Sparkles className="w-3.5 h-3.5" />
+            Tip van de dag
+          </div>
+          <p className="text-sm text-ink-600 leading-relaxed">{tip}</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Tip wegklikken"
+          className="-mt-1 -mr-1 w-9 h-9 rounded-full text-ink-400 hover:text-ink-600 hover:bg-cream-100 transition flex items-center justify-center shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
-      <p className="text-sm text-ink-600 leading-relaxed">{tip}</p>
     </Card>
   );
 }
@@ -5459,6 +5493,7 @@ function App() {
             profile={profile}
             onUpdateProfile={updateProfile}
             onOpenSettings={() => setTab('settings')}
+            onOpenVoeding={() => setTab('voeding')}
           />
         )}
         {tab === 'voeding' && <VoedingView profile={profile} />}
