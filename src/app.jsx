@@ -3133,13 +3133,18 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
   };
 
   const handleSave = () => {
-    const age      = Number(form.age)      || profile.age;
-    const weightKg = Number(form.weightKg) || profile.weightKg;
-    const heightCm = Number(form.heightCm) || profile.heightCm;
+    const age         = Number(form.age)         || profile.age;
+    const weightKg    = Number(form.weightKg)    || profile.weightKg;
+    const heightCm    = Number(form.heightCm)    || profile.heightCm;
+    const cycleLength = Number(form.cycleLength);
 
     if (age      && (age      < 12  || age      > 80 )) { showToast('Leeftijd moet tussen 12 en 80 jaar liggen');      return; }
     if (weightKg && (weightKg < 30  || weightKg > 250)) { showToast('Gewicht moet tussen 30 en 250 kg liggen');        return; }
     if (heightCm && (heightCm < 120 || heightCm > 220)) { showToast('Lengte moet tussen 120 en 220 cm liggen');        return; }
+    if (!Number.isFinite(cycleLength) || cycleLength < 1 || cycleLength > 90) {
+      showToast('Cycluslengte moet tussen 1 en 90 dagen liggen');
+      return;
+    }
 
     const cleanGoals = {};
     Object.entries(goals).forEach(([k, v]) => { if (Number(v) > 0) cleanGoals[k] = Number(v); });
@@ -3153,7 +3158,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
       weightKg,
       heightCm,
       activityLevel: form.activityLevel,
-      cycleLength:   Number(form.cycleLength),
+      cycleLength,
       goals:         cleanGoals,
       notifEnabled,
       notifTime,
