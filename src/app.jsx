@@ -11,7 +11,7 @@ import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
   BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
-  Thermometer, Info, Heart, Dumbbell, Plus, RefreshCw,
+  Thermometer, Info, Heart, Dumbbell, Plus, RefreshCw, Calendar, Briefcase,
 } from 'lucide-react';
 
 import {
@@ -2500,6 +2500,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
             { id: 'wellbeing',     label: t('wellbeing.title') },
             { id: 'gut',           label: t('gut.title') },
             { id: 'focus',         label: t('focus.title') },
+            { id: 'workload',      label: t('workload.title') },
             { id: 'insight',       label: t('insight.title') },
             { id: 'journal',       label: t('journal.title') },
             { id: 'cycleHistory',  label: t('cycle.recent.title') },
@@ -3141,6 +3142,9 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
           </button>
         )}
       </CollapsibleCard>}
+
+      {/* Workload / week planning */}
+      {!hidden.has('workload') && <WorkloadCard phase={state.phase} />}
 
       {/* Journal note */}
       {!hidden.has('journal') && <CollapsibleCard
@@ -3949,6 +3953,54 @@ function TipVanDeDag({ phase, log, goals, targets, name }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
+/*  Workload card — work/sport/agenda advice per phase                */
+/* ------------------------------------------------------------------ */
+
+function WorkloadCard({ phase }) {
+  const { t, phaseWork } = useT();
+  const work = phaseWork(phase);
+  if (!work) return null;
+
+  return (
+    <CollapsibleCard id="workload" title={t('workload.title')} icon={Calendar} className="mb-5">
+      <div className="space-y-4">
+        <div className="font-display text-lg text-ink-700">{work.headline}</div>
+
+        <div className="space-y-3">
+          {[
+            { labelKey: 'workload.work',   icon: Briefcase, body: work.workTip  },
+            { labelKey: 'workload.sport',  icon: Dumbbell,  body: work.sportTip },
+          ].map(({ labelKey, icon: Icon, body }) => (
+            <div key={labelKey} className="flex gap-3">
+              <div className="w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center shrink-0 mt-0.5">
+                <Icon className="w-3.5 h-3.5 text-sage-600" />
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-0.5">{t(labelKey)}</div>
+                <p className="text-sm text-ink-600 leading-relaxed">{body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">{t('workload.agenda')}</div>
+          <ul className="space-y-1.5">
+            {work.agendaTips.map((tip) => (
+              <li key={tip} className="flex items-start gap-2 text-sm text-ink-600">
+                <Check className="w-3.5 h-3.5 text-sage-500 mt-0.5 shrink-0" />
+                {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </CollapsibleCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Phase recipes (feature 5)                                         */
 /* ------------------------------------------------------------------ */
 
@@ -4298,7 +4350,7 @@ function FoodLogCard({ log, onUpdate, targets }) {
 }
 
 function VoedingView({ profile }) {
-  const { t, phaseBreakfasts } = useT();
+  const { t, phaseBreakfasts, phaseMeta } = useT();
   const state   = useMemo(() => getCycleState(profile), [profile]);
   const targets = useMemo(() => getDailyTargets(profile, state.phase), [profile, state.phase]);
   const allBreakfasts = phaseBreakfasts(state.phase) || [];
@@ -4313,12 +4365,41 @@ function VoedingView({ profile }) {
     setBfOffset((prev) => (prev + PAGE) % allBreakfasts.length);
   };
 
+  const perMealProtein = targets.protein > 0 ? Math.round(targets.protein / 4) : 0;
+  const phaseLabel = phaseMeta(state.phase)?.label?.toLowerCase() ?? '';
+
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
       <header className="mb-7 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">{t('food.subtitle')}</div>
         <h1 className="font-display text-[30px] leading-tight text-ink-700">{t('food.title')}</h1>
       </header>
+
+      {/* Personalized daily targets */}
+      {targets.calories > 0 && (
+        <Card className="p-5 mb-5 anim-fade-up">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('nutrition.targets.title')}</div>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            {[
+              { value: targets.calories, unit: t('nutrition.targets.kcal'),       color: 'bg-sage-100 text-sage-700' },
+              { value: `${targets.protein}g`, unit: t('nutrition.targets.protein'),    color: 'bg-terracotta-100 text-terracotta-600' },
+              { value: `${targets.hydrationL}L`, unit: t('nutrition.targets.water'), color: 'bg-cream-200 text-ink-600' },
+            ].map(({ value, unit, color }) => (
+              <div key={unit} className={`rounded-xl px-3 py-2.5 text-center ${color}`}>
+                <div className="font-display text-lg leading-none">{value}</div>
+                <div className="text-[10px] mt-1 opacity-75">{unit}</div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-ink-400 leading-snug">
+            {t('nutrition.targets.based', { kg: profile.weightKg ?? '–', cm: profile.heightCm ?? '–', phase: phaseLabel })}
+            {targets.calorieDelta > 0 && ` (+${targets.calorieDelta} kcal)`}
+          </p>
+          {perMealProtein > 0 && (
+            <p className="text-[11px] text-ink-400 mt-1">{t('nutrition.targets.perMeal', { g: perMealProtein })}</p>
+          )}
+        </Card>
+      )}
 
       {/* Food log calculator */}
       <FoodLogCard log={log} onUpdate={updateLog} targets={targets} />
