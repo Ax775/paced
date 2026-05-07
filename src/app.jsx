@@ -11,7 +11,7 @@ import {
   Flower2, Leaf, Sun, Moon, Sparkles, ArrowRight, Settings,
   Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
   BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
-  Thermometer, Info, Heart, Dumbbell, Plus,
+  Thermometer, Info, Heart, Dumbbell, Plus, RefreshCw,
 } from 'lucide-react';
 
 import {
@@ -4301,8 +4301,17 @@ function VoedingView({ profile }) {
   const { t, phaseBreakfasts } = useT();
   const state   = useMemo(() => getCycleState(profile), [profile]);
   const targets = useMemo(() => getDailyTargets(profile, state.phase), [profile, state.phase]);
-  const breakfasts = phaseBreakfasts(state.phase) || [];
+  const allBreakfasts = phaseBreakfasts(state.phase) || [];
+  const [bfOffset, setBfOffset] = useState(0);
   const [log, updateLog] = useDailyLog();
+
+  const PAGE = 3;
+  const visible = allBreakfasts.slice(bfOffset, bfOffset + PAGE);
+  const canRefresh = allBreakfasts.length > PAGE;
+
+  const handleRefresh = () => {
+    setBfOffset((prev) => (prev + PAGE) % allBreakfasts.length);
+  };
 
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto">
@@ -4331,7 +4340,7 @@ function VoedingView({ profile }) {
         className="mb-5"
       >
         <div className="space-y-2">
-          {breakfasts.map((b) => (
+          {visible.map((b) => (
             <div
               key={b.name}
               className="flex items-center gap-3 px-4 py-3 rounded-xl bg-cream-50 border border-cream-200"
@@ -4346,6 +4355,16 @@ function VoedingView({ profile }) {
             </div>
           ))}
         </div>
+        {canRefresh && (
+          <button
+            type="button"
+            onClick={handleRefresh}
+            className="mt-3 flex items-center gap-1.5 text-xs text-sage-600 hover:text-sage-700 active:scale-95 transition"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            {t('breakfast.refresh')}
+          </button>
+        )}
       </CollapsibleCard>
       <PhaseRecipes phase={state.phase} />
     </div>
