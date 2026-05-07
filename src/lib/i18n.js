@@ -174,6 +174,65 @@ const PHASE_SPORTS_I18N = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Phase work / stress / agenda advice                                */
+/* ------------------------------------------------------------------ */
+
+const PHASE_WORK_I18N = {
+  nl: {
+    menstrual: {
+      headline:   'Bescherm je energie',
+      workTip:    'Vermijd grote presentaties en moeilijke gesprekken. Focus op routinetaken en afmaken wat al loopt.',
+      sportTip:   'Rust of lichte beweging: wandelen, yin yoga, stretching. Geen intensieve training.',
+      agendaTips: ['Houd je agenda licht en ongeblokkeerd', 'Plan rustmomenten in je dag', 'Stel niet-urgente deadlines gerust uit'],
+    },
+    follicular: {
+      headline:   'Ga voor nieuwe uitdagingen',
+      workTip:    'Ideaal voor nieuwe projecten, creatieve taken, leertrajecten en brainstormsessies. Je brein is scherp.',
+      sportTip:   'Bouw rustig op: cardio, pilates of krachttraining op lager volume. Je herstelt snel.',
+      agendaTips: ['Plan nieuwe projecten en kickoffs in', 'Maak afspraken voor moeilijke gesprekken', 'Leer iets nieuws — absorptievermogen is hoog'],
+    },
+    ovulatory: {
+      headline:   'Jouw piekweek',
+      workTip:    'Dé week voor presentaties, netwerken, moeilijke gesprekken en samenwerking. Sociale energie is op z\'n hoogst.',
+      sportTip:   'Maximale prestatie: HIIT, zware krachttraining of teamsport. Je lichaam kan meer aan.',
+      agendaTips: ['Plan je belangrijkste afspraken en deadlines', 'Zeg ja tegen sociale en professionele kansen', 'Gebruik deze focus voor complexe beslissingen'],
+    },
+    luteal: {
+      headline:   'Afronden, geen nieuwe start',
+      workTip:    'Focus op afmaken, details en diepgaand werk. Vermijd het aangaan van grote nieuwe verplichtingen.',
+      sportTip:   'Matige intensiteit: yoga, zwemmen of rustig fietsen. Luister goed naar je lichaam.',
+      agendaTips: ['Bescherm je agenda — beperk nieuwe social events', 'Reserveer tijd voor herstel en stilte', 'Delegeer waar mogelijk; perfectionisme kost nu veel energie'],
+    },
+  },
+  en: {
+    menstrual: {
+      headline:   'Protect your energy',
+      workTip:    'Avoid big presentations and difficult conversations. Focus on routine tasks and finishing what\'s already in progress.',
+      sportTip:   'Rest or light movement: walking, yin yoga, stretching. Skip intense training.',
+      agendaTips: ['Keep your calendar light and unblocked', 'Schedule rest moments into your day', 'Postpone non-urgent deadlines without guilt'],
+    },
+    follicular: {
+      headline:   'Go for new challenges',
+      workTip:    'Ideal for new projects, creative tasks, learning, and brainstorming. Your mind is sharp.',
+      sportTip:   'Build up gradually: cardio, pilates or strength training at lower volume. Recovery is fast.',
+      agendaTips: ['Schedule new project kickoffs', 'Book difficult conversations now', 'Learn something new — absorption capacity is high'],
+    },
+    ovulatory: {
+      headline:   'Your peak week',
+      workTip:    'The week for presentations, networking, difficult talks, and collaboration. Social energy is at its highest.',
+      sportTip:   'Peak performance: HIIT, heavy strength or team sport. Your body can handle more.',
+      agendaTips: ['Schedule your most important meetings and deadlines', 'Say yes to social and professional opportunities', 'Tackle complex decisions while focus is high'],
+    },
+    luteal: {
+      headline:   'Finish up, not start fresh',
+      workTip:    'Focus on finishing, details, and deep work. Avoid taking on major new commitments.',
+      sportTip:   'Moderate intensity: yoga, swimming or easy cycling. Listen closely to your body.',
+      agendaTips: ['Protect your calendar — limit new social events', 'Reserve time for rest and quiet', 'Delegate where possible; perfectionism costs extra energy now'],
+    },
+  },
+};
+
+/* ------------------------------------------------------------------ */
 /*  Sport intensities                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -825,6 +884,20 @@ const STRINGS = {
     'week.bar.aria': '{label} dag {n}: {pct}% van doel',
     'week.phaseStrip.aria': 'Cyclusfase per dag',
 
+    /* workload card */
+    'workload.title':   'Week planning',
+    'workload.work':    'Werk',
+    'workload.sport':   'Sport',
+    'workload.agenda':  'Agenda tips',
+
+    /* personalized nutrition targets */
+    'nutrition.targets.title':    'Jouw dagdoelen',
+    'nutrition.targets.based':    'Op basis van {kg}kg, {cm}cm en {phase} fase',
+    'nutrition.targets.kcal':     'kcal',
+    'nutrition.targets.protein':  'eiwit',
+    'nutrition.targets.water':    'water',
+    'nutrition.targets.perMeal':  '~{g}g eiwit per maaltijd (bij 4 eetmomenten)',
+
     /* nutrient focus */
     'focus.title':       'Nutriëntenfocus',
     'focus.openVoeding': 'Bekijk recepten in Voeding',
@@ -1210,6 +1283,20 @@ const STRINGS = {
     'week.bar.aria': '{label} day {n}: {pct}% of goal',
     'week.phaseStrip.aria': 'Cycle phase per day',
 
+    /* workload card */
+    'workload.title':   'Week planning',
+    'workload.work':    'Work',
+    'workload.sport':   'Sport',
+    'workload.agenda':  'Agenda tips',
+
+    /* personalized nutrition targets */
+    'nutrition.targets.title':    'Your daily goals',
+    'nutrition.targets.based':    'Based on {kg}kg, {cm}cm and {phase} phase',
+    'nutrition.targets.kcal':     'kcal',
+    'nutrition.targets.protein':  'protein',
+    'nutrition.targets.water':    'water',
+    'nutrition.targets.perMeal':  '~{g}g protein per meal (with 4 eating moments)',
+
     'focus.title':       'Nutrient focus',
     'focus.openVoeding': 'View recipes in Food',
 
@@ -1477,6 +1564,7 @@ export function LocaleProvider({ children }) {
     phaseSports:    (phase) => PHASE_SPORTS_I18N[locale][phase],
     phaseRecipes:   (phase) => PHASE_RECIPES_I18N[locale][phase],
     phaseBreakfasts:(phase) => PHASE_BREAKFASTS_I18N[locale][phase],
+    phaseWork:      (phase) => PHASE_WORK_I18N[locale][phase],
     nutrientFocus: (phase) => NUTRIENT_FOCUS_I18N[locale][phase],
     sportIntensities: () => SPORT_INTENSITIES_I18N[locale],
     activityLevels:   () => ACTIVITY_LEVELS_I18N[locale],
