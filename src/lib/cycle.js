@@ -442,6 +442,46 @@ export function isPeriodLoggedOn(profile, day = new Date()) {
   return profile.periodHistory.includes(toISODate(day));
 }
 
+/**
+ * Replace the start date of the *current* (most recent) period with a
+ * corrected one. Used when the auto-detected/auto-logged date is wrong
+ * (e.g. "Aura thinks I'm on day 3 but I'm actually on day 9 — my last
+ * period started 6 days earlier than recorded").
+ *
+ * Behavior:
+ * - Drops the latest entry from periodHistory if it matches the current
+ *   `lastPeriodStart`, then inserts the corrected ISO date and re-sorts.
+ * - Updates `lastPeriodStart` to the new value.
+ * - Recomputes cycleLength from the (possibly mutated) history so the
+ *   learned average stays consistent with the visible history.
+ *
+ * The new date must be a valid ISO yyyy-mm-dd or a Date.
+ */
+export function correctCurrentPeriodStart(profile, newDate) {
+  if (!profile || !newDate) return profile;
+  const newISO = toISODate(newDate);
+  const history = Array.isArray(profile.periodHistory) ? profile.periodHistory.slice() : [];
+  const oldISO = profile.lastPeriodStart ? toISODate(profile.lastPeriodStart) : null;
+
+  // Remove the entry that represents the current (incorrect) start.
+  if (oldISO) {
+    const idx = history.lastIndexOf(oldISO);
+    if (idx !== -1) history.splice(idx, 1);
+  }
+
+  // Avoid duplicate entries if the user picked the same date some other
+  // historical entry already lives on.
+  if (!history.includes(newISO)) history.push(newISO);
+  history.sort();
+
+  return {
+    ...profile,
+    periodHistory:   history,
+    lastPeriodStart: newISO,
+    cycleLength:     learnedCycleLength(history, profile.cycleLength),
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /*  Basal temperature & ovulation detection                            */
 /* ------------------------------------------------------------------ */
