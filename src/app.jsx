@@ -19,6 +19,7 @@ import {
   logPeriodStart, unlogPeriodStart, isPeriodLoggedOn,
   getCycleHistory, isValidTemperature, TEMP_MIN, TEMP_MAX,
   detectOvulationFromTemperatureSeries, toISODate,
+  predictNextPeriod, getFertileWindow, atMidnight,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import {
@@ -2495,6 +2496,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">{t('settings.cards.title')}</div>
         <div className="space-y-1">
           {[
+            { id: 'goalRings',     label: 'Voortgangs-ringen' },
             { id: 'symptoms',      label: t('symptoms.title') },
             { id: 'todayNutrition',label: t('nutrition.today') },
             { id: 'wellbeing',     label: t('wellbeing.title') },
@@ -2504,6 +2506,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
             { id: 'insight',       label: t('insight.title') },
             { id: 'journal',       label: t('journal.title') },
             { id: 'cycleHistory',  label: t('cycle.recent.title') },
+            { id: 'cycleCalendar', label: 'Cyclus-kalender' },
             { id: 'temperature',   label: t('temp.title') },
             { id: 'ovulation',     label: t('ovulation.title') },
           ].map(({ id, label }) => {
@@ -3001,7 +3004,8 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
         />
       )}
 
-      {/* Goal progress rings removed per user feedback (point 4) */}
+      {/* Goal progress rings */}
+      {!hidden.has('goalRings') && <GoalRings log={log} goals={profile.goals} targets={targets} />}
 
       {/* Symptom tracker */}
       {!hidden.has('symptoms') && <SymptomTracker log={log} onUpdate={updateLog} />}
@@ -3038,6 +3042,9 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
       {/* Recent cycles (only renders once there's ≥1 completed cycle) */}
       {!hidden.has('cycleHistory') && <CycleHistoryStrip profile={profile} />}
 
+      {/* Cycle calendar — 6×7 grid with logged + predicted markers */}
+      {!hidden.has('cycleCalendar') && <CycleCalendarCard profile={profile} />}
+
       {/* Today's nourishment */}
       {!hidden.has('todayNutrition') && <CollapsibleCard
         id="todayNutrition"
@@ -3070,6 +3077,11 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
             increments={[10, 20, 30]}
             onAdd={addProtein}
             onSet={setProtein}
+          />
+          <HydrationRow
+            glasses={log.hydration}
+            target={waterGlassTarget}
+            onChange={setWater}
           />
         </div>
       </CollapsibleCard>}
@@ -3839,6 +3851,204 @@ function DaySummaryStrip({ log, goals, targets, waterGlassTarget }) {
           🌿 {t('dash.summary.goodDay')}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Cycle calendar — 6×7 grid with logged + predicted markers          */
+/* ------------------------------------------------------------------ */
+
+const CAL_DAY_HEADERS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
+
+const CAL_COLORS = {
+  period:    '#e8748a',
+  fertile:   '#6dbf82',
+  ovulation: '#3d9e57',
+};
+
+function buildCalendarGrid(profile, today) {
+  const start = atMidnight(today);
+  const dow = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - dow - 7);
+
+  const cycleLength = profile?.cycleLength || 28;
+  const periodLen   = profile?.mensDuration || 5;
+  const history     = Array.isArray(profile?.periodHistory) ? profile.periodHistory : [];
+  const lastStart   = profile?.lastPeriodStart || null;
+
+  const loggedPeriodSet = new Set();
+  for (const iso of history) {
+    const d = new Date(`${iso}T00:00:00`);
+    for (let i = 0; i < periodLen; i++) {
+      const day = new Date(d);
+      day.setDate(d.getDate() + i);
+      loggedPeriodSet.add(toISODate(day));
+    }
+  }
+
+  const predictedPeriodSet = new Set();
+  if (lastStart) {
+    const base = new Date(`${toISODate(lastStart)}T00:00:00`);
+    for (let c = 1; c <= 6; c++) {
+      const cstart = new Date(base);
+      cstart.setDate(base.getDate() + cycleLength * c);
+      for (let i = 0; i < periodLen; i++) {
+        const day = new Date(cstart);
+        day.setDate(cstart.getDate() + i);
+        predictedPeriodSet.add(toISODate(day));
+      }
+    }
+  }
+
+  const fertileSet = new Set();
+  const ovulationSet = new Set();
+  if (lastStart) {
+    const baseISO = toISODate(lastStart);
+    for (let c = 0; c <= 5; c++) {
+      const cBase = new Date(`${baseISO}T00:00:00`);
+      cBase.setDate(cBase.getDate() + cycleLength * c);
+      const window = getFertileWindow(cBase, cycleLength);
+      if (!window) continue;
+      const wStart = new Date(`${window.start}T00:00:00`);
+      const wEnd   = new Date(`${window.end}T00:00:00`);
+      for (let d = new Date(wStart); d <= wEnd; d.setDate(d.getDate() + 1)) {
+        fertileSet.add(toISODate(d));
+      }
+      ovulationSet.add(window.ovulation);
+    }
+  }
+
+  const todayISO = toISODate(today);
+  const out = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const iso = toISODate(d);
+    const isToday  = iso === todayISO;
+    const isFuture = d.getTime() > atMidnight(today).getTime();
+
+    let tag = null;
+    let predicted = false;
+    if (loggedPeriodSet.has(iso)) {
+      tag = 'period';
+    } else if (predictedPeriodSet.has(iso)) {
+      tag = 'period';
+      predicted = true;
+    } else if (ovulationSet.has(iso)) {
+      tag = 'ovulation';
+      predicted = isFuture;
+    } else if (fertileSet.has(iso)) {
+      tag = 'fertile';
+      predicted = isFuture;
+    }
+
+    out.push({ iso, day: d.getDate(), isToday, isFuture, tag, predicted });
+  }
+  return out;
+}
+
+function CycleCalendarCard({ profile }) {
+  const { formatDate } = useT();
+  const today = useMemo(() => new Date(), []);
+  const grid  = useMemo(() => buildCalendarGrid(profile, today), [profile, today]);
+  const [selected, setSelected] = useState(null);
+
+  const cycleLength = profile?.cycleLength || 28;
+  const nextStartISO = useMemo(() => {
+    const history = Array.isArray(profile?.periodHistory) ? profile.periodHistory : [];
+    if (history.length > 0) return predictNextPeriod(history, cycleLength);
+    if (profile?.lastPeriodStart) return predictNextPeriod(profile.lastPeriodStart, cycleLength);
+    return null;
+  }, [profile, cycleLength]);
+
+  const tagLabel = (cell) => {
+    if (!cell.tag) return cell.predicted ? '' : 'Geen markering';
+    const base = cell.tag === 'period'    ? 'Menstruatie'
+              : cell.tag === 'fertile'    ? 'Vruchtbaar venster'
+              :                              'Ovulatie';
+    return cell.predicted ? `${base} (voorspeld)` : base;
+  };
+
+  const swatch = (kind) => {
+    if (kind === 'period')    return CAL_COLORS.period;
+    if (kind === 'fertile')   return CAL_COLORS.fertile;
+    if (kind === 'ovulation') return CAL_COLORS.ovulation;
+    return null;
+  };
+
+  const tooltipCell = selected ? grid.find((c) => c.iso === selected) : null;
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '110ms' }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Cyclus-kalender</div>
+        {nextStartISO && (
+          <div className="text-[11px] text-terracotta-600 bg-terracotta-100 px-2 py-0.5 rounded-full">
+            volgende: {formatShortDate(nextStartISO, formatDate)}
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 mb-1.5">
+        {CAL_DAY_HEADERS.map((d) => (
+          <div key={d} className="text-[10px] uppercase tracking-wider text-ink-400 text-center">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {grid.map((cell) => {
+          const bg = swatch(cell.tag);
+          const opacity = cell.predicted ? 0.4 : 1;
+          const isSelected = selected === cell.iso;
+          return (
+            <button
+              key={cell.iso}
+              type="button"
+              onClick={() => setSelected(isSelected ? null : cell.iso)}
+              aria-label={`${cell.iso} — ${tagLabel(cell) || 'geen'}`}
+              aria-pressed={isSelected}
+              className={`relative aspect-square rounded-lg flex items-center justify-center text-[11px] transition active:scale-95 ${
+                bg ? 'text-cream-50 font-medium' : 'text-ink-500 bg-cream-50 border border-cream-200'
+              } ${cell.isToday ? 'ring-2 ring-sage-500 ring-offset-1 ring-offset-cream-50' : ''}`}
+              style={bg ? { background: bg, opacity } : undefined}
+            >
+              {cell.day}
+            </button>
+          );
+        })}
+      </div>
+
+      {tooltipCell && (
+        <div className="mt-3 px-3 py-2.5 rounded-xl bg-cream-100/80 border border-cream-200 text-[12px] text-ink-600 leading-snug anim-fade-up">
+          <div className="font-medium text-ink-700">{formatShortDate(tooltipCell.iso, formatDate)}</div>
+          <div className="text-ink-500">{tagLabel(tooltipCell) || 'Geen markering — gewone cyclusdag.'}</div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-3 mt-4">
+        <LegendDot color={CAL_COLORS.period}    label="Menstruatie" />
+        <LegendDot color={CAL_COLORS.fertile}   label="Vruchtbaar" />
+        <LegendDot color={CAL_COLORS.ovulation} label="Ovulatie" />
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-full border-2 border-sage-500" aria-hidden="true" />
+          <span className="text-[11px] text-ink-500">Vandaag</span>
+        </div>
+      </div>
+      <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
+        Lichtere kleuren zijn voorspellingen — ze worden steviger naarmate je meer logt.
+      </p>
+    </Card>
+  );
+}
+
+function LegendDot({ color, label }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="w-3 h-3 rounded-full" style={{ background: color }} aria-hidden="true" />
+      <span className="text-[11px] text-ink-500">{label}</span>
     </div>
   );
 }
