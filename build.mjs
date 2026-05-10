@@ -32,7 +32,17 @@ if (existsSync(distDir)) rmSync(distDir, { recursive: true });
 mkdirSync(distDir, { recursive: true });
 
 // ── 1. Bundle JSX ─────────────────────────────────────────────────────────
-console.log('• Bundling app.jsx → dist/app.js');
+//
+// Sourcemap is opt-in via `BUILD_SOURCEMAP=1` (or `--sourcemap`). Default
+// off — een 900 KB .map naar productie pushen kost bandbreedte (en op
+// Cloudflare Pages telt het ook mee voor je build-cache) zonder meet-
+// bare opbrengst voor eindgebruikers; devtools laten 'm pas zien als
+// iemand expliciet open klikt. Voor remote debugging op een staging-
+// deploy: `BUILD_SOURCEMAP=1 npm run build`.
+const wantSourcemap =
+  process.argv.includes('--sourcemap') || process.env.BUILD_SOURCEMAP === '1';
+
+console.log(`• Bundling app.jsx → dist/app.js  (sourcemap: ${wantSourcemap ? 'on' : 'off'})`);
 await esbuild({
   entryPoints: ['src/app.jsx'],
   bundle:      true,
@@ -43,7 +53,7 @@ await esbuild({
   loader:      { '.js': 'jsx', '.jsx': 'jsx' },
   jsx:         'transform', // matches the existing `import React` style
   minify:      true,
-  sourcemap:   true,
+  sourcemap:   wantSourcemap,
   legalComments: 'none',
 });
 

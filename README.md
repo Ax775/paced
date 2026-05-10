@@ -165,6 +165,34 @@ een release zodat oude SW-caches geëvinceerd worden.
 
 ---
 
+## Backup, herstel & migratie
+
+Omdat alle data lokaal in `localStorage` staat, is het belangrijk dat
+gebruikers af en toe een export maken — vooral vóór ze van browser /
+toestel wisselen of de site-data wissen.
+
+### Voor de gebruiker
+
+| Actie | Hoe |
+|------|-----|
+| **Backup naar CSV** | Instellingen → Gegevens → "Exporteer CSV". Eén bestand met al je dagelijkse logs en profielvelden, te openen in Excel of Numbers. |
+| **Backup naar Apple Health** | Instellingen → Gegevens → "Naar Apple Health" (XML-export). Importeren via de iOS Health-app. Alleen logs met daadwerkelijke metingen worden meegestuurd. |
+| **Verhuizing naar nieuw apparaat** | Op het nieuwe apparaat eerst de app installeren, daarna handmatig de belangrijke datums (laatste menstruatie, cycluslengte) opnieuw invoeren. *CSV-import is bewust niet ondersteund — dat zou een sync-mechanisme worden, en dat past niet bij de "alles lokaal" belofte.* |
+| **Volledig wissen** | Instellingen → Profiel resetten. Wist alles: profiel, logs, voorkeuren, kaart-volgorde, dismiss-flags. |
+
+### Wat sluit dit af voor de launch
+
+CSV en Apple Health-export werken al en zijn getest. **Wel zelf
+verifiëren vóór live**:
+
+- Genereer minstens één dag aan data (voeding, slaap, etc.).
+- Klik beide exports en controleer of het bestand niet leeg is en
+  niet duidelijk-foute waarden bevat.
+- Voor Apple Health: importeer in de Health-app op een echt iOS-toestel
+  en verifieer dat tenminste één bewegings- of voedings-record landt.
+
+---
+
 ## License
 
 Code: zie `LICENSE` (toe te voegen). Lettertypes (Inter, Fraunces) staan
