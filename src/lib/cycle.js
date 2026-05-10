@@ -160,6 +160,52 @@ export const SPORT_INTENSITIES = [
   { id: 'intense',  label: 'Intensief', hint: 'HIIT, hardlopen, zware kracht' },
 ];
 
+/**
+ * Anticonceptie-opties zoals opgeslagen in `profile.contraception`.
+ * Standaard `undefined` = niet ingesteld; UI toont neutrale view.
+ *
+ * `affectsCycle: true` markeert methodes die de natuurlijke cyclus
+ * onderdrukken of veranderen — de UI gebruikt deze hint om voorzichtig
+ * te zijn met fertile-window claims (een vrouw aan de combinatiepil
+ * heeft strikt genomen geen biologische ovulatie).
+ */
+export const CONTRACEPTION_OPTIONS = [
+  { id: 'none',          label: 'Geen',                affectsCycle: false },
+  { id: 'combined-pill', label: 'Combinatiepil',       affectsCycle: true  },
+  { id: 'mini-pill',     label: 'Mini-pil',            affectsCycle: true  },
+  { id: 'hormonal-iud',  label: 'Hormoonspiraal',      affectsCycle: true  },
+  { id: 'copper-iud',    label: 'Koperspiraal',        affectsCycle: false },
+  { id: 'implant',       label: 'Implanon',            affectsCycle: true  },
+  { id: 'injection',     label: 'Prikpil',             affectsCycle: true  },
+  { id: 'ring',          label: 'Anticonceptiering',   affectsCycle: true  },
+  { id: 'patch',         label: 'Pleister',            affectsCycle: true  },
+  { id: 'barrier',       label: 'Condoom of diafragma', affectsCycle: false },
+];
+
+/**
+ * Zwangerschap-intentie zoals opgeslagen in `profile.pregnancyIntent`.
+ * Driver voor conditional rendering rond het vruchtbaar venster:
+ *
+ *   trying    → vruchtbare dagen worden prominent getoond + ovulatie-hint
+ *   avoiding  → vruchtbare dagen tonen een zachte bescherming-reminder
+ *   none/null → neutrale view (huidig gedrag)
+ */
+export const PREGNANCY_INTENTS = [
+  { id: 'none',     label: 'Geen voorkeur',           hint: 'Standaardweergave' },
+  { id: 'trying',   label: 'Probeer zwanger te worden', hint: 'Vruchtbaar venster wordt benadrukt' },
+  { id: 'avoiding', label: 'Wil niet zwanger worden',   hint: 'Reminder op vruchtbare dagen' },
+];
+
+/**
+ * Of een gegeven anticonceptiemethode de biologische cyclus onderdrukt.
+ * Gebruik dit voordat je vruchtbaar-venster claims maakt — bij hormonale
+ * methoden is het venster theoretisch en niet biologisch betrouwbaar.
+ */
+export function suppressesCycle(contraceptionId) {
+  const opt = CONTRACEPTION_OPTIONS.find((c) => c.id === contraceptionId);
+  return !!opt?.affectsCycle;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Date helpers                                                       */
 /* ------------------------------------------------------------------ */
@@ -575,6 +621,48 @@ export function getFertileWindow(periodStart, cycleLength) {
     startDay,
     endDay,
     ovulationDay,
+  };
+}
+
+/**
+ * Bepaalt waar 'vandaag' staat in het vruchtbare venster.
+ *
+ * Returns `{ status, daysUntil, daysSince, isOvulation }`:
+ *   - status:      'fertile' | 'ovulation' | 'before' | 'after'
+ *   - daysUntil:   dagen tot venster-start (0 op vandaag, null als 'after')
+ *   - daysSince:   dagen sinds venster-eind (alleen bij 'after')
+ *   - isOvulation: true op de exacte ovulatiedag
+ *
+ * @param {object} state          Resultaat van getCycleState
+ * @param {Date}   [today]        Override voor tests
+ */
+export function getFertilityStatus(state, today = new Date()) {
+  if (!state?.cycleDay || !state?.cycleLength) return null;
+  const window = getFertileWindow(
+    // We hebben geen lastPeriodStart hier, maar wel cycleDay — bereken
+    // terug naar dag-1 zodat getFertileWindow met een geldige basis werkt.
+    (() => {
+      const d = atMidnight(today);
+      d.setDate(d.getDate() - (state.cycleDay - 1));
+      return toISODate(d);
+    })(),
+    state.cycleLength,
+  );
+  if (!window) return null;
+
+  const day = state.cycleDay;
+  let status;
+  if (day === window.ovulationDay) status = 'ovulation';
+  else if (day >= window.startDay && day <= window.endDay) status = 'fertile';
+  else if (day < window.startDay) status = 'before';
+  else status = 'after';
+
+  return {
+    status,
+    isOvulation: day === window.ovulationDay,
+    daysUntil:   status === 'before' ? window.startDay - day : 0,
+    daysSince:   status === 'after'  ? day - window.endDay   : 0,
+    ovulationDay: window.ovulationDay,
   };
 }
 

@@ -148,6 +148,18 @@ export function emptyLog() {
       cramps:   0, // 1=intense, 5=none
       bloating: 0, // 1=heavy, 5=none
     },
+    // Verlate-cyclus check-in. Alleen ingevuld als de UI een late-state
+    // detecteert en de gebruiker de vragen heeft beantwoord. `dismissed`
+    // markeert dat ze de kaart hebben weggeklikt zonder vragen — dan
+    // tonen we 'm niet opnieuw die dag.
+    lateCheck: {
+      stress:               null, // null | true | false
+      travel:               null,
+      illness:              null,
+      contraceptionMissed:  null,
+      consideringTest:      null,
+      dismissed:            false,
+    },
   };
 }
 
@@ -167,6 +179,7 @@ export function loadLog(date = new Date()) {
       symptoms:  { ...base.symptoms,  ...(parsed.symptoms  || {}) },
       ovulation: { ...base.ovulation, ...(parsed.ovulation || {}) },
       bleeding:  { ...base.bleeding,  ...(parsed.bleeding  || {}) },
+      lateCheck: { ...base.lateCheck, ...(parsed.lateCheck || {}) },
     };
   } catch {
     return emptyLog();
@@ -187,6 +200,7 @@ export function updateLog(date, patch) {
   if (patch.symptoms)  next.symptoms  = { ...current.symptoms,  ...patch.symptoms };
   if (patch.ovulation) next.ovulation = { ...current.ovulation, ...patch.ovulation };
   if (patch.bleeding)  next.bleeding  = { ...current.bleeding,  ...patch.bleeding };
+  if (patch.lateCheck) next.lateCheck = { ...current.lateCheck, ...patch.lateCheck };
   saveLog(date, next);
   return next;
 }
