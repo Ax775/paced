@@ -25,10 +25,20 @@ const COLUMNS = [
   'symptomen',
 ];
 
-/** Quote a value if it contains a comma, quote, semicolon or newline. */
+/**
+ * Serialiseer één cel veilig naar CSV.
+ *
+ * Doet twee dingen:
+ *  1. CSV-injection mitigatie — een cel die met `=`, `+`, `-` of `@`
+ *     begint wordt door Excel, Google Sheets en Numbers als formule
+ *     uitgevoerd. Een TAB-prefix maakt er een normale tekstcel van in
+ *     alle bekende viewers, zonder de leesbaarheid op papier te raken.
+ *  2. Quote als de waarde komma, quote, puntkomma of newline bevat.
+ */
 function csvCell(value) {
   if (value == null) return '';
-  const s = String(value);
+  let s = String(value);
+  if (/^[=+\-@]/.test(s)) s = '\t' + s;
   if (/[",;\n\r]/.test(s)) {
     return `"${s.replace(/"/g, '""')}"`;
   }
