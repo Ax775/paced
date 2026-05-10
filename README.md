@@ -83,6 +83,24 @@ periode-log lifecycle, BMR/TDEE, fase-deltas, hydratie-floor.
 
 ---
 
+## Lighthouse audit (lokaal)
+
+```sh
+npm run audit         # build + Lighthouse-audit op de productiebundel
+npm run audit:quick   # zelfde audit zonder rebuild (na een eerdere build)
+```
+
+Het script `scripts/audit-lighthouse.mjs` start een tijdelijke static
+server op `dist/`, draait Lighthouse 13 in headless Chrome (mobile
+form-factor, 4× CPU + 1.5 Mbps throttle) en print een compacte
+scores-tabel + alle audits onder 0.9. De volledige JSON-rapport-locatie
+verschijnt aan het eind. Geen extra runtime dependency — `lighthouse`
+draait via `npx`, Node's `http` doet de server.
+
+Vereist: Google Chrome geïnstalleerd (Lighthouse autodetecteert).
+
+---
+
 ## Deploy naar Cloudflare Pages
 
 1. Cloudflare dashboard → **Workers & Pages** → **Create** → **Pages**

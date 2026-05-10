@@ -12,7 +12,9 @@
     "build": "node build.mjs",
     "dev": "echo 'Open index.html directly in a browser — no build needed for dev mode.'",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "audit": "node build.mjs && node scripts/audit-lighthouse.mjs --skip-build",
+    "audit:quick": "node scripts/audit-lighthouse.mjs --skip-build"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",
