@@ -15,6 +15,9 @@ import {
   PHASE_HORMONES,
   PHASE_SPORTS,
   SPORT_INTENSITIES,
+  CONTRACEPTION_OPTIONS,
+  PREGNANCY_INTENTS,
+  suppressesCycle,
   atMidnight,
   daysBetween,
   toISODate,
@@ -31,6 +34,8 @@ import {
   TEMP_MIN,
   TEMP_MAX,
   detectOvulationFromTemperatureSeries,
+  getFertileWindow,
+  getFertilityStatus,
 } from '../src/lib/cycle.js';
 
 /* ─────────────────────────────  Date helpers  ───────────────────────── */
@@ -484,5 +489,181 @@ describe('getCycleHistory', () => {
     expect(gaps).toHaveLength(2);
     expect(gaps[0].start).toBe('2026-02-28');
     expect(gaps[1].start).toBe('2026-03-30');
+  });
+});
+
+/* ─────────────────  Contraception & pregnancy intent  ──────────────── */
+
+describe('CONTRACEPTION_OPTIONS', () => {
+  it('exposes a non-empty list with id+label+affectsCycle', () => {
+    expect(CONTRACEPTION_OPTIONS.length).toBeGreaterThan(0);
+    for (const opt of CONTRACEPTION_OPTIONS) {
+      expect(typeof opt.id).toBe('string');
+      expect(typeof opt.label).toBe('string');
+      expect(typeof opt.affectsCycle).toBe('boolean');
+    }
+  });
+
+  it('has unique ids', () => {
+    const ids = CONTRACEPTION_OPTIONS.map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('marks hormonal methods as cycle-suppressing', () => {
+    const find = (id) => CONTRACEPTION_OPTIONS.find((c) => c.id === id);
+    expect(find('combined-pill').affectsCycle).toBe(true);
+    expect(find('hormonal-iud').affectsCycle).toBe(true);
+    expect(find('implant').affectsCycle).toBe(true);
+  });
+
+  it('does not mark non-hormonal methods as cycle-suppressing', () => {
+    const find = (id) => CONTRACEPTION_OPTIONS.find((c) => c.id === id);
+    expect(find('none').affectsCycle).toBe(false);
+    expect(find('copper-iud').affectsCycle).toBe(false);
+    expect(find('barrier').affectsCycle).toBe(false);
+  });
+});
+
+describe('PREGNANCY_INTENTS', () => {
+  it('exposes the three documented intents', () => {
+    const ids = PREGNANCY_INTENTS.map((p) => p.id).sort();
+    expect(ids).toEqual(['avoiding', 'none', 'trying']);
+  });
+});
+
+describe('suppressesCycle', () => {
+  it('returns true for hormonal methods', () => {
+    expect(suppressesCycle('combined-pill')).toBe(true);
+    expect(suppressesCycle('mini-pill')).toBe(true);
+    expect(suppressesCycle('hormonal-iud')).toBe(true);
+  });
+
+  it('returns false for non-hormonal methods', () => {
+    expect(suppressesCycle('copper-iud')).toBe(false);
+    expect(suppressesCycle('barrier')).toBe(false);
+    expect(suppressesCycle('none')).toBe(false);
+  });
+
+  it('returns false for unknown / undefined', () => {
+    expect(suppressesCycle(undefined)).toBe(false);
+    expect(suppressesCycle(null)).toBe(false);
+    expect(suppressesCycle('something-else')).toBe(false);
+  });
+});
+
+/* ─────────────────────────  getFertileWindow  ──────────────────────── */
+
+describe('getFertileWindow', () => {
+  it('returns null without a periodStart', () => {
+    expect(getFertileWindow(null, 28)).toBeNull();
+  });
+
+  it('places the canonical window on a 28-day cycle (days 10–17, ovulation 14)', () => {
+    const w = getFertileWindow('2026-01-01', 28);
+    expect(w.startDay).toBe(10);
+    expect(w.endDay).toBe(17);
+    expect(w.ovulationDay).toBe(14);
+    expect(w.start).toBe('2026-01-10');
+    expect(w.end).toBe('2026-01-17');
+    expect(w.ovulation).toBe('2026-01-14');
+  });
+
+  it('scales proportionally for a shorter cycle (24 days)', () => {
+    const w = getFertileWindow('2026-01-01', 24);
+    // 10/28*24 ≈ 8.57 → 9, 17/28*24 ≈ 14.57 → 15, 14/28*24 = 12
+    expect(w.startDay).toBeLessThanOrEqual(10);
+    expect(w.endDay).toBeLessThan(17);
+    expect(w.ovulationDay).toBeLessThan(14);
+  });
+
+  it('scales proportionally for a longer cycle (35 days)', () => {
+    const w = getFertileWindow('2026-01-01', 35);
+    expect(w.startDay).toBeGreaterThan(10);
+    expect(w.endDay).toBeGreaterThan(17);
+    expect(w.ovulationDay).toBeGreaterThan(14);
+  });
+});
+
+/* ───────────────────────  getFertilityStatus  ──────────────────────── */
+
+describe('getFertilityStatus', () => {
+  // Build a state object the function expects, given the cycleDay we want.
+  const stateFor = (cycleDay, cycleLength = 28) => ({
+    cycleDay, cycleLength, hasData: true,
+  });
+
+  it('returns null without cycle data', () => {
+    expect(getFertilityStatus(null)).toBeNull();
+    expect(getFertilityStatus({ cycleDay: null, cycleLength: 28 })).toBeNull();
+  });
+
+  it('detects "before" the fertile window', () => {
+    const r = getFertilityStatus(stateFor(5));
+    expect(r.status).toBe('before');
+    expect(r.daysUntil).toBeGreaterThan(0);
+    expect(r.isOvulation).toBe(false);
+  });
+
+  it('detects being inside the fertile window', () => {
+    const r = getFertilityStatus(stateFor(11));
+    expect(r.status).toBe('fertile');
+    expect(r.daysUntil).toBe(0);
+    expect(r.isOvulation).toBe(false);
+  });
+
+  it('detects the exact ovulation day', () => {
+    const r = getFertilityStatus(stateFor(14));
+    expect(r.status).toBe('ovulation');
+    expect(r.isOvulation).toBe(true);
+  });
+
+  it('detects "after" the window with daysSince', () => {
+    const r = getFertilityStatus(stateFor(20));
+    expect(r.status).toBe('after');
+    expect(r.daysSince).toBeGreaterThan(0);
+  });
+
+  it('exposes the ovulationDay even when not on it', () => {
+    const r = getFertilityStatus(stateFor(5));
+    expect(r.ovulationDay).toBe(14);
+  });
+});
+
+/* ──────────────────  logPeriodStart with explicit dates  ───────────── */
+
+describe('logPeriodStart with non-today dates', () => {
+  it('accepts an explicit past date for editing history', () => {
+    const profile = { lastPeriodStart: '2026-01-01', cycleLength: 28, periodHistory: [] };
+    const next = logPeriodStart(profile, new Date(2026, 1, 1)); // Feb 1
+    expect(next).not.toBe(profile);
+    expect(next.periodHistory).toContain('2026-02-01');
+    expect(next.lastPeriodStart).toBe('2026-02-01');
+  });
+
+  it('refuses to add a date within 10 days of an existing entry (same-period guard)', () => {
+    const profile = {
+      lastPeriodStart: '2026-02-01',
+      cycleLength: 28,
+      periodHistory: ['2026-01-01', '2026-02-01'],
+    };
+    // Trying to add Feb 5 — only 4 days after Feb 1.
+    const next = logPeriodStart(profile, new Date(2026, 1, 5));
+    expect(next).toBe(profile); // referentieel gelijk = no-op signaal voor de UI
+  });
+
+  it('unlog removes a specific date from history', () => {
+    const profile = {
+      lastPeriodStart: '2026-02-01',
+      cycleLength: 28,
+      periodHistory: ['2026-01-01', '2026-02-01'],
+    };
+    const next = unlogPeriodStart(profile, new Date(2026, 1, 1));
+    expect(next.periodHistory).toEqual(['2026-01-01']);
+  });
+
+  it('isPeriodLoggedOn checks history for a given day', () => {
+    const profile = { periodHistory: ['2026-02-01'] };
+    expect(isPeriodLoggedOn(profile, new Date(2026, 1, 1))).toBe(true);
+    expect(isPeriodLoggedOn(profile, new Date(2026, 1, 2))).toBe(false);
   });
 });

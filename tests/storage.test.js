@@ -45,6 +45,14 @@ describe('emptyLog', () => {
     expect(log.bleeding).toEqual({
       clots: '', clarity: '', heaviness: '', color: '',
     });
+    expect(log.lateCheck).toEqual({
+      stress:               null,
+      travel:               null,
+      illness:              null,
+      contraceptionMissed:  null,
+      consideringTest:      null,
+      dismissed:            false,
+    });
   });
 });
 
@@ -132,6 +140,36 @@ describe('updateLog deep-merges nested patches', () => {
     const next = updateLog(date, { bleeding: { color: 'dark-red' } });
     expect(next.bleeding.heaviness).toBe('normal');
     expect(next.bleeding.color).toBe('dark-red');
+  });
+
+  it('preserves untouched lateCheck fields when only one is updated', () => {
+    const date = new Date(2026, 4, 11);
+    saveLog(date, {
+      ...emptyLog(),
+      lateCheck: {
+        stress: true, travel: false, illness: null,
+        contraceptionMissed: null, consideringTest: null, dismissed: false,
+      },
+    });
+    const next = updateLog(date, { lateCheck: { illness: true } });
+    expect(next.lateCheck.stress).toBe(true);
+    expect(next.lateCheck.travel).toBe(false);
+    expect(next.lateCheck.illness).toBe(true);
+    expect(next.lateCheck.dismissed).toBe(false);
+  });
+
+  it('lateCheck round-trips through save/load', () => {
+    const date = new Date(2026, 4, 12);
+    saveLog(date, {
+      ...emptyLog(),
+      lateCheck: {
+        stress: true, travel: true, illness: false,
+        contraceptionMissed: false, consideringTest: true, dismissed: false,
+      },
+    });
+    const loaded = loadLog(date);
+    expect(loaded.lateCheck.stress).toBe(true);
+    expect(loaded.lateCheck.consideringTest).toBe(true);
   });
 });
 

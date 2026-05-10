@@ -16,10 +16,12 @@ import {
 
 import {
   getCycleState, PHASES, PHASE_META,
+  CONTRACEPTION_OPTIONS, PREGNANCY_INTENTS, suppressesCycle,
   logPeriodStart, unlogPeriodStart, isPeriodLoggedOn,
   getCycleHistory, isValidTemperature, TEMP_MIN, TEMP_MAX,
   detectOvulationFromTemperatureSeries, toISODate,
-  predictNextPeriod, getFertileWindow, atMidnight,
+  predictNextPeriod, getFertileWindow, getFertilityStatus, atMidnight,
+  daysBetween,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import {
@@ -821,8 +823,11 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
 /* ------------------------------------------------------------------ */
 
 function SectionInfoModal({ title, body, onClose }) {
-  const closeRef = useRef(null);
-  useEffect(() => { closeRef.current?.focus(); }, []);
+  // Focus the dialog itself so the title is in view immediately on
+  // mobile, and let the body scroll internally if it overflows the
+  // sheet height — content shouldn't fall off-screen behind the fold.
+  const dialogRef = useRef(null);
+  useEffect(() => { dialogRef.current?.focus(); }, []);
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -831,29 +836,32 @@ function SectionInfoModal({ title, body, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/40 backdrop-blur-sm p-4 pb-8"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-ink-900/40 backdrop-blur-sm anim-fade-up"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="section-info-title"
     >
       <div
-        className="w-full max-w-md bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up"
+        ref={dialogRef}
+        tabIndex={-1}
+        className="w-full max-w-md bg-cream-50 rounded-t-2xl sm:rounded-2xl shadow-glow flex flex-col max-h-[92dvh] sm:max-h-[85dvh] outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-start justify-between gap-3 px-6 pt-6 pb-4 shrink-0 border-b border-cream-100">
           <h2 id="section-info-title" className="font-display text-[22px] text-ink-700 leading-tight">{title}</h2>
           <button
-            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Sluiten"
             className="w-9 h-9 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-500 hover:text-ink-700 shrink-0 transition"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
-        <p className="text-sm text-ink-600 leading-relaxed">{body}</p>
+        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0">
+          <p className="text-sm text-ink-600 leading-relaxed">{body}</p>
+        </div>
       </div>
     </div>
   );
@@ -1585,9 +1593,12 @@ function PhaseInfoButton({ phase, onOpen }) {
 
 function PhaseInfoModal({ phase, onClose }) {
   const { t, phaseMeta, phaseHormones } = useT();
-  const closeRef = useRef(null);
+  // Focus the dialog itself (not the close button) so the title is in
+  // view on mobile sheets — focusing a button at the bottom can pull
+  // the viewport down and hide the heading. Body scrolls internally.
+  const dialogRef = useRef(null);
   useEffect(() => {
-    closeRef.current?.focus();
+    dialogRef.current?.focus();
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1600,22 +1611,24 @@ function PhaseInfoModal({ phase, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center px-4 py-6 bg-ink-700/40 backdrop-blur-sm anim-fade-up"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-ink-700/40 backdrop-blur-sm anim-fade-up"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="phase-info-title"
     >
       <div
-        className="w-full max-w-md bg-cream-50 rounded-2xl shadow-glow overflow-hidden"
+        ref={dialogRef}
+        tabIndex={-1}
+        className="w-full max-w-md bg-cream-50 rounded-t-2xl sm:rounded-2xl shadow-glow flex flex-col max-h-[92dvh] sm:max-h-[85dvh] outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-6 pt-6 pb-4 flex items-start gap-3">
+        <div className="px-6 pt-6 pb-4 flex items-start gap-3 shrink-0 border-b border-cream-100">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
             style={{ background: meta.bg }}
           >
-            <Sparkles className="w-5 h-5" style={{ color: meta.hue }} />
+            <Sparkles className="w-5 h-5" style={{ color: meta.hue }} aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">
@@ -1626,17 +1639,16 @@ function PhaseInfoModal({ phase, onClose }) {
             </h2>
           </div>
           <button
-            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label={t('phaseInfo.aria.close')}
-            className="w-9 h-9 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-400 hover:text-ink-700 transition"
+            className="w-9 h-9 rounded-full bg-cream-100 border border-cream-200 flex items-center justify-center text-ink-400 hover:text-ink-700 transition shrink-0"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="px-6 pb-6 space-y-4">
+        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div>
             <div className="text-[12px] font-medium text-ink-700 mb-1">{info.summary}</div>
             <p className="text-sm text-ink-500 leading-relaxed">{info.body}</p>
@@ -1657,7 +1669,7 @@ function PhaseInfoModal({ phase, onClose }) {
           </div>
         </div>
 
-        <div className="px-6 pb-6">
+        <div className="px-6 pb-6 pt-4 shrink-0 border-t border-cream-100">
           <button
             type="button"
             onClick={onClose}
@@ -2162,12 +2174,14 @@ function Onboarding({ onComplete }) {
 function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onThemeChange, onOpenLegal }) {
   const { t, locale, setLocale, activityMeta } = useT();
   const [form, setForm] = useState({
-    name:          profile.name          || '',
-    age:           profile.age           || '',
-    weightKg:      profile.weightKg      || '',
-    heightCm:      profile.heightCm      || '',
-    activityLevel: profile.activityLevel || 'moderate',
-    cycleLength:   profile.cycleLength   || 28,
+    name:            profile.name            || '',
+    age:             profile.age             || '',
+    weightKg:        profile.weightKg        || '',
+    heightCm:        profile.heightCm        || '',
+    activityLevel:   profile.activityLevel   || 'moderate',
+    cycleLength:     profile.cycleLength     || 28,
+    contraception:   profile.contraception   || '',
+    pregnancyIntent: profile.pregnancyIntent || '',
   });
   const [goals, setGoals] = useState({
     calories:  (profile.goals?.calories)  || '',
@@ -2232,16 +2246,20 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
     const cleanName = String(form.name || '').trim().slice(0, 60);
     onSave({
       ...profile,
-      name:          cleanName,
+      name:            cleanName,
       age,
       weightKg,
       heightCm,
-      activityLevel: form.activityLevel,
-      cycleLength:   Number(form.cycleLength),
-      goals:         cleanGoals,
+      activityLevel:   form.activityLevel,
+      cycleLength:     Number(form.cycleLength),
+      goals:           cleanGoals,
       notifEnabled,
       notifTime,
       hiddenCards,
+      // Lege string = "niet ingesteld" → opslag als undefined zodat
+      // bestaande null-checks elders blijven werken zonder migratie.
+      contraception:   form.contraception   || undefined,
+      pregnancyIntent: form.pregnancyIntent || undefined,
     });
     setSaved(true);
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -2375,6 +2393,81 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
             </div>
           </Field>
         </div>
+      </Card>
+
+      {/* Cyclus-context — anticonceptie + zwangerschap-intentie */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Cyclus-context</div>
+        <p className="text-[12px] text-ink-500 mb-5 leading-relaxed">
+          Optioneel — helpt Aura om relevantere voorspellingen en herinneringen te tonen. Niets wordt gedeeld; alle data blijft op je apparaat.
+        </p>
+
+        <Field>
+          <Label>Anticonceptie</Label>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            <button
+              type="button"
+              onClick={() => setF('contraception', '')}
+              aria-pressed={!form.contraception}
+              className={`text-left px-3.5 py-2.5 rounded-xl border text-sm transition active:scale-[0.99] min-h-[44px] ${
+                !form.contraception
+                  ? 'bg-cream-100 border-cream-300 text-ink-700'
+                  : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
+              }`}
+            >
+              Liever niet zeggen
+            </button>
+            {CONTRACEPTION_OPTIONS.map((opt) => {
+              const active = form.contraception === opt.id;
+              return (
+                <button
+                  type="button"
+                  key={opt.id}
+                  onClick={() => setF('contraception', opt.id)}
+                  aria-pressed={active}
+                  className={`text-left px-3.5 py-2.5 rounded-xl border text-sm transition active:scale-[0.99] min-h-[44px] ${
+                    active
+                      ? 'bg-sage-100 border-sage-300 text-sage-700 font-medium'
+                      : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field>
+          <Label>Zwangerschap</Label>
+          <div className="grid grid-cols-1 gap-2 mt-1">
+            {PREGNANCY_INTENTS.map((opt) => {
+              const active = form.pregnancyIntent === opt.id;
+              return (
+                <button
+                  type="button"
+                  key={opt.id}
+                  onClick={() => setF('pregnancyIntent', active ? '' : opt.id)}
+                  aria-pressed={active}
+                  className={`text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] ${
+                    active
+                      ? 'bg-sage-100 border-sage-300 text-sage-700'
+                      : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+                  }`}
+                >
+                  <div className="text-sm font-medium">{opt.label}</div>
+                  <div className="text-xs text-ink-400 mt-0.5">{opt.hint}</div>
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        {form.contraception && suppressesCycle(form.contraception) && (
+          <div className="mt-4 px-4 py-3 rounded-xl bg-cream-100/70 border border-cream-200 text-[12px] text-ink-500 leading-relaxed">
+            <strong className="text-ink-600">Let op:</strong> hormonale anticonceptie onderdrukt de natuurlijke ovulatie. Het vruchtbare venster en de fase-uitleg zijn dan indicatief — geen biologische voorspelling.
+          </div>
+        )}
       </Card>
 
       {/* Dagelijkse doelen */}
@@ -2996,6 +3089,16 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
         </div>
       </Card>
 
+      {/* Late-cycle prompt — verschijnt automatisch als de cyclus over tijd is */}
+      {!hidden.has('lateCycleCheck') && (
+        <LateCycleCheckCard profile={profile} state={state} log={log} onUpdate={updateLog} />
+      )}
+
+      {/* Fertility-window awareness — alleen wanneer pregnancyIntent is gezet */}
+      {!hidden.has('fertilityWindow') && (
+        <FertilityWindowCard profile={profile} state={state} />
+      )}
+
       {/* Bleeding details — only rendered while a period is currently logged */}
       {periodLoggedToday && (
         <BleedingDetailsCard
@@ -3043,7 +3146,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
       {!hidden.has('cycleHistory') && <CycleHistoryStrip profile={profile} />}
 
       {/* Cycle calendar — 6×7 grid with logged + predicted markers */}
-      {!hidden.has('cycleCalendar') && <CycleCalendarCard profile={profile} />}
+      {!hidden.has('cycleCalendar') && <CycleCalendarCard profile={profile} onUpdateProfile={onUpdateProfile} />}
 
       {/* Today's nourishment */}
       {!hidden.has('todayNutrition') && <CollapsibleCard
@@ -3948,11 +4051,13 @@ function buildCalendarGrid(profile, today) {
   return out;
 }
 
-function CycleCalendarCard({ profile }) {
+function CycleCalendarCard({ profile, onUpdateProfile }) {
   const { formatDate } = useT();
   const today = useMemo(() => new Date(), []);
+  const todayISO = useMemo(() => toISODate(today), [today]);
   const grid  = useMemo(() => buildCalendarGrid(profile, today), [profile, today]);
   const [selected, setSelected] = useState(null);
+  const [editError, setEditError] = useState('');
 
   const cycleLength = profile?.cycleLength || 28;
   const nextStartISO = useMemo(() => {
@@ -3978,6 +4083,28 @@ function CycleCalendarCard({ profile }) {
   };
 
   const tooltipCell = selected ? grid.find((c) => c.iso === selected) : null;
+
+  // Editable: today or in the past — never future. Predicted-future cells
+  // stay read-only; ze updaten vanzelf naarmate de tijd verloopt.
+  const isEditable = (cell) => cell && cell.iso <= todayISO && !cell.predicted;
+  const isLoggedStart = (cell) => Array.isArray(profile?.periodHistory)
+    && profile.periodHistory.includes(cell?.iso);
+
+  const handleToggle = (cell) => {
+    if (!cell || !onUpdateProfile) return;
+    setEditError('');
+    const date = new Date(`${cell.iso}T00:00:00`);
+    if (isLoggedStart(cell)) {
+      onUpdateProfile(unlogPeriodStart(profile, date));
+      return;
+    }
+    const next = logPeriodStart(profile, date);
+    if (next === profile) {
+      setEditError('Te dicht bij een bestaande start (binnen 10 dagen).');
+      return;
+    }
+    onUpdateProfile(next);
+  };
 
   return (
     <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '110ms' }}>
@@ -4023,8 +4150,33 @@ function CycleCalendarCard({ profile }) {
 
       {tooltipCell && (
         <div className="mt-3 px-3 py-2.5 rounded-xl bg-cream-100/80 border border-cream-200 text-[12px] text-ink-600 leading-snug anim-fade-up">
-          <div className="font-medium text-ink-700">{formatShortDate(tooltipCell.iso, formatDate)}</div>
-          <div className="text-ink-500">{tagLabel(tooltipCell) || 'Geen markering — gewone cyclusdag.'}</div>
+          <div className="flex items-start justify-between gap-3 mb-1">
+            <div>
+              <div className="font-medium text-ink-700">{formatShortDate(tooltipCell.iso, formatDate)}</div>
+              <div className="text-ink-500">{tagLabel(tooltipCell) || 'Geen markering — gewone cyclusdag.'}</div>
+            </div>
+            {isEditable(tooltipCell) && onUpdateProfile && (
+              <button
+                type="button"
+                onClick={() => handleToggle(tooltipCell)}
+                className={`shrink-0 px-3 py-2 min-h-[44px] rounded-lg text-[11px] font-medium transition active:scale-95 ${
+                  isLoggedStart(tooltipCell)
+                    ? 'bg-cream-50 border border-terracotta-200 text-terracotta-600 hover:bg-terracotta-50'
+                    : 'bg-terracotta-100 border border-terracotta-300 text-terracotta-700 hover:bg-terracotta-200'
+                }`}
+                aria-label={
+                  isLoggedStart(tooltipCell)
+                    ? `Wis menstruatie-start op ${tooltipCell.iso}`
+                    : `Markeer ${tooltipCell.iso} als menstruatie-start`
+                }
+              >
+                {isLoggedStart(tooltipCell) ? 'Wis start' : 'Markeer start'}
+              </button>
+            )}
+          </div>
+          {editError && (
+            <div className="text-[11px] text-terracotta-600 mt-1">{editError}</div>
+          )}
         </div>
       )}
 
@@ -4038,7 +4190,7 @@ function CycleCalendarCard({ profile }) {
         </div>
       </div>
       <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
-        Lichtere kleuren zijn voorspellingen — ze worden steviger naarmate je meer logt.
+        Lichtere kleuren zijn voorspellingen — tik op een dag om te markeren of te wissen.
       </p>
     </Card>
   );
@@ -4074,6 +4226,243 @@ function GoalRings({ log, goals, targets }) {
         <GoalRing value={log.movement}          target={movementTarget}                  label={t('mini.move')}  unit="m" />
       </div>
     </CollapsibleCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Fertility-window awareness                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Toont relevant inhoud rond het vruchtbaar venster — afhankelijk van
+ * `profile.pregnancyIntent`. Bij hormonale anticonceptie verzwakken we
+ * de boodschap omdat het venster dan niet biologisch betekenisvol is.
+ */
+function FertilityWindowCard({ profile, state }) {
+  const intent = profile?.pregnancyIntent;
+  if (!intent || intent === 'none') return null;
+  if (!state?.hasData) return null;
+
+  const fertility = getFertilityStatus(state);
+  if (!fertility) return null;
+
+  const suppressed = suppressesCycle(profile?.contraception);
+
+  let headline = '';
+  let body = '';
+  let accent = 'sage';
+  let icon = '🌱';
+
+  if (intent === 'trying') {
+    accent = 'sage';
+    if (fertility.status === 'ovulation') {
+      headline = 'Vandaag is je geschatte ovulatiedag';
+      body = 'De kans op bevruchting is theoretisch het hoogst. Luister vooral naar je lichaam — een lh-test of cervix-slijmcheck geeft concretere bevestiging.';
+      icon = '🌸';
+    } else if (fertility.status === 'fertile') {
+      const toOvu = Math.max(0, fertility.ovulationDay - state.cycleDay);
+      headline = 'Je zit in je vruchtbare venster';
+      body = `Geschatte ovulatie over ${toOvu} dag${toOvu === 1 ? '' : 'en'}. Frequentie van seks elke 1–2 dagen verhoogt de kans.`;
+      icon = '🌷';
+    } else if (fertility.status === 'before') {
+      headline = `Vruchtbaar venster over ${fertility.daysUntil} dag${fertility.daysUntil === 1 ? '' : 'en'}`;
+      body = 'Goed moment om je tracking up to date te houden — basaaltemperatuur en cervix-slijm worden de komende dagen nuttiger.';
+      icon = '🌱';
+    } else {
+      headline = 'Buiten het vruchtbare venster';
+      body = `${fertility.daysSince} dag${fertility.daysSince === 1 ? '' : 'en'} sinds het venster sloot. Een gemiste menstruatie binnen ~14 dagen kan op een zwangerschap wijzen.`;
+      icon = '🌾';
+    }
+  } else if (intent === 'avoiding') {
+    if (fertility.status === 'ovulation' || fertility.status === 'fertile') {
+      accent = 'terracotta';
+      headline = fertility.status === 'ovulation'
+        ? 'Vandaag is je geschatte ovulatiedag'
+        : 'Je zit in je vruchtbare venster';
+      body = 'De kans op zwangerschap is het hoogst tijdens deze dagen. Overweeg bescherming — kalendermethoden alleen zijn niet betrouwbaar.';
+      icon = '⚠️';
+    } else if (fertility.status === 'before') {
+      headline = `Vruchtbaar venster over ${fertility.daysUntil} dag${fertility.daysUntil === 1 ? '' : 'en'}`;
+      body = 'Houd er rekening mee bij planning — zaadcellen kunnen tot 5 dagen overleven, dus voorzichtigheid begint vóór het venster.';
+      icon = '🗓️';
+    } else {
+      headline = 'Buiten het vruchtbare venster';
+      body = `${fertility.daysSince} dag${fertility.daysSince === 1 ? '' : 'en'} sinds het venster sloot. Statistisch laag-risico, maar geen enkele cyclus is exact voorspelbaar.`;
+      icon = '🌿';
+    }
+  }
+
+  return (
+    <CollapsibleCard
+      id="fertilityWindow"
+      title="Vruchtbaar venster"
+      headerExtra={<span aria-hidden="true" className="text-base leading-none">{icon}</span>}
+      className="mb-5"
+    >
+      {suppressed && (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-cream-100/70 border border-cream-200 text-[11px] text-ink-500 leading-relaxed">
+          Je gebruikt hormonale anticonceptie — onderstaande info is indicatief, niet biologisch.
+        </div>
+      )}
+      <div className={`px-4 py-3.5 rounded-xl border ${
+        accent === 'terracotta'
+          ? 'bg-terracotta-50 border-terracotta-200'
+          : 'bg-sage-50 border-sage-200'
+      }`}>
+        <div className={`font-display text-base mb-1 ${
+          accent === 'terracotta' ? 'text-terracotta-700' : 'text-sage-700'
+        }`}>
+          {headline}
+        </div>
+        <p className="text-[13px] text-ink-600 leading-relaxed">{body}</p>
+      </div>
+      <p className="text-[11px] text-ink-400 mt-3 leading-relaxed">
+        Voorspellingen zijn gebaseerd op een gemiddelde 28-daagse referentie, geschaald naar jouw cycluslengte. Niet bedoeld als anticonceptie- of vruchtbaarheidsadvies.
+      </p>
+    </CollapsibleCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Late-cycle check-in                                                */
+/* ------------------------------------------------------------------ */
+
+const LATE_GRACE_DAYS = 2;
+const LATE_QUESTIONS = [
+  { id: 'stress',  label: 'Heb je deze cyclus extreme stress ervaren?' },
+  { id: 'travel',  label: 'Heb je gereisd of van tijdzone gewisseld?' },
+  { id: 'illness', label: 'Ben je ziek geweest of intensief getraind?' },
+];
+
+function LateCycleCheckCard({ profile, state, log, onUpdate }) {
+  const lc = log.lateCheck || {};
+  if (lc.dismissed) return null;
+  if (!state?.cycleDay || !state?.cycleLength) return null;
+  const overdueDays = state.cycleDay - state.cycleLength;
+  if (overdueDays <= LATE_GRACE_DAYS) return null;
+
+  const setVal  = (key, val) => onUpdate({ lateCheck: { [key]: val } });
+  const dismiss = () => onUpdate({ lateCheck: { dismissed: true } });
+
+  const intent = profile?.pregnancyIntent;
+  const onSuppressing = suppressesCycle(profile?.contraception);
+  const showTestSuggestion =
+    intent === 'trying' ||
+    (intent === 'avoiding' && !onSuppressing) ||
+    (intent !== 'avoiding' && profile?.contraception === 'none');
+
+  const showContraceptionQuestion =
+    profile?.contraception && profile.contraception !== 'none';
+
+  return (
+    <CollapsibleCard
+      id="lateCycleCheck"
+      title="Cyclus loopt achter"
+      defaultCollapsed={false}
+      headerExtra={(
+        <span className="text-[11px] text-terracotta-700 bg-terracotta-100 px-2 py-0.5 rounded-full">
+          {overdueDays} dag{overdueDays === 1 ? '' : 'en'} over tijd
+        </span>
+      )}
+      className="mb-5"
+    >
+      <p className="text-[13px] text-ink-600 leading-relaxed mb-4">
+        Geen reden tot zorg — cycli verschuiven van nature door stress, slaap, reizen en seizoensritme. Een paar vragen helpen Aura om je patroon scherper te leren.
+      </p>
+
+      <div className="space-y-3">
+        {LATE_QUESTIONS.map(({ id, label }) => (
+          <YesNoRow key={id} label={label} value={lc[id]} onChange={(v) => setVal(id, v)} />
+        ))}
+        {showContraceptionQuestion && (
+          <YesNoRow
+            label="Heb je je anticonceptie zoals gewoonlijk gevolgd?"
+            value={lc.contraceptionMissed === null ? null : !lc.contraceptionMissed}
+            onChange={(v) => setVal('contraceptionMissed', !v)}
+          />
+        )}
+      </div>
+
+      {showTestSuggestion && (
+        <div className="mt-4 px-4 py-3 rounded-xl bg-terracotta-50 border border-terracotta-200">
+          <div className="text-[12px] font-medium text-terracotta-700 mb-1">
+            Wil je een zwangerschapstest overwegen?
+          </div>
+          <p className="text-[12px] text-ink-600 leading-relaxed mb-3">
+            Een vroege test is meestal betrouwbaar vanaf ~14 dagen na de eisprong, oftewel rond de dag dat je menstruatie verwacht werd.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setVal('consideringTest', true)}
+              aria-pressed={lc.consideringTest === true}
+              className={`flex-1 min-h-[44px] px-3 py-2 rounded-lg border text-sm transition active:scale-[0.99] ${
+                lc.consideringTest === true
+                  ? 'bg-terracotta-100 border-terracotta-400 text-terracotta-800 font-medium'
+                  : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-terracotta-200'
+              }`}
+            >
+              Ja, ik denk erover
+            </button>
+            <button
+              type="button"
+              onClick={() => setVal('consideringTest', false)}
+              aria-pressed={lc.consideringTest === false}
+              className={`flex-1 min-h-[44px] px-3 py-2 rounded-lg border text-sm transition active:scale-[0.99] ${
+                lc.consideringTest === false
+                  ? 'bg-cream-100 border-cream-300 text-ink-700 font-medium'
+                  : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
+              }`}
+            >
+              Nee, nog niet
+            </button>
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={dismiss}
+        className="mt-4 w-full text-[12px] text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition py-2 min-h-[44px]"
+        aria-label="Verberg deze check-in voor vandaag"
+      >
+        Verberg voor vandaag
+      </button>
+    </CollapsibleCard>
+  );
+}
+
+function YesNoRow({ label, value, onChange }) {
+  return (
+    <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl bg-cream-50 border border-cream-200">
+      <div className="text-[13px] text-ink-600 leading-snug flex-1">{label}</div>
+      <div className="flex gap-1.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => onChange(value === true ? null : true)}
+          aria-pressed={value === true}
+          className={`min-h-[44px] min-w-[44px] px-3 rounded-lg border text-xs font-medium transition active:scale-95 ${
+            value === true
+              ? 'bg-sage-100 border-sage-300 text-sage-700'
+              : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
+          }`}
+        >
+          Ja
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(value === false ? null : false)}
+          aria-pressed={value === false}
+          className={`min-h-[44px] min-w-[44px] px-3 rounded-lg border text-xs font-medium transition active:scale-95 ${
+            value === false
+              ? 'bg-cream-100 border-cream-300 text-ink-700'
+              : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
+          }`}
+        >
+          Nee
+        </button>
+      </div>
+    </div>
   );
 }
 
