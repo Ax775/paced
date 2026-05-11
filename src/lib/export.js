@@ -93,3 +93,94 @@ export function csvExportFilename(today = new Date()) {
   const dd = String(d.getDate()).padStart(2, '0');
   return `aura-export-${y}-${m}-${dd}.csv`;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Apple Health XML export                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Escape a value for safe use inside an XML attribute. Covers both
+ * single- and double-quoted contexts zodat de helper correct blijft
+ * als een caller ooit van quote-style switcht.
+ */
+function xmlAttr(v) {
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Build the Apple Health XML payload from raw daily-log entries.
+ *
+ * Bewust pure — geen Blob, geen DOM, geen download. De app.jsx-laag
+ * regelt het downloaden; deze module produceert valid XML zodat een
+ * import in Apple Health niet stilletjes mislukt op een typo.
+ *
+ * @param {Array<{date: Date|string, iso?: string, log: object}>} entries
+ * @param {{ today?: Date }} [opts]
+ * @returns {string|null} XML-string of `null` als er niks logbaar is
+ */
+export function generateAppleHealthXml(entries, opts = {}) {
+  if (!Array.isArray(entries)) return null;
+  const today = opts.today instanceof Date ? opts.today : new Date();
+  const records = [];
+
+  for (const entry of entries) {
+    const log = entry?.log || {};
+    const dateStr = entry?.iso
+      || (entry?.date instanceof Date
+            ? entry.date.toISOString().slice(0, 10)
+            : (typeof entry?.date === 'string' ? entry.date : ''));
+    if (!dateStr) continue;
+
+    const d = new Date(`${dateStr}T00:00:00`);
+    const iso = d.toISOString();
+    const nextD = new Date(d);
+    nextD.setDate(d.getDate() + 1);
+    const nextStr = nextD.toISOString().slice(0, 10);
+
+    if (log.calories > 0) {
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.calories)}"/>`);
+    }
+    if (log.protein > 0) {
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.protein)}"/>`);
+    }
+    if (log.hydration > 0) {
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.hydration * 250)}"/>`);
+    }
+    if (log.sleep > 0) {
+      const sleepHH = String(log.sleep).padStart(2, '0');
+      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T22:00:00" endDate="${nextStr}T${sleepHH}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
+    }
+    if (log.movement > 0) {
+      const est = Math.round(log.movement * 5);
+      const movMM = String(log.movement % 60).padStart(2, '0');
+      const movHH = String(Math.floor(log.movement / 60)).padStart(2, '0');
+      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T${movHH}:${movMM}:00" value="${xmlAttr(est)}"/>`);
+    }
+  }
+
+  if (records.length === 0) return null;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE HealthData [
+  <!ATTLIST Record type CDATA #IMPLIED>
+]>
+<HealthData locale="nl_NL">
+  <ExportDate value="${today.toISOString()}"/>
+  <Me HKCharacteristicTypeIdentifierDateOfBirth="" HKCharacteristicTypeIdentifierBiologicalSex="HKBiologicalSexFemale"/>
+${records.join('\n')}
+</HealthData>`;
+}
+
+/** Suggest a filename like `aura-health-export-2026-05-03.xml`. */
+export function appleHealthFilename(today = new Date()) {
+  const d = today instanceof Date ? today : new Date(today);
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `aura-health-export-${y}-${m}-${dd}.xml`;
+}

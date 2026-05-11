@@ -32,6 +32,9 @@ import {
 import {
   LocaleProvider, useT, t as tStatic, detectLocale,
 } from './lib/i18n.js';
+import {
+  generateAppleHealthXml, appleHealthFilename,
+} from './lib/export.js';
 
 /* ------------------------------------------------------------------ */
 /*  Small presentational primitives                                    */
@@ -245,77 +248,31 @@ function exportCSV(profile) {
 /* ------------------------------------------------------------------ */
 /*  Apple Health XML export (feature 7)                               */
 /* ------------------------------------------------------------------ */
-
-/* Escape a value for safe use inside an XML attribute.
-   Covers both single- and double-quoted attribute contexts so the helper
-   stays correct if a caller ever switches quote style. */
-function xmlAttr(v) {
-  return String(v)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
+//
+// XML-generatie zit in src/lib/export.js (`generateAppleHealthXml`)
+// zodat 'm getest kan worden zonder DOM. Deze functie verzamelt 90
+// dagen aan logs en regelt het Blob-download — meer niet.
 
 function exportAppleHealth(profile, onEmpty) {
   const today = new Date();
-  const records = [];
-
+  const entries = [];
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const log = loadLog(d);
-    const iso = d.toISOString();
-    const dateStr = d.toISOString().slice(0, 10);
-
-    // Next calendar day — used as the end date for overnight records.
-    const nextD = new Date(d);
-    nextD.setDate(d.getDate() + 1);
-    const nextStr = nextD.toISOString().slice(0, 10);
-
-    if (log.calories > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.calories)}"/>`);
-    }
-    if (log.protein > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.protein)}"/>`);
-    }
-    if (log.hydration > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.hydration * 250)}"/>`);
-    }
-    if (log.sleep > 0) {
-      // Sleep starts previous evening (22:00) and ends next morning.
-      const sleepHH = String(log.sleep).padStart(2, '0');
-      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T22:00:00" endDate="${nextStr}T${sleepHH}:00:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
-    }
-    if (log.movement > 0) {
-      const est = Math.round(log.movement * 5);
-      const movMM = String(log.movement % 60).padStart(2, '0');
-      const movHH = String(Math.floor(log.movement / 60)).padStart(2, '0');
-      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(iso)}" startDate="${dateStr}T08:00:00" endDate="${dateStr}T${movHH}:${movMM}:00" value="${xmlAttr(est)}"/>`);
-    }
+    entries.push({ iso: d.toISOString().slice(0, 10), log: loadLog(d) });
   }
 
-  if (records.length === 0) {
+  const xml = generateAppleHealthXml(entries, { today });
+  if (!xml) {
     onEmpty?.();
     return;
   }
-
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE HealthData [
-  <!ATTLIST Record type CDATA #IMPLIED>
-]>
-<HealthData locale="nl_NL">
-  <ExportDate value="${today.toISOString()}"/>
-  <Me HKCharacteristicTypeIdentifierDateOfBirth="" HKCharacteristicTypeIdentifierBiologicalSex="HKBiologicalSexFemale"/>
-${records.join('\n')}
-</HealthData>`;
 
   const blob = new Blob([xml], { type: 'application/xml' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'aura-health-export.xml';
+  a.download = appleHealthFilename(today);
   a.click();
   URL.revokeObjectURL(url);
 }
