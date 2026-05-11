@@ -1,7 +1,7 @@
 /* Aura service worker — offline cache with smart update strategy. */
 
 // Bump this version whenever you deploy changes so old caches are evicted.
-const CACHE = 'aura-shell-v6';
+const CACHE = 'aura-shell-v7';
 
 // Pre-cached on install. Everything else is cached on-demand by the fetch
 // handler. This keeps the install step identical between the dev mode

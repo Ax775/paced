@@ -21,7 +21,7 @@ import {
   getCycleHistory, isValidTemperature, TEMP_MIN, TEMP_MAX,
   detectOvulationFromTemperatureSeries, toISODate,
   predictNextPeriod, getFertileWindow, getFertilityStatus, atMidnight,
-  daysBetween,
+  daysBetween, getOverdueDays,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import {
@@ -1673,7 +1673,7 @@ function PhaseInfoModal({ phase, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="w-full rounded-xl bg-sage-500 text-cream-50 py-3 text-sm font-medium hover:bg-sage-600 active:scale-[0.98] transition"
+            className="w-full rounded-xl bg-sage-600 text-cream-50 py-3 text-sm font-medium hover:bg-sage-700 active:scale-[0.98] transition"
           >
             {t('common.understood')}
           </button>
@@ -1737,7 +1737,7 @@ function PWAInstallBanner() {
         <button
           type="button"
           onClick={handleInstall}
-          className="px-4 py-2 rounded-xl bg-sage-500 text-cream-50 text-xs font-medium hover:bg-sage-600 transition shrink-0 min-h-[44px]"
+          className="px-4 py-2 rounded-xl bg-sage-600 text-cream-50 text-xs font-medium hover:bg-sage-700 transition shrink-0 min-h-[44px]"
         >
           {t('pwa.install')}
         </button>
@@ -1859,7 +1859,7 @@ function Onboarding({ onComplete }) {
   const cardCx = `p-8 anim-fade-up`;
 
   return (
-    <div className="min-h-dvh flex items-center justify-center px-5 py-10">
+    <main id="main" className="min-h-dvh flex items-center justify-center px-5 py-10">
       <div className="w-full max-w-md">
         {dots}
 
@@ -1897,7 +1897,7 @@ function Onboarding({ onComplete }) {
             <button
               type="button"
               onClick={() => goTo(1)}
-              className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
+              className="w-full rounded-xl bg-sage-600 text-cream-50 py-3.5 font-medium
                          hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2"
             >
               {form.name.trim()
@@ -2009,7 +2009,7 @@ function Onboarding({ onComplete }) {
               <button
                 type="button"
                 onClick={() => goTo(2)}
-                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
+                className="flex-1 rounded-xl bg-sage-600 text-cream-50 py-3 font-medium
                            hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
               >
                 {t('onb.cycle.next')} <ArrowRight className="w-4 h-4" />
@@ -2103,7 +2103,7 @@ function Onboarding({ onComplete }) {
               <button
                 type="button"
                 onClick={() => goTo(3)}
-                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
+                className="flex-1 rounded-xl bg-sage-600 text-cream-50 py-3 font-medium
                            hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
               >
                 {t('onb.cycle.next')} <ArrowRight className="w-4 h-4" />
@@ -2154,7 +2154,7 @@ function Onboarding({ onComplete }) {
               <button
                 type="button"
                 onClick={complete}
-                className="flex-1 rounded-xl bg-sage-500 text-cream-50 py-3 font-medium
+                className="flex-1 rounded-xl bg-sage-600 text-cream-50 py-3 font-medium
                            hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
               >
                 {t('onb.welcome.start')} <ArrowRight className="w-4 h-4" />
@@ -2163,7 +2163,7 @@ function Onboarding({ onComplete }) {
           </Card>
         )}
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -2633,7 +2633,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
                     active:scale-[0.98] transition flex items-center justify-center gap-2 mb-5 ${
                       saved
                         ? 'bg-sage-400 text-cream-50'
-                        : 'bg-sage-500 text-cream-50 hover:bg-sage-600'
+                        : 'bg-sage-600 text-cream-50 hover:bg-sage-700'
                     }`}
       >
         {saved ? <><Check className="w-4 h-4" /> {t('settings.save')} ✓</> : t('settings.save')}
@@ -3658,7 +3658,7 @@ function LogboekView({ profile, onGoHome }) {
             <button
               type="button"
               onClick={onGoHome}
-              className="mt-5 px-5 py-2.5 rounded-full bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition"
+              className="mt-5 px-5 py-2.5 rounded-full bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 transition"
             >
               {t('log.empty.cta')}
             </button>
@@ -4084,9 +4084,12 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
 
   const tooltipCell = selected ? grid.find((c) => c.iso === selected) : null;
 
-  // Editable: today or in the past — never future. Predicted-future cells
-  // stay read-only; ze updaten vanzelf naarmate de tijd verloopt.
-  const isEditable = (cell) => cell && cell.iso <= todayISO && !cell.predicted;
+  // Editable: today of een verleden dag — nooit een toekomstige dag.
+  // Voorspelde-verleden cellen zijn óók bewerkbaar zodat een gebruiker
+  // een mis-voorspelde periode kan corrigeren ("de engine dacht dat ik
+  // gisteren begon, maar dat was vandaag pas"). Toekomst-voorspellingen
+  // zijn read-only — een toekomstige periode pre-loggen heeft geen zin.
+  const isEditable = (cell) => cell && cell.iso <= todayISO;
   const isLoggedStart = (cell) => Array.isArray(profile?.periodHistory)
     && profile.periodHistory.includes(cell?.iso);
 
@@ -4337,9 +4340,11 @@ const LATE_QUESTIONS = [
 function LateCycleCheckCard({ profile, state, log, onUpdate }) {
   const lc = log.lateCheck || {};
   if (lc.dismissed) return null;
-  if (!state?.cycleDay || !state?.cycleLength) return null;
-  const overdueDays = state.cycleDay - state.cycleLength;
-  if (overdueDays <= LATE_GRACE_DAYS) return null;
+  // `state.cycleDay` wrapt via modulo binnen 1..cycleLength, dus die kan
+  // niet betrouwbaar "te laat" detecteren. `getOverdueDays` rekent rauw
+  // vanaf de laatst-gelogde startdatum (zie cycle.js).
+  const overdueDays = getOverdueDays(profile);
+  if (overdueDays == null || overdueDays <= LATE_GRACE_DAYS) return null;
 
   const setVal  = (key, val) => onUpdate({ lateCheck: { [key]: val } });
   const dismiss = () => onUpdate({ lateCheck: { dismissed: true } });
@@ -4715,7 +4720,7 @@ function ExtendedCharts({ profile }) {
         {[30, 90].map(n => (
           <button key={n} type="button" onClick={() => setDays(n)}
             aria-pressed={days === n}
-            className={`min-h-[44px] px-5 py-2.5 rounded-full text-sm transition active:scale-95 ${days === n ? 'bg-sage-500 text-cream-50' : 'bg-cream-100 border border-cream-200 text-ink-600 hover:border-sage-200'}`}>
+            className={`min-h-[44px] px-5 py-2.5 rounded-full text-sm transition active:scale-95 ${days === n ? 'bg-sage-600 text-cream-50' : 'bg-cream-100 border border-cream-200 text-ink-600 hover:border-sage-200'}`}>
             {t('charts.daysFmt', { n })}
           </button>
         ))}
@@ -4928,7 +4933,7 @@ function FoodLogCard({ log, onUpdate, targets }) {
             <button
               type="button"
               onClick={handleAdd}
-              className="flex-1 min-h-[40px] rounded-lg bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 active:scale-95 transition"
+              className="flex-1 min-h-[40px] rounded-lg bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 active:scale-95 transition"
             >
               {t('food.log.add')}
             </button>
@@ -5150,7 +5155,7 @@ function CrashScreen({ error, errorInfo }) {
       <button
         type="button"
         onClick={handleReload}
-        className="w-full rounded-xl bg-sage-500 text-cream-50 py-3.5 font-medium
+        className="w-full rounded-xl bg-sage-600 text-cream-50 py-3.5 font-medium
                    hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 mb-3"
       >
         {tc('crash.title')}
@@ -5314,7 +5319,7 @@ function App() {
           </div>
         </div>
       )}
-      <div key={tab} className="anim-tab-in">
+      <main key={tab} id="main" className="anim-tab-in">
         {tab === 'home' && (
           <Dashboard
             profile={profile}
@@ -5343,7 +5348,7 @@ function App() {
         {tab === 'legal' && (
           <LegalView onBack={() => setTab('settings')} />
         )}
-      </div>
+      </main>
       <BottomNav active={tab} onSelect={setTab} />
       <PWAInstallBanner />
       <ReminderBanner profile={profile} />

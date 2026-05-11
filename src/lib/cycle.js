@@ -488,6 +488,26 @@ export function isPeriodLoggedOn(profile, day = new Date()) {
   return profile.periodHistory.includes(toISODate(day));
 }
 
+/**
+ * Hoeveel dagen is een gebruiker over tijd? Negatief = nog binnen de
+ * verwachte cyclus, 0 = expected start vandaag, positief = late.
+ *
+ * Bewust géén modulo — `getCycleState().cycleDay` wrapt automatisch
+ * binnen 1..cycleLength en kan dus nooit "te laat" detecteren. Wie
+ * echt wil weten of de gebruikster over haar verwachte volgende
+ * periode is, moet rauw vergelijken: dagen sinds laatste start, min
+ * verwachte cyclus-lengte.
+ *
+ * @param {object} profile  — moet `lastPeriodStart` en `cycleLength` hebben
+ * @param {Date}   [today]  — override voor tests
+ * @returns {number|null}   — null als profile incompleet is
+ */
+export function getOverdueDays(profile, today = new Date()) {
+  if (!profile?.lastPeriodStart) return null;
+  const len = clampCycleLength(profile.cycleLength ?? 28);
+  return daysBetween(profile.lastPeriodStart, today) - len;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Basal temperature & ovulation detection                            */
 /* ------------------------------------------------------------------ */
