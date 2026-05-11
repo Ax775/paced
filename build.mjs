@@ -110,6 +110,7 @@ console.log('• Copying static assets');
 copyFileSync('manifest.webmanifest', `${distDir}/manifest.webmanifest`);
 copyFileSync('sw.js',                `${distDir}/sw.js`);
 copyFileSync('_headers',             `${distDir}/_headers`);
+copyFileSync('robots.txt',           `${distDir}/robots.txt`);
 cpSync('assets', `${distDir}/assets`, { recursive: true });
 
 console.log('─'.repeat(48));
