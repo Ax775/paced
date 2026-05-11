@@ -42,6 +42,7 @@ const REQUIRED_DIST = [
   'manifest.webmanifest',
   'sw.js',
   '_headers',
+  'robots.txt',
   'assets/icon.svg',
   'assets/splash/1290x2796.png',
 ];
