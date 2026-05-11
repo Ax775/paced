@@ -101,19 +101,46 @@ Vereist: Google Chrome geïnstalleerd (Lighthouse autodetecteert).
 
 ---
 
+## Pre-merge / pre-deploy preflight
+
+```sh
+npm run preflight             # tests + build + Lighthouse drempels
+npm run preflight -- --no-audit  # snelle variant, alleen tests + build
+```
+
+Faalt op: een vitest-fout, build-fout, ontbrekend dist-artefact,
+Lighthouse mobile-score onder de drempels (a11y ≥ 95, best-practices
+≥ 95, seo ≥ 90, performance ≥ 70). Bedoeld om te draaien vóór een
+PR-merge en vóór een productie-deploy zodat je niet met een halve
+release in productie staat.
+
+---
+
 ## Deploy naar Cloudflare Pages
 
 1. Cloudflare dashboard → **Workers & Pages** → **Create** → **Pages**
-2. **Connect to Git** → kies dit repo
+2. **Connect to Git** → kies dit repo, branch **`main`**
 3. Build settings:
    - **Build command:** `npm run build`
    - **Build output directory:** `dist`
    - **Root directory:** *(leeglaten)*
-   - **Node version:** 20 of hoger (zet `NODE_VERSION = 20` in
-     environment variables als de default te oud is)
-4. **Custom domain** toevoegen — Cloudflare regelt HTTPS automatisch
-5. De `_headers` file in `dist/` zorgt voor de juiste security- en
-   cache-headers (CSP, HSTS, Cache-Control). Niets extra te configureren.
+   - **Environment variables:**
+     - `NODE_VERSION = 20` (of hoger; default kan te oud zijn)
+     - *(optioneel)* `BUILD_SOURCEMAP = 1` als je remote-debug op staging wilt
+4. **Custom domain** toevoegen → Cloudflare regelt HTTPS automatisch
+5. De `_headers` file in `dist/` zorgt voor security- en cache-headers
+   (CSP, HSTS, Strict-Transport-Security, Cache-Control). Niets extra
+   te configureren.
+
+### Eerste deploy — extra checks
+
+| Check | Hoe |
+|------|-----|
+| HTTPS werkt | Open `https://<jouw-domain>/` — geen mixed-content warnings |
+| CSP blokkeert geen eigen assets | DevTools → Console → geen "blocked by CSP" warnings |
+| Service worker registreert | DevTools → Application → Service Workers → `aura-shell-v<N>` is "activated" |
+| Manifest valideert | DevTools → Application → Manifest → "Installable" badge zichtbaar |
+| iOS install werkt | Safari op iPhone → Share → "Zet op beginscherm" → open vanaf icoon → standalone-modus + geen blanke flits dankzij `apple-touch-startup-image` PNGs |
 
 ### Anti-rollback van caches
 
@@ -122,8 +149,9 @@ network-first voor `/app.js` en `/styles.css`. Een nieuwe deploy
 bereikt de gebruiker bij de eerstvolgende page-load — geen forced
 hard-refresh nodig.
 
-Bump het `CACHE`-versie-getal in `sw.js` (huidig: `aura-shell-v4`) bij
-een release zodat oude SW-caches geëvinceerd worden.
+**Bij elke release** bump het `CACHE`-versie-getal in `sw.js` (huidig:
+`aura-shell-v7`). Anders krijgen returning users een mix van oude en
+nieuwe chunks.
 
 ---
 

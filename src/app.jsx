@@ -21,7 +21,7 @@ import {
   getCycleHistory, isValidTemperature, TEMP_MIN, TEMP_MAX,
   detectOvulationFromTemperatureSeries, toISODate,
   predictNextPeriod, getFertileWindow, getFertilityStatus, atMidnight,
-  daysBetween,
+  daysBetween, getOverdueDays,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import {
@@ -4084,9 +4084,12 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
 
   const tooltipCell = selected ? grid.find((c) => c.iso === selected) : null;
 
-  // Editable: today or in the past — never future. Predicted-future cells
-  // stay read-only; ze updaten vanzelf naarmate de tijd verloopt.
-  const isEditable = (cell) => cell && cell.iso <= todayISO && !cell.predicted;
+  // Editable: today of een verleden dag — nooit een toekomstige dag.
+  // Voorspelde-verleden cellen zijn óók bewerkbaar zodat een gebruiker
+  // een mis-voorspelde periode kan corrigeren ("de engine dacht dat ik
+  // gisteren begon, maar dat was vandaag pas"). Toekomst-voorspellingen
+  // zijn read-only — een toekomstige periode pre-loggen heeft geen zin.
+  const isEditable = (cell) => cell && cell.iso <= todayISO;
   const isLoggedStart = (cell) => Array.isArray(profile?.periodHistory)
     && profile.periodHistory.includes(cell?.iso);
 
@@ -4337,9 +4340,11 @@ const LATE_QUESTIONS = [
 function LateCycleCheckCard({ profile, state, log, onUpdate }) {
   const lc = log.lateCheck || {};
   if (lc.dismissed) return null;
-  if (!state?.cycleDay || !state?.cycleLength) return null;
-  const overdueDays = state.cycleDay - state.cycleLength;
-  if (overdueDays <= LATE_GRACE_DAYS) return null;
+  // `state.cycleDay` wrapt via modulo binnen 1..cycleLength, dus die kan
+  // niet betrouwbaar "te laat" detecteren. `getOverdueDays` rekent rauw
+  // vanaf de laatst-gelogde startdatum (zie cycle.js).
+  const overdueDays = getOverdueDays(profile);
+  if (overdueDays == null || overdueDays <= LATE_GRACE_DAYS) return null;
 
   const setVal  = (key, val) => onUpdate({ lateCheck: { [key]: val } });
   const dismiss = () => onUpdate({ lateCheck: { dismissed: true } });

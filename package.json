@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "audit": "node build.mjs && node scripts/audit-lighthouse.mjs --skip-build",
     "audit:quick": "node scripts/audit-lighthouse.mjs --skip-build",
-    "gen:splash": "node scripts/generate-splash.mjs"
+    "gen:splash": "node scripts/generate-splash.mjs",
+    "preflight": "node scripts/preflight.mjs"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",

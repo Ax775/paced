@@ -36,6 +36,7 @@ import {
   detectOvulationFromTemperatureSeries,
   getFertileWindow,
   getFertilityStatus,
+  getOverdueDays,
 } from '../src/lib/cycle.js';
 
 /* ─────────────────────────────  Date helpers  ───────────────────────── */
@@ -665,5 +666,76 @@ describe('logPeriodStart with non-today dates', () => {
     const profile = { periodHistory: ['2026-02-01'] };
     expect(isPeriodLoggedOn(profile, new Date(2026, 1, 1))).toBe(true);
     expect(isPeriodLoggedOn(profile, new Date(2026, 1, 2))).toBe(false);
+  });
+});
+
+/* ──────────────────────  getOverdueDays  ───────────────────────────── */
+/**
+ * Regression for the LateCycleCheckCard bug: previously the component
+ * used `state.cycleDay - state.cycleLength`, but cycleDay wraps via
+ * modulo and can therefore never signal "late". `getOverdueDays` rekent
+ * rauw — dit testpakket houdt die invariant overeind.
+ */
+
+describe('getOverdueDays', () => {
+  it('returns null without a lastPeriodStart', () => {
+    expect(getOverdueDays({})).toBeNull();
+    expect(getOverdueDays(null)).toBeNull();
+  });
+
+  it('negative wanneer de periode nog binnen de cyclus loopt', () => {
+    const today = new Date(2026, 0, 10);
+    // 9 dagen sinds start van een 28-daagse cyclus → 9 - 28 = -19
+    expect(
+      getOverdueDays({ lastPeriodStart: '2026-01-01', cycleLength: 28 }, today),
+    ).toBe(-19);
+  });
+
+  it('returns 0 op de dag dat de volgende periode verwacht werd', () => {
+    const today = new Date(2026, 0, 29); // 28 dagen na 1 jan
+    expect(
+      getOverdueDays({ lastPeriodStart: '2026-01-01', cycleLength: 28 }, today),
+    ).toBe(0);
+  });
+
+  it('positive wanneer de gebruiker over tijd is (de happy bug-fix-case)', () => {
+    // Bewust de exacte regressie reproduceren: cycleDay zou hier wrappen
+    // naar 6 (33 % 28 = 5, +1 = 6), wat de oude check faliekant kapot
+    // maakt. getOverdueDays moet 5 teruggeven, niet -22.
+    const today = new Date(2026, 1, 3); // 33 dagen na 1 jan
+    expect(
+      getOverdueDays({ lastPeriodStart: '2026-01-01', cycleLength: 28 }, today),
+    ).toBe(5);
+  });
+
+  it('clamps cycleLength tussen 21 en 45 (consistent met getCycleState)', () => {
+    const today = new Date(2026, 1, 1); // 31 dagen na 1 jan
+    // 1 als cycleLength is gegeven → clamp omhoog naar 21 → 31 - 21 = 10
+    expect(
+      getOverdueDays({ lastPeriodStart: '2026-01-01', cycleLength: 1 }, today),
+    ).toBe(10);
+    // 999 → clamp omlaag naar 45 → 31 - 45 = -14
+    expect(
+      getOverdueDays({ lastPeriodStart: '2026-01-01', cycleLength: 999 }, today),
+    ).toBe(-14);
+  });
+
+  it('default fallback van cycleLength is 28', () => {
+    const today = new Date(2026, 0, 30); // 29 dagen later
+    expect(
+      getOverdueDays({ lastPeriodStart: '2026-01-01' }, today),
+    ).toBe(1);
+  });
+
+  it('blijft consistent met getCycleState (cycleDay wraps, overdue niet)', () => {
+    // Cruciaal: deze test legt de invariant vast die het component
+    // eerder fout had. cycleDay-wrap mag NIET als late-detector worden
+    // gebruikt — getOverdueDays is de juiste signaal-bron.
+    const today = new Date(2026, 1, 3); // 33 dagen na 1 jan
+    const profile = { lastPeriodStart: '2026-01-01', cycleLength: 28 };
+    const state = getCycleState(profile, today);
+    expect(state.cycleDay).toBe(6);                   // wraps via modulo
+    expect(state.cycleDay - state.cycleLength).toBe(-22); // het oude bug-signaal
+    expect(getOverdueDays(profile, today)).toBe(5);   // het juiste signaal
   });
 });
