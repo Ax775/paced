@@ -739,3 +739,50 @@ describe('getOverdueDays', () => {
     expect(getOverdueDays(profile, today)).toBe(5);   // het juiste signaal
   });
 });
+
+/* ────────  getFertilityStatus 'overdue'-regressie (audit fix)  ────── */
+
+describe("getFertilityStatus with profile — 'overdue' status", () => {
+  it('returns null without state', () => {
+    expect(getFertilityStatus(null, { lastPeriodStart: '2026-01-01', cycleLength: 28 })).toBeNull();
+  });
+
+  it('zonder profile gedraagt het zich als voorheen (geen overdue-check)', () => {
+    const state = { cycleDay: 6, cycleLength: 28, hasData: true };
+    const r = getFertilityStatus(state); // geen profile arg
+    expect(r.status).toBe('before');
+  });
+
+  it("detecteert 'overdue' wanneer profile meer dan 2 dagen voorbij verwachting", () => {
+    // Eerder dan de audit-fix: getFertilityStatus zou 'before/fertile/after'
+    // op de gewrapte cycleDay teruggeven, en gebruikster zou onterecht
+    // lezen "vruchtbaar venster over X dagen" terwijl ze al over tijd was.
+    const today = new Date(2026, 1, 3); // 33 dagen na 1 jan
+    const state = { cycleDay: 6, cycleLength: 28, hasData: true };
+    const profile = { lastPeriodStart: '2026-01-01', cycleLength: 28 };
+    const r = getFertilityStatus(state, profile, today);
+    expect(r.status).toBe('overdue');
+    expect(r.overdueDays).toBe(5);
+    expect(r.isOvulation).toBe(false);
+    expect(r.ovulationDay).toBeNull();
+  });
+
+  it('geen overdue bij 1-2 dagen ongemak (binnen LATE_GRACE_DAYS)', () => {
+    const today = new Date(2026, 0, 30); // 29 dagen na 1 jan = 1 dag over
+    const state = { cycleDay: 2, cycleLength: 28, hasData: true };
+    const profile = { lastPeriodStart: '2026-01-01', cycleLength: 28 };
+    const r = getFertilityStatus(state, profile, today);
+    expect(r.status).not.toBe('overdue');
+  });
+
+  it('overdue wint van fertile: cycleDay binnen venster + late = overdue', () => {
+    // Edge case: gebruikster heeft een super lange cyclus, cycleDay
+    // zegt 'fertile' maar daysSince-start is > cycleLength + 2.
+    const today = new Date(2026, 1, 12); // 42 dagen na 1 jan
+    const state = { cycleDay: 14, cycleLength: 28, hasData: true };
+    const profile = { lastPeriodStart: '2026-01-01', cycleLength: 28 };
+    const r = getFertilityStatus(state, profile, today);
+    expect(r.status).toBe('overdue');
+    expect(r.overdueDays).toBe(14);
+  });
+});

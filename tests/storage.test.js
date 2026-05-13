@@ -230,3 +230,88 @@ describe('logHasData', () => {
     expect(logHasData(emptyLog())).toBe(false);
   });
 });
+
+/* ────────────────────  Defensive load (audit fixes)  ─────────────── */
+
+describe('loadLog — type-safe parsing (security audit regressions)', () => {
+  it('rejects non-object sub-fields without crashing (gut="oops")', () => {
+    // Eerdere code deed `{...base.gut, ...'oops'}` → spread van string
+    // legt 0:'o', 1:'o', 2:'p', 3:'s' op log.gut, wat downstream
+    // logHasData() onverwacht laat true zeggen op een lege dag.
+    const date = new Date(2026, 5, 1);
+    globalThis.localStorage.setItem(
+      'aura.log.2026-06-01',
+      JSON.stringify({ gut: 'oops' }),
+    );
+    const loaded = loadLog(date);
+    expect(loaded.gut).toEqual({ probiotics: false, fiber: false, fermented: false });
+  });
+
+  it('rejects array sub-fields (symptoms=["x"])', () => {
+    const date = new Date(2026, 5, 2);
+    globalThis.localStorage.setItem(
+      'aura.log.2026-06-02',
+      JSON.stringify({ symptoms: ['eraserhead'] }),
+    );
+    const loaded = loadLog(date);
+    expect(loaded.symptoms).toEqual({ energy: 0, mood: 0, cramps: 0, bloating: 0 });
+  });
+
+  it('strips __proto__ / constructor / prototype keys from parsed log', () => {
+    // Defensive: een gemanipuleerde log mag geen unsafe-key spreaden.
+    const date = new Date(2026, 5, 3);
+    globalThis.localStorage.setItem(
+      'aura.log.2026-06-03',
+      // bewuste typo: '__proto__' moet als own key in parsed komen
+      '{"gut":{"__proto__":{"polluted":1},"probiotics":true}}',
+    );
+    const loaded = loadLog(date);
+    expect(loaded.gut.probiotics).toBe(true);
+    expect(loaded.gut.__proto__).not.toEqual({ polluted: 1 });
+    expect({}.polluted).toBeUndefined(); // Object.prototype intact
+  });
+
+  it('coerces invalid numeric fields naar 0', () => {
+    const date = new Date(2026, 5, 4);
+    globalThis.localStorage.setItem(
+      'aura.log.2026-06-04',
+      JSON.stringify({
+        calories: '<script>alert(1)</script>',
+        protein:  NaN,
+        sleep:    Infinity,
+        movement: -Infinity,
+        temperature: 'oops',
+      }),
+    );
+    const loaded = loadLog(date);
+    expect(loaded.calories).toBe(0);
+    expect(loaded.protein).toBe(0);
+    expect(loaded.sleep).toBe(0);
+    expect(loaded.movement).toBe(0);
+    expect(loaded.temperature).toBe(0);
+  });
+
+  it('cap log.note op 280 chars, ook bij DevTools-injected lange string', () => {
+    const date = new Date(2026, 5, 5);
+    const longNote = 'x'.repeat(5000);
+    globalThis.localStorage.setItem(
+      'aura.log.2026-06-05',
+      JSON.stringify({ note: longNote }),
+    );
+    expect(loadLog(date).note).toHaveLength(280);
+  });
+
+  it('cap meals-array op 50 entries en symptomen-array op 20', () => {
+    const date = new Date(2026, 5, 6);
+    globalThis.localStorage.setItem(
+      'aura.log.2026-06-06',
+      JSON.stringify({
+        meals: Array.from({ length: 200 }, (_, i) => ({ name: `m${i}` })),
+        symptomen: Array.from({ length: 50 }, (_, i) => `s${i}`),
+      }),
+    );
+    const loaded = loadLog(date);
+    expect(loaded.meals).toHaveLength(50);
+    expect(loaded.symptomen).toHaveLength(20);
+  });
+});

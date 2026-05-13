@@ -205,23 +205,65 @@ export function emptyLog() {
   };
 }
 
+// Accept een waarde alleen als 't een plain object is. Voorkomt dat
+// een gemanipuleerde log met `gut: "oops"` of `gut: ["x"]` per ongeluk
+// gespread wordt — bij strings zou `{...base.gut, ...'oops'}` de
+// karakters als keys toevoegen (0:'o', 1:'o', ...).
+function pickObj(v) {
+  return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+}
+
+// Filter unsafe keys uit een geparsed object zodat een aanvaller via
+// DevTools geen `__proto__`/`constructor`/`prototype` keys in de
+// runtime kan smokkelen. Geen prototype-pollution exploit nu, maar
+// defense-in-depth — JSON.parse zelf zet die keys op het object, en
+// een latere spread kan ze meenemen.
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function safeObj(v) {
+  const o = pickObj(v);
+  const out = {};
+  for (const k of Object.keys(o)) {
+    if (!UNSAFE_KEYS.has(k)) out[k] = o[k];
+  }
+  return out;
+}
+
+// Cast naar een eindig getal of fallback. Voorkomt dat strings, NaN,
+// of Infinity via een corrupt log doorlopen naar de UI/export.
+function num(v, fallback = 0) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export function loadLog(date = new Date()) {
   try {
     const raw = localStorage.getItem(logKey(date));
     if (!raw) return emptyLog();
-    const parsed = JSON.parse(raw);
+    const parsed = safeObj(JSON.parse(raw));
     const base = emptyLog();
     // Deep-merge nested objects so old logs without symptoms/gut stay valid.
+    // Iedere sub-object spread is óók type-checked + key-filtered zodat
+    // een corrupt veld de runtime niet kan vervuilen.
     return {
       ...base,
       ...parsed,
-      meals:     Array.isArray(parsed.meals)     ? parsed.meals     : [],
-      symptomen: Array.isArray(parsed.symptomen) ? parsed.symptomen : [],
-      gut:       { ...base.gut,       ...(parsed.gut       || {}) },
-      symptoms:  { ...base.symptoms,  ...(parsed.symptoms  || {}) },
-      ovulation: { ...base.ovulation, ...(parsed.ovulation || {}) },
-      bleeding:  { ...base.bleeding,  ...(parsed.bleeding  || {}) },
-      lateCheck: { ...base.lateCheck, ...(parsed.lateCheck || {}) },
+      // Numerieke velden normaliseren — string/NaN/Infinity uit een
+      // gemanipuleerde log mag niet door de pipeline lekken.
+      calories:    num(parsed.calories,    0),
+      protein:     num(parsed.protein,     0),
+      hydration:   num(parsed.hydration,   0),
+      sleep:       num(parsed.sleep,       0),
+      movement:    num(parsed.movement,    0),
+      temperature: num(parsed.temperature, 0),
+      // String-velden capping op 280 tegen quota-uitputting via DevTools.
+      note: typeof parsed.note === 'string' ? parsed.note.slice(0, 280) : '',
+      meals:     Array.isArray(parsed.meals)     ? parsed.meals.slice(0, 50)     : [],
+      symptomen: Array.isArray(parsed.symptomen) ? parsed.symptomen.slice(0, 20) : [],
+      gut:       { ...base.gut,       ...safeObj(parsed.gut)       },
+      symptoms:  { ...base.symptoms,  ...safeObj(parsed.symptoms)  },
+      ovulation: { ...base.ovulation, ...safeObj(parsed.ovulation) },
+      bleeding:  { ...base.bleeding,  ...safeObj(parsed.bleeding)  },
+      lateCheck: { ...base.lateCheck, ...safeObj(parsed.lateCheck) },
     };
   } catch {
     notifyStorageError('Logboekdata hersteld na corruptie');

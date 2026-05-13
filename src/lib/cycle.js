@@ -647,17 +647,44 @@ export function getFertileWindow(periodStart, cycleLength) {
 /**
  * Bepaalt waar 'vandaag' staat in het vruchtbare venster.
  *
- * Returns `{ status, daysUntil, daysSince, isOvulation }`:
- *   - status:      'fertile' | 'ovulation' | 'before' | 'after'
- *   - daysUntil:   dagen tot venster-start (0 op vandaag, null als 'after')
+ * Returns `{ status, daysUntil, daysSince, isOvulation, ovulationDay }`:
+ *   - status:      'fertile' | 'ovulation' | 'before' | 'after' | 'overdue'
+ *   - daysUntil:   dagen tot venster-start (alleen bij 'before')
  *   - daysSince:   dagen sinds venster-eind (alleen bij 'after')
  *   - isOvulation: true op de exacte ovulatiedag
+ *   - ovulationDay: dag-nummer in cyclus
+ *
+ * Belangrijk: `state.cycleDay` wraps via modulo binnen 1..cycleLength.
+ * Een gebruikster die over tijd is heeft een misleidende cycleDay (bv.
+ * dag 6 van een "nieuwe" cyclus die nooit echt begonnen is). Daarom:
+ * als `profile` wordt meegegeven én ze meer dan 2 dagen over tijd zijn,
+ * geven we `status: 'overdue'` terug zodat de UI geen valse "venster
+ * over X dagen" claim toont.
  *
  * @param {object} state          Resultaat van getCycleState
+ * @param {object} [profile]      Optioneel — voor late-detectie
  * @param {Date}   [today]        Override voor tests
  */
-export function getFertilityStatus(state, today = new Date()) {
+export function getFertilityStatus(state, profile = null, today = new Date()) {
   if (!state?.cycleDay || !state?.cycleLength) return null;
+
+  // Late-check vóór alle andere logica: als de gebruikster over tijd is,
+  // is een fertile-window-voorspelling voor een "nieuwe" cyclus die nooit
+  // begonnen is, zinloos en misleidend.
+  if (profile?.lastPeriodStart) {
+    const overdue = getOverdueDays(profile, today);
+    if (overdue != null && overdue > 2) {
+      return {
+        status: 'overdue',
+        isOvulation: false,
+        daysUntil: 0,
+        daysSince: 0,
+        ovulationDay: null,
+        overdueDays: overdue,
+      };
+    }
+  }
+
   const window = getFertileWindow(
     // We hebben geen lastPeriodStart hier, maar wel cycleDay — bereken
     // terug naar dag-1 zodat getFertileWindow met een geldige basis werkt.
