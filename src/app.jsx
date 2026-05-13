@@ -25,7 +25,7 @@ import {
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import {
-  loadProfile, saveProfile, clearProfile,
+  loadProfile, saveProfile, clearProfile, setStorageErrorHandler,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
   loadRecentLogs,
 } from './lib/storage.js';
@@ -33,6 +33,7 @@ import {
   LocaleProvider, useT, t as tStatic, detectLocale,
 } from './lib/i18n.js';
 import {
+  generateCsvExport, csvExportFilename,
   generateAppleHealthXml, appleHealthFilename,
 } from './lib/export.js';
 
@@ -157,6 +158,10 @@ function useDailyLog(date = new Date()) {
       if (patch.symptoms)  next.symptoms  = { ...current.symptoms,  ...patch.symptoms };
       if (patch.ovulation) next.ovulation = { ...current.ovulation, ...patch.ovulation };
       if (patch.bleeding)  next.bleeding  = { ...current.bleeding,  ...patch.bleeding };
+      // lateCheck is óók een nested object met meerdere ja/nee-velden.
+      // Zonder deze merge wist een tap op "Ja" alle eerder beantwoorde
+      // vragen — gevonden in audit, regression-test in storage.test.js.
+      if (patch.lateCheck) next.lateCheck = { ...current.lateCheck, ...patch.lateCheck };
       saveLog(date, next);
       return next;
     });
@@ -200,47 +205,44 @@ function shortMonth(iso, formatDate) {
 /* ------------------------------------------------------------------ */
 /*  CSV export                                                         */
 /* ------------------------------------------------------------------ */
+//
+// XML/CSV pure-generatie staat in `src/lib/export.js`. Deze wrapper
+// verzamelt 90 dagen aan logs + cycle-state, geeft 'm aan de pure
+// helper en doet de Blob-download. Eerder zat de generatie inline
+// hier; dat had:
+//   1. CSV-injection (geen `=`/`@`/`+`/`-` prefix escape) — aanvallen
+//      via een journal-note die in Excel/Sheets/Numbers RCE gaf
+//      wanneer de gebruikster de export met haar arts deelde.
+//   2. Lege dagen werden als rijen met nullen geëxporteerd — een arts
+//      die de CSV las dacht "die dag heeft ze niks gehad", terwijl het
+//      betekende "die dag heeft ze niks gelogd". Klinisch verschil.
+// `generateCsvExport` lost beide op (csvCell escape + skip-empty
+// optioneel — hier filteren we via logHasData).
 
 function exportCSV(profile) {
-  const rows = ['date,cycleDay,phase,mood,energy,cramps,bloating,calories,protein,water,sleep,movement,temperature,sportIntensity,ovulationFelt,ovulationFromTemp,bleedingHeaviness,bleedingColor,bleedingClots,bleedingClarity,note'];
   const today = new Date();
+  const entries = [];
   for (let i = 89; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
     const log = loadLog(d);
+    if (!logHasData(log)) continue;       // skip lege dagen — geen valse-leeg-rijen
     const state = getCycleState(profile, d);
-    const s = log.symptoms || {};
-    const o = log.ovulation || {};
-    const b = log.bleeding || {};
-    rows.push([
-      isoDate(d),
-      state.cycleDay ?? '',
-      state.phase,
-      s.mood     || '',
-      s.energy   || '',
-      s.cramps   || '',
-      s.bloating || '',
-      log.calories     || '',
-      log.protein      || '',
-      log.hydration    || '',
-      log.sleep        || '',
-      log.movement     || '',
-      log.temperature  || '',
-      log.sportIntensity || '',
-      o.felt     ? '1' : '',
-      o.fromTemp ? '1' : '',
-      b.heaviness || '',
-      b.color     || '',
-      b.clots     || '',
-      b.clarity   || '',
-      `"${(log.note || '').replace(/"/g, '""').replace(/[\r\n]+/g, ' ')}"`,
-    ].join(','));
+    entries.push({
+      iso: isoDate(d),
+      date: d,
+      phase: state.phase,
+      cycleDay: state.cycleDay ?? '',
+      log,
+    });
   }
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+
+  const csv = generateCsvExport(entries);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'aura-log.csv';
+  a.download = csvExportFilename(today);
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -1992,7 +1994,7 @@ function Onboarding({ onComplete }) {
                   <input
                     id="onboard-age"
                     className={inputCx}
-                    type="number" min="14" max="70"
+                    type="number" min="16" max="80"
                     value={form.age}
                     onChange={setFE('age')}
                     placeholder="28"
@@ -2192,7 +2194,12 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
     const weightKg = Number(form.weightKg) || profile.weightKg;
     const heightCm = Number(form.heightCm) || profile.heightCm;
 
-    if (age      && (age      < 12  || age      > 80 )) { showToast(t('settings.validate.age'));    return; }
+    // Minimumleeftijd: 16 jaar — onder UAVG art. 5 (NL implementatie van
+    // AVG art. 8) is voor verwerking van persoonsgegevens van kinderen
+    // < 16 jaar in een informatiemaatschappij-dienst ouderlijke
+    // toestemming vereist. Health data is bijzondere categorie (art. 9);
+    // daar geldt het minimum extra streng. Was 12 — corrigeert audit F-04.
+    if (age      && (age      < 16  || age      > 80 )) { showToast(t('settings.validate.age'));    return; }
     if (weightKg && (weightKg < 30  || weightKg > 250)) { showToast(t('settings.validate.weight')); return; }
     if (heightCm && (heightCm < 120 || heightCm > 220)) { showToast(t('settings.validate.height')); return; }
 
@@ -2267,7 +2274,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
               <input
                 id="settings-age"
                 className={inputCx}
-                type="number" min="14" max="70"
+                type="number" min="16" max="80"
                 value={form.age}
                 onChange={(e) => setF('age', e.target.value)}
                 placeholder="28"
@@ -2546,19 +2553,21 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">{t('settings.cards.title')}</div>
         <div className="space-y-1">
           {[
-            { id: 'goalRings',     label: 'Voortgangs-ringen' },
-            { id: 'symptoms',      label: t('symptoms.title') },
-            { id: 'todayNutrition',label: t('nutrition.today') },
-            { id: 'wellbeing',     label: t('wellbeing.title') },
-            { id: 'gut',           label: t('gut.title') },
-            { id: 'focus',         label: t('focus.title') },
-            { id: 'workload',      label: t('workload.title') },
-            { id: 'insight',       label: t('insight.title') },
-            { id: 'journal',       label: t('journal.title') },
-            { id: 'cycleHistory',  label: t('cycle.recent.title') },
-            { id: 'cycleCalendar', label: 'Cyclus-kalender' },
-            { id: 'temperature',   label: t('temp.title') },
-            { id: 'ovulation',     label: t('ovulation.title') },
+            { id: 'goalRings',       label: 'Voortgangs-ringen' },
+            { id: 'symptoms',        label: t('symptoms.title') },
+            { id: 'todayNutrition',  label: t('nutrition.today') },
+            { id: 'wellbeing',       label: t('wellbeing.title') },
+            { id: 'gut',             label: t('gut.title') },
+            { id: 'focus',           label: t('focus.title') },
+            { id: 'workload',        label: t('workload.title') },
+            { id: 'insight',         label: t('insight.title') },
+            { id: 'journal',         label: t('journal.title') },
+            { id: 'cycleHistory',    label: t('cycle.recent.title') },
+            { id: 'cycleCalendar',   label: 'Cyclus-kalender' },
+            { id: 'temperature',     label: t('temp.title') },
+            { id: 'ovulation',       label: t('ovulation.title') },
+            { id: 'fertilityWindow', label: 'Vruchtbaar venster' },
+            { id: 'lateCycleCheck',  label: 'Cyclus-verlaat check-in' },
           ].map(({ id, label }) => {
             const hidden = hiddenCards.includes(id);
             return (
@@ -4203,7 +4212,11 @@ function FertilityWindowCard({ profile, state }) {
   if (!intent || intent === 'none') return null;
   if (!state?.hasData) return null;
 
-  const fertility = getFertilityStatus(state);
+  // Pass profile zodat getFertilityStatus de overdue-status kan
+  // detecteren — zonder dat gaf de functie misleidende "venster
+  // over X dagen" claims terug op basis van een gewrapte cycleDay
+  // wanneer de gebruikster eigenlijk te laat was.
+  const fertility = getFertilityStatus(state, profile);
   if (!fertility) return null;
 
   const suppressed = suppressesCycle(profile?.contraception);
@@ -4212,6 +4225,13 @@ function FertilityWindowCard({ profile, state }) {
   let body = '';
   let accent = 'sage';
   let icon = '🌱';
+
+  if (fertility.status === 'overdue') {
+    // Bij over tijd verbergen we deze kaart — LateCycleCheckCard
+    // neemt de communicatie hierover over en is preciezer
+    // (vragen + voorwaardelijke test-suggestie).
+    return null;
+  }
 
   if (intent === 'trying') {
     accent = 'sage';
@@ -4239,7 +4259,7 @@ function FertilityWindowCard({ profile, state }) {
       headline = fertility.status === 'ovulation'
         ? 'Vandaag is je geschatte ovulatiedag'
         : 'Je zit in je vruchtbare venster';
-      body = 'De kans op zwangerschap is het hoogst tijdens deze dagen. Overweeg bescherming — kalendermethoden alleen zijn niet betrouwbaar.';
+      body = 'De kans op zwangerschap is het hoogst tijdens deze dagen. Overweeg bescherming — de kalendermethode is statistisch ~75–80% effectief; gebruik betrouwbare anticonceptie als zwangerschap een gezondheidsrisico zou vormen.';
       icon = '⚠️';
     } else if (fertility.status === 'before') {
       headline = `Vruchtbaar venster over ${fertility.daysUntil} dag${fertility.daysUntil === 1 ? '' : 'en'}`;
@@ -4313,8 +4333,11 @@ function LateCycleCheckCard({ profile, state, log, onUpdate }) {
     (intent === 'avoiding' && !onSuppressing) ||
     (intent !== 'avoiding' && profile?.contraception === 'none');
 
-  const showContraceptionQuestion =
-    profile?.contraception && profile.contraception !== 'none';
+  // De "heb je je anticonceptie gevolgd?"-vraag is alleen zinvol voor
+  // methoden die de cyclus daadwerkelijk onderdrukken — voor een
+  // barrièremiddel of koperspiraal hangt het niet van "gevolgd?"
+  // af of de cyclus loopt zoals verwacht.
+  const showContraceptionQuestion = onSuppressing;
 
   return (
     <CollapsibleCard
@@ -4339,8 +4362,12 @@ function LateCycleCheckCard({ profile, state, log, onUpdate }) {
         {showContraceptionQuestion && (
           <YesNoRow
             label="Heb je je anticonceptie zoals gewoonlijk gevolgd?"
-            value={lc.contraceptionMissed === null ? null : !lc.contraceptionMissed}
-            onChange={(v) => setVal('contraceptionMissed', !v)}
+            value={lc.contraceptionMissed == null ? null : !lc.contraceptionMissed}
+            // YesNoRow geeft null bij twee-keer-tap voor "wis antwoord";
+            // anders true/false. We slaan de geïnverteerde waarde op
+            // (missed = !followed) maar moeten null doorlaten — anders
+            // staat de Ja/Nee permanent (`!null === true`).
+            onChange={(v) => setVal('contraceptionMissed', v === null ? null : !v)}
           />
         )}
       </div>
@@ -4859,9 +4886,15 @@ function FoodLogCard({ log, onUpdate, targets }) {
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            // Cap op 80 chars zodat een runaway paste niet de log-blob
+            // opblaast (oude bug: meal-name had geen length-cap — paste
+            // van 10 MB string werd serialised in localStorage en quota
+            // exhaustion ontstond stil). Profile.name en log.note hebben
+            // een cap; meal-name had die niet — audit F-08 fix.
+            onChange={(e) => setName(e.target.value.slice(0, 80))}
             placeholder={t('food.log.namePh')}
             className="w-full px-3 py-2.5 rounded-lg border border-cream-200 bg-white text-sm text-ink-700 placeholder-ink-400/60 focus:outline-none focus:border-sage-300"
+            maxLength={80}
           />
           <div className="flex gap-2">
             <input
@@ -5200,9 +5233,43 @@ function App() {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   }, []);
 
+  // Surface storage-write failures aan de gebruiker. Voor de audit zat
+  // `setStorageErrorHandler` exported maar nergens gewired — een quota-
+  // exceeded of private-mode block werd stilletjes geslikt en data ging
+  // verloren zonder dat iemand het wist. Eén alert is voldoende per
+  // sessie; daarna log-only zodat de UI niet vol popups raakt.
+  const [storageWarned, setStorageWarned] = useState(false);
+  useEffect(() => {
+    setStorageErrorHandler((err) => {
+      console.error('[Aura] storage error:', err);
+      if (!storageWarned) {
+        setStorageWarned(true);
+        // Lichte browser-alert — Aura heeft geen toast-systeem op
+        // app-niveau (alleen per-view). Dit is een launch-grade
+        // fallback; v1.4 kan een nettere banner toevoegen.
+        try {
+          window.alert(
+            'Aura kon je laatste wijziging niet opslaan. ' +
+            'Controleer of je browser-opslag vol is, of dat je in ' +
+            'privé-modus zit (Safari Private Browsing). Je gegevens ' +
+            'in deze sessie blijven werken tot je de tab sluit.'
+          );
+        } catch { /* sommige WebViews staan geen alert toe */ }
+      }
+    });
+    return () => setStorageErrorHandler(null);
+  }, [storageWarned]);
+
   useEffect(() => {
     const onStorage = (e) => {
+      if (!e.key) return; // localStorage.clear() in another tab
       if (e.key === 'aura.profile') setProfile(loadProfile());
+      if (e.key === 'aura.theme') {
+        const nextTheme = localStorage.getItem('aura.theme') || 'auto';
+        const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const dark = nextTheme === 'dark' || (nextTheme === 'auto' && sysDark);
+        document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      }
     };
     // Quiet logging for async errors that the React boundary can't see
     // (event handlers, setTimeout callbacks, unhandled promise rejections).
