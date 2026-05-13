@@ -88,7 +88,7 @@ export const MENSTRUAL_SELFCARE = [
     id:       'music',
     icon:     '🎵',
     title:    'Cosy vibes playlist',
-    intro:    'Geluid dat de schouders laat zakken.',
+    intro:    'Drie soorten muziek die rustig achter de oren tikken.',
     items: [
       { headline: 'Ambient & lo-fi', body: 'Zachte beats zonder tekst — perfect tijdens werk of een rustige avond.' },
       { headline: 'Akoestische ballades', body: 'Norah Jones, Lianne La Havas, Phoebe Bridgers. Warm en kalm.' },
@@ -99,7 +99,7 @@ export const MENSTRUAL_SELFCARE = [
     id:       'bath',
     icon:     '🛁',
     title:    'Magnesium voetenbadje',
-    intro:    'Tien minuten warm water werken meer dan je denkt.',
+    intro:    'Tien minuten warm water, voeten erin, en even niks.',
     items: [
       { headline: 'De basis', body: 'Een teiltje warm water (37–40 °C), 2 eetlepels magnesiumvlokken (Epsom).' },
       { headline: 'Geur erbij', body: 'Een paar druppels lavendel of rozemarijn voor extra ontspanning.' },
@@ -110,7 +110,7 @@ export const MENSTRUAL_SELFCARE = [
     id:       'drinks',
     icon:     '☕',
     title:    'Warme dranken',
-    intro:    'Iets warms in je handen kalmeert het zenuwstelsel.',
+    intro:    'Drie recepten voor in een grote mok.',
     items: [
       { headline: 'Golden latte', body: 'Warme melk + kurkuma + snufje peper + honing. Ontstekingsremmend.' },
       { headline: 'Warme cacao', body: 'Pure cacao + havermelk + kaneel. Magnesium voor je krampen.' },
@@ -121,7 +121,7 @@ export const MENSTRUAL_SELFCARE = [
     id:       'nature',
     icon:     '🌿',
     title:    'Natuur wandeling',
-    intro:    'Een korte wandeling reset je hoofd zonder uit te putten.',
+    intro:    'Een kwartiertje naar buiten, in je eigen tempo.',
     items: [
       { headline: '15 minuten is genoeg', body: 'Geen rondje hardlopen — gewoon buiten zijn, langzaam tempo.' },
       { headline: 'Zonder telefoon', body: 'Kijk omhoog, hoor wat er is. Je lichaam doet de rest.' },
@@ -132,7 +132,7 @@ export const MENSTRUAL_SELFCARE = [
     id:       'books',
     icon:     '📚',
     title:    'Boeken voor zachte dagen',
-    intro:    'Drie aanraders om bij thee te lezen.',
+    intro:    'Drie tips, bij voorkeur op een kussen onder een dekentje.',
     items: [
       { headline: 'In Praise of Slow — Carl Honoré', body: 'Een hartelijke ode aan vertragen. Geen schuldgevoel, alleen perspectief.' },
       { headline: 'Big Magic — Elizabeth Gilbert', body: 'Over creativiteit zonder druk — past goed bij naar binnen keren.' },

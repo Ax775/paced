@@ -204,6 +204,83 @@ function shortMonth(iso, formatDate) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Blob download helper — iOS-PWA-vriendelijk                         */
+/* ------------------------------------------------------------------ */
+//
+// Vroeger gebruikten we `<a download>` + `.click()`. In iOS Safari
+// PWA-standalone-modus negeert WebKit het `download`-attribuut volledig
+// — sommige iOS-versies openen het bestand in dezelfde tab (waarna
+// de PWA wordt vervangen door b.v. een XML-viewer), andere doen niets.
+// Resultaat: een gebruiker drukt op "Exporteren" en denkt dat 't kapot is.
+//
+// Drietraps fallback, in volgorde van iOS-PWA-vriendelijkheid:
+//   1. `navigator.share` met `files` — iOS opent het native share-sheet,
+//      gebruiker kan "Opslaan in Bestanden" of mailen kiezen.
+//   2. `<a download>` met body-append + setTimeout cleanup — werkt op
+//      desktop en op iOS Safari in browsermodus.
+//   3. Open in nieuw tabblad als laatste redmiddel — gebruiker kan dan
+//      long-press → "Opslaan op …" gebruiken.
+//
+// De helper logt naar console bij elke fallback zodat support-issues
+// achteraf traceerbaar zijn ("welke variant heeft 't gedaan?").
+
+async function downloadBlob(blob, filename) {
+  // 1. Probeer Web Share API met file (Safari ≥ 14, Chrome ≥ 89). Veruit
+  //    de beste UX op iOS-PWA: native sheet, geen tab-flicker.
+  try {
+    if (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.share === 'function' &&
+      typeof navigator.canShare === 'function' &&
+      typeof File !== 'undefined'
+    ) {
+      const file = new File([blob], filename, { type: blob.type });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return; // share-sheet sloot, gebruiker koos een actie
+      }
+    }
+  } catch (err) {
+    // AbortError = gebruiker drukte op "Annuleren" in het share-sheet.
+    // Geen probleem, ook geen fallback nodig — ze wilden het niet.
+    if (err?.name === 'AbortError') return;
+    console.warn('[Aura] share-sheet faalde, val terug op <a download>', err);
+  }
+
+  // 2. Standaard <a download>. Body-append vereist op iOS, sommige
+  //    versies hebben de anker nodig in de DOM voordat .click() werkt.
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    // Cleanup met een tick vertraging — Safari heeft soms een microtask
+    // nodig om de download te initiëren voordat we de URL revoken.
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 0);
+    return;
+  } catch (err) {
+    console.warn('[Aura] <a download> faalde, val terug op nieuw tabblad', err);
+  }
+
+  // 3. Laatste redmiddel: open in nieuw tabblad. Gebruiker kan
+  //    handmatig opslaan via long-press of het ⋯ menu.
+  try {
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener');
+    // Geen revoke — de nieuwe tab heeft 'm nog nodig.
+  } catch (err) {
+    console.error('[Aura] export volledig mislukt — geen download-mechanisme beschikbaar', err);
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  CSV export                                                         */
 /* ------------------------------------------------------------------ */
 //
@@ -240,12 +317,7 @@ function exportCSV(profile) {
 
   const csv = generateCsvExport(entries);
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = csvExportFilename(today);
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, csvExportFilename(today));
 }
 
 /* ------------------------------------------------------------------ */
@@ -272,12 +344,7 @@ function exportAppleHealth(profile, onEmpty) {
   }
 
   const blob = new Blob([xml], { type: 'application/xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = appleHealthFilename(today);
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, appleHealthFilename(today));
 }
 
 /* ------------------------------------------------------------------ */
@@ -315,12 +382,7 @@ function exportFullJson(profile) {
 
   const json = generateFullJsonExport(profile, entries, { today });
   const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fullJsonExportFilename(today);
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, fullJsonExportFilename(today));
 }
 
 /* ------------------------------------------------------------------ */
@@ -1933,7 +1995,12 @@ function Onboarding({ onComplete }) {
                 <Label htmlFor="onboard-last-period">{t('onb.cycle.lastPeriod')}</Label>
                 <input
                   id="onboard-last-period"
-                  className={inputCx}
+                  // appearance-none zet de iOS-Safari calendar-icon en
+                  // default-padding uit zodat het veld dezelfde dimensies
+                  // krijgt als de tekstvelden. Min-height 48px voor tap-
+                  // target (iOS guideline) + max-w om de date-value niet
+                  // breder te laten worden dan de andere onboarding-inputs.
+                  className={`${inputCx} appearance-none [color-scheme:light_dark] min-h-[48px] text-base`}
                   type="date"
                   value={form.lastPeriodStart}
                   onChange={setFE('lastPeriodStart')}
