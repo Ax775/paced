@@ -1008,38 +1008,86 @@ const STRINGS = {
     'settings.version':          'Aura · v1.3',
 
     /* reset confirm */
-    'reset.title':   'Profiel resetten?',
-    'reset.body':    'Weet je het zeker? Alle profieldata wordt gewist. Je dagelijkse logs blijven bewaard.',
-    'reset.confirm': 'Ja, reset',
+    'reset.title':   'Alle gegevens wissen?',
+    'reset.body':    'Dit wist je profiel, alle dagelijkse logs én je voorkeuren. Niet terug te halen. Bevestig door hieronder WIS te typen.',
+    'reset.input.placeholder': 'Typ WIS om te bevestigen',
+    'reset.input.aria': 'Typ WIS om verwijdering te bevestigen',
+    'reset.confirm': 'Ja, wis alles',
+    'reset.cancel':  'Annuleren',
+
+    /* consent gate */
+    'consent.title':       'Toestemming voor je gezondheidsgegevens',
+    'consent.intro':       'Aura verwerkt cyclus-, voedings- en welzijnsgegevens — onder de AVG (art. 9) een bijzondere categorie waarvoor we expliciet je toestemming nodig hebben.',
+    'consent.li1':         '✓ Alle data blijft uitsluitend op jouw apparaat — geen account, geen server, geen tracking',
+    'consent.li2':         '✓ Aura is geen medisch hulpmiddel — voor diagnose of behandeling raadpleeg je een arts',
+    'consent.li3':         '✓ Je kunt je toestemming op elk moment intrekken door je gegevens te wissen via Instellingen',
+    'consent.checkbox':    'Ik ben 16 jaar of ouder en geef toestemming voor het verwerken van mijn gezondheidsgegevens op dit apparaat door Aura.',
+    'consent.legal.link':  'Lees de volledige privacy- en disclaimer-tekst',
+    'consent.continue':    'Doorgaan naar Aura',
+    'consent.continue.disabled': 'Vink eerst toestemming aan',
+    'consent.withdraw.banner': 'Je toestemming voor health-data verwerking is op {date} gegeven (versie {version}).',
+
+    /* json export */
+    'settings.export.json':       'Volledige export (JSON, alle data)',
+    'settings.export.json.aria':  'Exporteer alle data als JSON-bestand',
+
+    /* notif explainer */
+    'settings.notif.explainer':  'Aura herinnert je in de avond als je nog niets gelogd hebt. Notificaties draaien volledig lokaal — er wordt geen push-server gebruikt, niets verlaat je apparaat.',
 
     /* legal */
     'legal.title':         'Privacy & disclaimer',
+
+    'legal.controller.title': 'Verwerkingsverantwoordelijke',
+    'legal.controller.body':  'Aura wordt aangeboden door [VUL_IN: naam of entiteit van de uitgever]. Voor privacy-vragen of een verzoek over je rechten: [VUL_IN: contact e-mail]. Op grond van AVG art. 37 is geen Functionaris Gegevensbescherming (DPO) aangewezen — de verwerking is geen kernactiviteit op grote schaal van bijzondere gegevens (alle data blijft lokaal op jouw apparaat en wordt niet door ons centraal samengevoegd).',
+    'legal.controller.complaint': 'Niet tevreden over hoe wij omgaan met je privacy? Je hebt het recht een klacht in te dienen bij de Autoriteit Persoonsgegevens via autoriteitpersoonsgegevens.nl.',
+
+    'legal.basis.title':   'Rechtsgrondslag (AVG art. 6 + 9)',
+    'legal.basis.body':    'Aura verwerkt cyclus-, voedings- en welzijnsgegevens. Onder AVG art. 9 zijn gezondheidsgegevens een bijzondere categorie waarvoor uitdrukkelijke toestemming nodig is (art. 9 lid 2 sub a). Die toestemming geef je bewust bij de eerste start van de app. Je kunt deze toestemming op elk moment intrekken door je gegevens te wissen via Instellingen → Alle gegevens wissen — dan stopt elke verdere verwerking.',
+
     'legal.med.title':     'Medische disclaimer',
-    'legal.med.p1':        'Aura is een hulpmiddel voor zelfreflectie en bewustwording — geen medisch hulpmiddel. De app vervangt geen consult bij een (huis)arts, gynaecoloog, voedingsdeskundige of andere zorgverlener.',
-    'legal.med.p2':        'Berekeningen voor cyclus, calorieën en eiwitten zijn schattingen op basis van algemene formules. Ze kunnen afwijken van jouw persoonlijke situatie en zijn niet bedoeld als diagnose of behandeling.',
+    'legal.med.p1':        'Aura is een hulpmiddel voor zelfreflectie en bewustwording — geen medisch hulpmiddel in de zin van de EU Medical Device Regulation (2017/745). De app stelt geen diagnose, geeft geen behandeling, en vervangt geen consult bij een (huis)arts, gynaecoloog, voedingsdeskundige of andere zorgverlener.',
+    'legal.med.p2':        'Berekeningen voor cyclus, vruchtbaar venster, calorieën en eiwitten zijn schattingen op basis van algemene formules. Ze kunnen afwijken van jouw persoonlijke situatie en zijn niet bedoeld als diagnose of behandeling. De kalendermethode is statistisch ~75–80% effectief; gebruik betrouwbare anticonceptie als zwangerschap een gezondheidsrisico zou vormen.',
     'legal.med.p3':        'Maak je je zorgen over je gezondheid, je menstruatiecyclus, je voeding of je welzijn? Neem dan altijd contact op met een gekwalificeerde zorgverlener.',
+
     'legal.store.title':   'Wat slaan we op',
-    'legal.store.intro':   'Alle gegevens die je in Aura invoert blijven uitsluitend op dit apparaat, opgeslagen in de lokale opslag van je browser:',
-    'legal.store.li1':     'Profiel: naam, leeftijd, gewicht, lengte, activiteitsniveau',
-    'legal.store.li2':     'Cyclus: lengte, duur menstruatie, datums die je logt',
-    'legal.store.li3':     'Dagelijks logboek: voeding, water, slaap, beweging, symptomen, notities',
-    'legal.store.li4':     'Voorkeuren: thema (licht/donker), taal, herinneringstijd',
-    'legal.store.foot':    'Er wordt geen data naar servers gestuurd. We zien je gegevens niet, niemand anders ook.',
+    'legal.store.intro':   'Alle gegevens die je in Aura invoert blijven uitsluitend op dit apparaat, opgeslagen in de lokale opslag van je browser. Per veld het doel:',
+    'legal.store.li1':     'Profiel (naam, leeftijd, gewicht, lengte, activiteitsniveau) — om je dashboard en je dagelijkse doelen te personaliseren',
+    'legal.store.li2':     'Cyclus (lengte, duur menstruatie, datums) — om je huidige fase en voorspellingen te tonen',
+    'legal.store.li3':     'Dagelijks logboek (voeding, water, slaap, beweging, symptomen, notities) — om patroon-inzichten over tijd te tonen',
+    'legal.store.li4':     'Voorkeuren (thema, taal, herinneringstijd, dashboard-volgorde) — om de app-ervaring te onthouden',
+    'legal.store.foot':    'Er wordt geen data naar servers gestuurd. Wij zien je gegevens niet, niemand anders ook.',
+
+    'legal.retention.title': 'Bewaartermijn',
+    'legal.retention.body':  'Je gegevens blijven bewaard zolang jij Aura gebruikt en je profiel niet wist. Er is geen automatische verwijdering — jij beslist. We adviseren om minimaal eens per jaar te kijken of je nog alle gelogde data nodig hebt en wat ouder is te exporteren of te wissen. Volledig wissen kan op elk moment via Instellingen → Alle gegevens wissen.',
+
     'legal.dont.title':    'Wat we niet doen',
     'legal.dont.li1':      '✗ Geen accounts, geen inlog, geen wachtwoorden',
     'legal.dont.li2':      '✗ Geen tracking-cookies of -pixels',
-    'legal.dont.li3':      '✗ Geen analytics-diensten',
+    'legal.dont.li3':      '✗ Geen analytics-diensten (geen Google Analytics, geen Plausible, geen Mixpanel)',
     'legal.dont.li4':      '✗ Geen advertenties',
-    'legal.dont.li5':      '✗ Geen verkoop, verhuur of delen van data met derden',
+    'legal.dont.li5':      '✗ Geen verkoop, verhuur of delen van data met derden voor marketing',
     'legal.dont.li6':      '✗ Geen synchronisatie tussen apparaten (data blijft op dit apparaat)',
-    'legal.ext.title':     'Externe diensten',
-    'legal.ext.body':      "De productieversie van Aura laadt geen externe scripts, lettertypes of CDN's tijdens gebruik. Alle code, stijlen en lettertypes worden samen met de app meegestuurd en vanuit dezelfde host geserveerd. Tijdens het bezoeken van Aura wordt dus alleen verbinding gemaakt met de Aura-host zelf — niet met Google, niet met derde partijen.",
+
+    'legal.hosting.title': 'Hosting & infrastructuur',
+    'legal.hosting.body':  'Aura wordt gehost op Cloudflare Pages (Cloudflare Inc., met EU-vestiging Cloudflare Germany GmbH). Cloudflare verwerkt voor ons als verwerker beperkte technische verbindingsgegevens (IP-adres, User-Agent, request-tijdstip) om de website te kunnen serveren en beschermen tegen aanvallen. Deze verwerking is gebaseerd op een verwerkersovereenkomst (Cloudflare DPA) en, waar van toepassing, op het EU-US Data Privacy Framework. Cloudflare-edges kunnen wereldwijd staan; de routering kiest doorgaans een EU-locatie. Aura zelf bewaart geen serverlogs en heeft geen toegang tot je IP-adres.',
+
+    'legal.ext.title':     'Externe diensten in de app',
+    'legal.ext.body':      "De productieversie van Aura laadt geen externe scripts, lettertypes of CDN's tijdens gebruik. Alle code, stijlen en lettertypes worden samen met de app meegestuurd en vanuit dezelfde host geserveerd. Tijdens het bezoeken van Aura wordt dus alleen verbinding gemaakt met de Aura-host zelf — niet met Google, Facebook of andere derde partijen.",
+
+    'legal.cookies.title': 'Cookies & opslag',
+    'legal.cookies.body':  'Aura plaatst geen cookies. We gebruiken uitsluitend de lokale opslag van je browser (localStorage) en alleen voor strikt-functionele doeleinden die nodig zijn om de app te laten werken (je profiel, je logs, je voorkeuren). Op grond van art. 11.7a lid 3(b) Telecommunicatiewet is hiervoor geen aparte toestemming vereist. Voor de verwerking van je gezondheidsgegevens binnen die opslag vragen we wel afzonderlijk toestemming (AVG art. 9) bij de eerste start.',
+
+    'legal.export.title':  'Wat gebeurt er bij export',
+    'legal.export.body':   'Je kunt je gegevens exporteren via Instellingen — CSV (laatste 90 dagen, voor je arts), Apple Health (XML, importeerbaar in iOS), of volledige JSON. Een export verlaat je apparaat alleen op jouw initiatief. Zodra je een export deelt, beheert de ontvangende app of persoon de gegevens; Aura kan na export niet meer terugzien of beïnvloeden wat ermee gebeurt.',
+
     'legal.rights.title':  'Jouw rechten (AVG / GDPR)',
-    'legal.rights.intro':  'Onder de Europese privacywet heb je recht op inzage, correctie en verwijdering van je gegevens. Omdat alle data alleen op dit apparaat staat, heb je dit volledig zelf in handen:',
+    'legal.rights.intro':  'Onder de Europese privacywet heb je recht op inzage, correctie, verwijdering en data-portabiliteit. Omdat alle data alleen op dit apparaat staat, heb je dit volledig zelf in handen:',
     'legal.rights.li1':    'Inzage en correctie: open Instellingen om alles te zien en aan te passen',
-    'legal.rights.li2':    'Verwijdering profiel: Instellingen → Profiel resetten',
-    'legal.rights.li3':    'Verwijdering álles: wis de site-data via je browserinstellingen',
-    'legal.foot':          'Aura · v1.3 · laatst bijgewerkt 3 mei 2026',
+    'legal.rights.li2':    'Data-portabiliteit: Instellingen → Exporteren (CSV, Apple Health XML, volledige JSON)',
+    'legal.rights.li3':    'Verwijdering: Instellingen → Alle gegevens wissen — verwijdert profiel, logs en voorkeuren in één keer',
+    'legal.rights.li4':    'Intrekking toestemming: dezelfde wis-actie trekt automatisch je toestemming voor health-data verwerking in',
+
+    'legal.foot':          'Aura · v1.4 · laatst bijgewerkt 12 mei 2026',
 
     /* logboek */
     'log.subtitle':       'Jouw dagboek',
@@ -1402,35 +1450,85 @@ const STRINGS = {
 
     'reset.title':   'Reset profile?',
     'reset.body':    'Are you sure? All profile data will be erased. Daily logs will be kept.',
-    'reset.confirm': 'Yes, reset',
+    'reset.title':   'Erase all data?',
+    'reset.body':    'This erases your profile, all daily logs and your preferences. Cannot be undone. Confirm by typing ERASE below.',
+    'reset.input.placeholder': 'Type ERASE to confirm',
+    'reset.input.aria': 'Type ERASE to confirm erasure',
+    'reset.confirm': 'Yes, erase everything',
+    'reset.cancel':  'Cancel',
+
+    /* consent gate */
+    'consent.title':       'Consent for your health data',
+    'consent.intro':       'Aura processes cycle, nutrition and wellbeing data — under GDPR (art. 9) a special category that requires your explicit consent.',
+    'consent.li1':         '✓ All data stays strictly on your device — no account, no server, no tracking',
+    'consent.li2':         '✓ Aura is not a medical device — for diagnosis or treatment, see a doctor',
+    'consent.li3':         '✓ You can withdraw consent any time by erasing your data via Settings',
+    'consent.checkbox':    'I am 16 years or older and consent to the processing of my health data on this device by Aura.',
+    'consent.legal.link':  'Read the full privacy & disclaimer',
+    'consent.continue':    'Continue to Aura',
+    'consent.continue.disabled': 'Please tick consent first',
+    'consent.withdraw.banner': 'Consent for health-data processing given on {date} (version {version}).',
+
+    /* json export */
+    'settings.export.json':       'Full export (JSON, all data)',
+    'settings.export.json.aria':  'Export all data as JSON file',
+
+    /* notif explainer */
+    'settings.notif.explainer':  'Aura reminds you in the evening if you haven\'t logged yet. Notifications run fully locally — no push server is used, nothing leaves your device.',
 
     'legal.title':         'Privacy & disclaimer',
+
+    'legal.controller.title': 'Data controller',
+    'legal.controller.body':  'Aura is published by [TO FILL: name or legal entity of the publisher]. For privacy questions or a request about your rights: [TO FILL: contact email]. No Data Protection Officer (DPO) has been appointed under GDPR art. 37 — the processing is not a core activity at large scale of special-category data (all data stays on your device and is not centrally aggregated by us).',
+    'legal.controller.complaint': 'Unhappy with how we handle your privacy? You have the right to lodge a complaint with the Dutch Data Protection Authority (Autoriteit Persoonsgegevens) via autoriteitpersoonsgegevens.nl, or your national equivalent.',
+
+    'legal.basis.title':   'Legal basis (GDPR art. 6 + 9)',
+    'legal.basis.body':    'Aura processes cycle, nutrition and wellbeing data. Under GDPR art. 9, health data is a special category requiring explicit consent (art. 9(2)(a)). You give that consent deliberately on first launch. You can withdraw consent at any time by erasing your data via Settings → Erase all data — all further processing then stops.',
+
     'legal.med.title':     'Medical disclaimer',
-    'legal.med.p1':        'Aura is a tool for self-reflection and awareness — not a medical device. The app does not replace a consultation with a GP, gynaecologist, dietitian or other healthcare provider.',
-    'legal.med.p2':        'Calculations for cycle, calories and protein are estimates based on general formulas. They may differ from your personal situation and are not intended as diagnosis or treatment.',
+    'legal.med.p1':        'Aura is a tool for self-reflection and awareness — not a medical device under the EU Medical Device Regulation (2017/745). The app does not diagnose, treat, or replace a consultation with a GP, gynaecologist, dietitian or other healthcare provider.',
+    'legal.med.p2':        'Calculations for cycle, fertile window, calories and protein are estimates based on general formulas. They may differ from your personal situation and are not intended as diagnosis or treatment. The calendar method is statistically ~75–80% effective; use reliable contraception if pregnancy would pose a health risk.',
     'legal.med.p3':        "If you're worried about your health, your menstrual cycle, your nutrition or your wellbeing, please contact a qualified healthcare provider.",
+
     'legal.store.title':   'What we store',
-    'legal.store.intro':   "All data you enter into Aura stays strictly on this device, stored in your browser's local storage:",
-    'legal.store.li1':     'Profile: name, age, weight, height, activity level',
-    'legal.store.li2':     'Cycle: length, period duration, dates you log',
-    'legal.store.li3':     'Daily journal: food, water, sleep, movement, symptoms, notes',
-    'legal.store.li4':     'Preferences: theme (light/dark), language, reminder time',
+    'legal.store.intro':   "All data you enter into Aura stays strictly on this device, stored in your browser's local storage. Purpose per field:",
+    'legal.store.li1':     'Profile (name, age, weight, height, activity level) — to personalize your dashboard and daily goals',
+    'legal.store.li2':     'Cycle (length, period duration, dates) — to show your current phase and predictions',
+    'legal.store.li3':     'Daily journal (food, water, sleep, movement, symptoms, notes) — to show pattern insights over time',
+    'legal.store.li4':     'Preferences (theme, language, reminder time, dashboard order) — to remember the app experience',
     'legal.store.foot':    'No data is sent to any server. We do not see your data, and neither does anyone else.',
+
+    'legal.retention.title': 'Retention period',
+    'legal.retention.body':  'Your data is kept as long as you use Aura and do not erase your profile. There is no automatic deletion — you decide. We recommend reviewing at least once a year whether you still need all logged data, and exporting or erasing older entries. Full erasure is always available via Settings → Erase all data.',
+
     'legal.dont.title':    "What we don't do",
     'legal.dont.li1':      '✗ No accounts, no logins, no passwords',
     'legal.dont.li2':      '✗ No tracking cookies or pixels',
-    'legal.dont.li3':      '✗ No analytics services',
+    'legal.dont.li3':      '✗ No analytics services (no Google Analytics, no Plausible, no Mixpanel)',
     'legal.dont.li4':      '✗ No advertising',
-    'legal.dont.li5':      '✗ No selling, renting or sharing data with third parties',
+    'legal.dont.li5':      '✗ No selling, renting or sharing data with third parties for marketing',
     'legal.dont.li6':      '✗ No syncing across devices (data stays on this device)',
-    'legal.ext.title':     'External services',
-    'legal.ext.body':      'The production version of Aura loads no external scripts, fonts or CDNs while you use it. All code, styles and fonts are bundled with the app and served from the same host. While visiting Aura, only Aura\'s own host is contacted — not Google, no third parties.',
+
+    'legal.hosting.title': 'Hosting & infrastructure',
+    'legal.hosting.body':  'Aura is hosted on Cloudflare Pages (Cloudflare Inc., with EU entity Cloudflare Germany GmbH). Cloudflare processes — as our processor — limited technical connection data (IP address, User-Agent, request timestamp) needed to serve the website and protect against attacks. This is based on the Cloudflare DPA and, where applicable, the EU-US Data Privacy Framework. Cloudflare edges are global; routing usually picks an EU location. Aura itself keeps no server logs and has no access to your IP address.',
+
+    'legal.ext.title':     'External services in the app',
+    'legal.ext.body':      'The production version of Aura loads no external scripts, fonts or CDNs while you use it. All code, styles and fonts are bundled with the app and served from the same host. While visiting Aura, only Aura\'s own host is contacted — not Google, Facebook or any third party.',
+
+    'legal.cookies.title': 'Cookies & storage',
+    'legal.cookies.body':  'Aura places no cookies. We only use your browser\'s local storage and only for strictly-functional purposes needed to make the app work (your profile, your logs, your preferences). Under art. 11.7a(3)(b) of the Dutch Telecommunications Act (and EU ePrivacy Directive equivalents) this requires no separate consent banner. For the processing of your health data within that storage we do ask explicit consent (GDPR art. 9) on first launch.',
+
+    'legal.export.title':  'What happens on export',
+    'legal.export.body':   'You can export your data via Settings — CSV (last 90 days, for your doctor), Apple Health (XML, importable in iOS), or full JSON. An export leaves your device only on your initiative. Once you share an export, the receiving app or person controls the data; Aura cannot see or influence what happens to it afterwards.',
+
     'legal.rights.title':  'Your rights (GDPR)',
-    'legal.rights.intro':  'Under EU privacy law you have the right to access, correct and delete your data. Because all data lives only on this device, you have full control:',
+    'legal.rights.intro':  'Under EU privacy law you have the right to access, correct, erase and port your data. Because all data lives only on this device, you have full control:',
     'legal.rights.li1':    'Access and correction: open Settings to view and adjust everything',
-    'legal.rights.li2':    'Delete profile: Settings → Reset profile',
-    'legal.rights.li3':    'Delete everything: clear site data via your browser settings',
-    'legal.foot':          'Aura · v1.3 · last updated 3 May 2026',
+    'legal.rights.li2':    'Data portability: Settings → Export (CSV, Apple Health XML, full JSON)',
+    'legal.rights.li3':    'Erasure: Settings → Erase all data — removes profile, logs and preferences in one action',
+    'legal.rights.li4':    'Withdrawal of consent: the same erasure action automatically withdraws your consent for health-data processing',
+
+    'legal.foot':          'Aura · v1.4 · last updated 12 May 2026',
 
     'log.subtitle':       'Your journal',
     'log.title':          'Journal',

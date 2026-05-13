@@ -365,3 +365,80 @@ describe('generateCsvExport — security regressions', () => {
     expect(row).toContain('oké dag');
   });
 });
+
+/* ─────────────────  Full JSON export (AVG art. 20)  ───────────────── */
+
+import { generateFullJsonExport, fullJsonExportFilename } from '../src/lib/export.js';
+
+describe('generateFullJsonExport', () => {
+  const today = new Date('2026-05-12T12:00:00Z');
+
+  it('packs profile + all log entries as valid JSON', () => {
+    const profile = { name: 'Test', cycleLength: 28, lastPeriodStart: '2026-04-15' };
+    const entries = [
+      { iso: '2026-04-15', log: { calories: 1700, protein: 80 } },
+      { iso: '2026-04-16', log: { sleep: 7 } },
+    ];
+    const out = generateFullJsonExport(profile, entries, { today });
+    const parsed = JSON.parse(out);
+    expect(parsed.aura.format).toBe('aura-full-export-v1');
+    expect(parsed.aura.exportedAt).toBe('2026-05-12T12:00:00.000Z');
+    expect(parsed.profile).toEqual(profile);
+    expect(parsed.logs['2026-04-15'].calories).toBe(1700);
+    expect(parsed.logs['2026-04-16'].sleep).toBe(7);
+  });
+
+  it('handles empty entries', () => {
+    const out = generateFullJsonExport({ name: 'Test' }, [], { today });
+    const parsed = JSON.parse(out);
+    expect(parsed.logs).toEqual({});
+    expect(parsed.profile.name).toBe('Test');
+  });
+
+  it('handles null profile gracefully', () => {
+    const out = generateFullJsonExport(null, [{ iso: '2026-04-15', log: {} }], { today });
+    const parsed = JSON.parse(out);
+    expect(parsed.profile).toBeNull();
+    expect(parsed.logs['2026-04-15']).toBeDefined();
+  });
+
+  it('skips malformed entries (missing iso of log)', () => {
+    const out = generateFullJsonExport({}, [
+      { iso: '2026-04-15', log: { calories: 1700 } },
+      { iso: '2026-04-16' }, // geen log
+      { log: { calories: 999 } },   // geen iso
+      null,
+    ], { today });
+    const parsed = JSON.parse(out);
+    expect(Object.keys(parsed.logs)).toEqual(['2026-04-15']);
+  });
+
+  it('output is pretty-printed (2-space indent) — leesbaar voor mens', () => {
+    const out = generateFullJsonExport({}, [], { today });
+    expect(out).toContain('\n  "aura"');
+    expect(out).toContain('\n  "profile"');
+  });
+
+  it('schemaVersion default = 1, accepteert override', () => {
+    const a = generateFullJsonExport({}, [], { today });
+    expect(JSON.parse(a).aura.schemaVersion).toBe(1);
+    const b = generateFullJsonExport({}, [], { today, schemaVersion: 2 });
+    expect(JSON.parse(b).aura.schemaVersion).toBe(2);
+  });
+
+  it('readme uitlegt formaat voor onbekende lezer (AVG art. 12 transparantie)', () => {
+    const out = generateFullJsonExport({}, [], { today });
+    const parsed = JSON.parse(out);
+    expect(parsed.aura.readme).toContain('AVG art. 20');
+  });
+});
+
+describe('fullJsonExportFilename', () => {
+  it('produces date-stamped filename', () => {
+    expect(fullJsonExportFilename(new Date(2026, 4, 12))).toBe('aura-full-export-2026-05-12.json');
+  });
+
+  it('zero-pads single-digit months and days', () => {
+    expect(fullJsonExportFilename(new Date(2026, 0, 9))).toBe('aura-full-export-2026-01-09.json');
+  });
+});
