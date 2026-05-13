@@ -35,6 +35,7 @@ import {
 import {
   generateCsvExport, csvExportFilename,
   generateAppleHealthXml, appleHealthFilename,
+  generateFullJsonExport, fullJsonExportFilename,
 } from './lib/export.js';
 
 /* ------------------------------------------------------------------ */
@@ -275,6 +276,49 @@ function exportAppleHealth(profile, onEmpty) {
   const a = document.createElement('a');
   a.href = url;
   a.download = appleHealthFilename(today);
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Full JSON export — AVG art. 20 portabiliteit                       */
+/* ------------------------------------------------------------------ */
+//
+// CSV en Apple Health zijn quick-share-formaten met afgeleide data.
+// Voor de echte data-portabiliteit (AVG art. 20: gestructureerd,
+// gangbaar, machineleesbaar) is een volledige JSON-dump nodig die
+// álle logs én profile bevat — niet alleen de laatste 90 dagen.
+//
+// We scannen iso-keys uit localStorage (geen vast venster) zodat een
+// gebruikster die 2+ jaar tracking heeft niet zwijgend afgekapt wordt.
+
+function exportFullJson(profile) {
+  const today = new Date();
+  const entries = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('aura.log.')) {
+        const iso = key.slice('aura.log.'.length);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+          // Gebruik loadLog zodat we via de gevalideerde pipeline
+          // gaan (type-safe, prototype-pollution guard, length-caps).
+          entries.push({ iso, log: loadLog(new Date(`${iso}T00:00:00`)) });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Aura] full export: localStorage scan failed', err);
+  }
+  // Sort chronologisch — de blob is daarna voor mensen leesbaar.
+  entries.sort((a, b) => a.iso.localeCompare(b.iso));
+
+  const json = generateFullJsonExport(profile, entries, { today });
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fullJsonExportFilename(today);
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -2483,6 +2527,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
             <div aria-hidden="true" className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${notifEnabled ? 'left-7' : 'left-1'}`} />
           </button>
         </div>
+        <p className="text-[11px] text-ink-400 leading-relaxed mb-2">
+          {t('settings.notif.explainer')}
+        </p>
         {notifEnabled && (
           <Field>
             <Label>{t('settings.reminder.time')}</Label>
@@ -2627,6 +2674,16 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
             <Download className="w-4 h-4" />
             {t('settings.export.health')}
           </button>
+          <button
+            type="button"
+            onClick={() => exportFullJson(profile)}
+            aria-label={t('settings.export.json.aria')}
+            className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-cream-200 bg-cream-50
+                       text-ink-600 text-sm hover:border-sage-200 hover:bg-sage-50 transition"
+          >
+            <Download className="w-4 h-4" />
+            {t('settings.export.json')}
+          </button>
         </div>
       </Card>
 
@@ -2684,6 +2741,19 @@ function LegalView({ onBack }) {
         <h1 className="font-display text-[28px] text-ink-700 leading-tight">{t('legal.title')}</h1>
       </header>
 
+      {/* Verwerkingsverantwoordelijke */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.controller.title')}</div>
+        <p className="text-sm text-ink-600 leading-relaxed mb-3">{t('legal.controller.body')}</p>
+        <p className="text-sm text-ink-600 leading-relaxed">{t('legal.controller.complaint')}</p>
+      </Card>
+
+      {/* Rechtsgrondslag */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.basis.title')}</div>
+        <p className="text-sm text-ink-600 leading-relaxed">{t('legal.basis.body')}</p>
+      </Card>
+
       {/* Medische disclaimer */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.med.title')}</div>
@@ -2692,7 +2762,7 @@ function LegalView({ onBack }) {
         <p className="text-sm text-ink-600 leading-relaxed">{t('legal.med.p3')}</p>
       </Card>
 
-      {/* Wat slaan we op */}
+      {/* Wat slaan we op + waarom */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.store.title')}</div>
         <p className="text-sm text-ink-600 leading-relaxed mb-3">{t('legal.store.intro')}</p>
@@ -2705,23 +2775,47 @@ function LegalView({ onBack }) {
         <p className="text-sm text-ink-600 leading-relaxed">{t('legal.store.foot')}</p>
       </Card>
 
+      {/* Bewaartermijn */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.retention.title')}</div>
+        <p className="text-sm text-ink-600 leading-relaxed">{t('legal.retention.body')}</p>
+      </Card>
+
       {/* Wat doen we niet */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.dont.title')}</div>
         <ul className="text-sm text-ink-600 leading-relaxed space-y-2">
-          <li>✗ {t('legal.dont.li1')}</li>
-          <li>✗ {t('legal.dont.li2')}</li>
-          <li>✗ {t('legal.dont.li3')}</li>
-          <li>✗ {t('legal.dont.li4')}</li>
-          <li>✗ {t('legal.dont.li5')}</li>
-          <li>✗ {t('legal.dont.li6')}</li>
+          <li>{t('legal.dont.li1')}</li>
+          <li>{t('legal.dont.li2')}</li>
+          <li>{t('legal.dont.li3')}</li>
+          <li>{t('legal.dont.li4')}</li>
+          <li>{t('legal.dont.li5')}</li>
+          <li>{t('legal.dont.li6')}</li>
         </ul>
+      </Card>
+
+      {/* Hosting & infrastructuur */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.hosting.title')}</div>
+        <p className="text-sm text-ink-600 leading-relaxed">{t('legal.hosting.body')}</p>
       </Card>
 
       {/* Externe diensten */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.ext.title')}</div>
         <p className="text-sm text-ink-600 leading-relaxed">{t('legal.ext.body')}</p>
+      </Card>
+
+      {/* Cookies & opslag */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.cookies.title')}</div>
+        <p className="text-sm text-ink-600 leading-relaxed">{t('legal.cookies.body')}</p>
+      </Card>
+
+      {/* Wat gebeurt er bij export */}
+      <Card className="p-6 mb-5 anim-fade-up">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('legal.export.title')}</div>
+        <p className="text-sm text-ink-600 leading-relaxed">{t('legal.export.body')}</p>
       </Card>
 
       {/* Jouw rechten */}
@@ -2732,6 +2826,7 @@ function LegalView({ onBack }) {
           <li>{t('legal.rights.li1')}</li>
           <li>{t('legal.rights.li2')}</li>
           <li>{t('legal.rights.li3')}</li>
+          <li>{t('legal.rights.li4')}</li>
         </ul>
       </Card>
 
@@ -5211,14 +5306,101 @@ class ErrorBoundary extends React.Component {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Consent gate — AVG art. 9 expliciete toestemming                   */
+/* ------------------------------------------------------------------ */
+
+// Versie van de consent-tekst. Bump als de scope van de verwerking
+// materieel verandert (b.v. nieuwe data-categorie, nieuwe verwerker).
+// Bestaande gebruikers met een lagere versie krijgen automatisch
+// opnieuw de consent-gate voorgelegd.
+const CONSENT_VERSION = '1.4-2026-05';
+
+function ConsentGate({ onAccept, onOpenLegal }) {
+  const { t } = useT();
+  const [checked, setChecked] = useState(false);
+
+  return (
+    <main id="main" className="min-h-dvh flex items-center justify-center px-5 py-10">
+      <div className="w-full max-w-md">
+        <div className="rounded-xl3 bg-cream-50/95 backdrop-blur-sm shadow-glow border border-cream-200/60 p-7 anim-fade-up">
+          <div className="flex items-center gap-2 mb-3">
+            <Flower2 className="w-5 h-5 text-sage-600" aria-hidden="true" />
+            <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">
+              AVG · art. 9
+            </div>
+          </div>
+          <h1 className="font-display text-[26px] text-ink-700 leading-tight mb-3">
+            {t('consent.title')}
+          </h1>
+          <p className="text-sm text-ink-600 leading-relaxed mb-5">
+            {t('consent.intro')}
+          </p>
+
+          <ul className="text-sm text-ink-600 leading-relaxed space-y-2 mb-5">
+            <li>{t('consent.li1')}</li>
+            <li>{t('consent.li2')}</li>
+            <li>{t('consent.li3')}</li>
+          </ul>
+
+          <button
+            type="button"
+            onClick={onOpenLegal}
+            className="text-xs text-sage-700 hover:text-sage-800 underline decoration-dotted underline-offset-4 transition mb-5 inline-flex items-center gap-1 min-h-[44px]"
+          >
+            {t('consent.legal.link')}
+            <ArrowRight className="w-3 h-3" aria-hidden="true" />
+          </button>
+
+          <label className="flex items-start gap-3 cursor-pointer mb-6 min-h-[44px]">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => setChecked(e.target.checked)}
+              className="mt-1 w-5 h-5 accent-sage-600 cursor-pointer shrink-0"
+              aria-describedby="consent-checkbox-label"
+            />
+            <span id="consent-checkbox-label" className="text-sm text-ink-700 leading-relaxed">
+              {t('consent.checkbox')}
+            </span>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => checked && onAccept()}
+            disabled={!checked}
+            aria-disabled={!checked}
+            className={`w-full rounded-xl py-3.5 font-medium text-sm transition flex items-center justify-center gap-2 ${
+              checked
+                ? 'bg-sage-600 text-cream-50 hover:bg-sage-700 active:scale-[0.98]'
+                : 'bg-cream-200 text-ink-400 cursor-not-allowed'
+            }`}
+          >
+            {checked ? t('consent.continue') : t('consent.continue.disabled')}
+            {checked && <ArrowRight className="w-4 h-4" aria-hidden="true" />}
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Root                                                               */
 /* ------------------------------------------------------------------ */
 
 function App() {
   const { t } = useT();
   const [profile, setProfile] = useState(() => loadProfile());
+  // Tijdens de consent-gate kan de gebruikster op "Lees privacy-tekst"
+  // klikken. We tonen dan tijdelijk de LegalView (met back-knop), zonder
+  // dat ze toegang krijgt tot de rest van de app vóór toestemming.
+  const [consentViewLegal, setConsentViewLegal] = useState(false);
   const [tab, setTab] = useState('home');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  // Tweede-stap-confirmatie: gebruiker moet expliciet "WIS"/"ERASE"
+  // typen voordat de actie uitvoert. Voorkomt accidentele dataverlies
+  // door één klik op de gevarenzone-knop.
+  const [resetConfirmText, setResetConfirmText] = useState('');
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('aura.theme') || 'auto'; }
     catch { return 'auto'; }
@@ -5290,6 +5472,34 @@ function App() {
 
   if (!profile) return <Onboarding onComplete={setProfile} />;
 
+  // AVG art. 9: gezondheidsgegevens vereisen expliciete toestemming.
+  // Bestaande gebruikers van vóór v1.4 hebben geen consent-veld; toon
+  // hen eenmalig de consent-gate. Pas na bevestiging slaan we
+  // `profile.consent = { givenAt, version }` op zodat we kunnen
+  // bewijzen dat (en wanneer) consent is verkregen. Bij text-changes
+  // die de scope materieel raken: bump CONSENT_VERSION → re-consent.
+  if (!profile.consent || profile.consent.version !== CONSENT_VERSION) {
+    if (consentViewLegal) {
+      return <LegalView onBack={() => setConsentViewLegal(false)} />;
+    }
+    return (
+      <ConsentGate
+        onAccept={() => {
+          const next = {
+            ...profile,
+            consent: {
+              givenAt: new Date().toISOString(),
+              version: CONSENT_VERSION,
+            },
+          };
+          saveProfile(next);
+          setProfile(next);
+        }}
+        onOpenLegal={() => setConsentViewLegal(true)}
+      />
+    );
+  }
+
   const updateProfile = (next) => {
     if (!next || next === profile) return;
     saveProfile(next);
@@ -5309,8 +5519,8 @@ function App() {
     <>
       {showResetConfirm && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/30 backdrop-blur-sm"
-          onClick={() => setShowResetConfirm(false)}
+          className="fixed inset-0 z-[60] flex items-center justify-center px-5 bg-ink-700/40 backdrop-blur-sm"
+          onClick={() => { setShowResetConfirm(false); setResetConfirmText(''); }}
         >
           <div
             className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up"
@@ -5320,22 +5530,46 @@ function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="reset-dialog-title" className="font-display text-[22px] text-ink-700 mb-2">{t('reset.title')}</h2>
-            <p id="reset-dialog-desc" className="text-sm text-ink-500 leading-relaxed mb-6">
+            <p id="reset-dialog-desc" className="text-sm text-ink-500 leading-relaxed mb-4">
               {t('reset.body')}
             </p>
+            <input
+              type="text"
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              placeholder={t('reset.input.placeholder')}
+              aria-label={t('reset.input.aria')}
+              autoFocus
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              className="w-full mb-5 px-3 py-2.5 rounded-lg border border-cream-300 bg-white text-sm text-ink-700 placeholder-ink-400/60 focus:outline-none focus:border-terracotta-300 focus:ring-2 focus:ring-terracotta-200/60"
+            />
             <div className="flex gap-3">
               <button
                 type="button"
-                autoFocus
-                onClick={() => setShowResetConfirm(false)}
+                onClick={() => { setShowResetConfirm(false); setResetConfirmText(''); }}
                 className="flex-1 min-h-[44px] py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 active:scale-[0.98] transition"
               >
-                {t('common.cancel')}
+                {t('reset.cancel')}
               </button>
               <button
                 type="button"
-                onClick={confirmReset}
-                className="flex-1 min-h-[44px] py-3 rounded-xl bg-terracotta-400 text-cream-50 text-sm font-medium hover:bg-terracotta-500 transition active:scale-[0.98]"
+                onClick={() => {
+                  // Accept WIS (NL) of ERASE (EN); case-insensitive trim
+                  const v = resetConfirmText.trim().toUpperCase();
+                  if (v === 'WIS' || v === 'ERASE') {
+                    confirmReset();
+                    setResetConfirmText('');
+                  }
+                }}
+                disabled={!['WIS', 'ERASE'].includes(resetConfirmText.trim().toUpperCase())}
+                aria-disabled={!['WIS', 'ERASE'].includes(resetConfirmText.trim().toUpperCase())}
+                className={`flex-1 min-h-[44px] py-3 rounded-xl text-sm font-medium transition active:scale-[0.98] ${
+                  ['WIS', 'ERASE'].includes(resetConfirmText.trim().toUpperCase())
+                    ? 'bg-terracotta-500 text-cream-50 hover:bg-terracotta-600'
+                    : 'bg-cream-200 text-ink-400 cursor-not-allowed'
+                }`}
               >
                 {t('reset.confirm')}
               </button>

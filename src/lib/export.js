@@ -125,6 +125,65 @@ export function csvExportFilename(today = new Date()) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Full JSON export — AVG art. 20 data-portabiliteit                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Pakt het volledige Aura-data-pakketje (profiel + alle gelogde dagen)
+ * in één machine-leesbaar JSON-blob. Voor AVG art. 20 ("recht op
+ * data-portabiliteit") is een gestructureerd, gangbaar en machine-
+ * leesbaar formaat vereist — JSON met expliciete schema-versie voldoet.
+ *
+ * @param {object} profile     loadProfile() resultaat
+ * @param {Array<{iso: string, log: object}>} logEntries  alle dagen
+ * @param {{ today?: Date, schemaVersion?: number }} [opts]
+ * @returns {string}  Pretty-printed JSON
+ */
+export function generateFullJsonExport(profile, logEntries, opts = {}) {
+  const today = opts.today instanceof Date ? opts.today : new Date();
+  const schemaVersion = opts.schemaVersion ?? 1;
+
+  // Verzamel logs onder hun ISO-key zodat het bestand zelf-documenterend
+  // is — een externe importer ziet meteen welke dag bij welke entry hoort.
+  const logs = {};
+  if (Array.isArray(logEntries)) {
+    for (const entry of logEntries) {
+      if (entry?.iso && entry?.log) {
+        logs[entry.iso] = entry.log;
+      }
+    }
+  }
+
+  const payload = {
+    aura: {
+      schemaVersion,
+      exportedAt: today.toISOString(),
+      format: 'aura-full-export-v1',
+      // Helder waar dit bestand voor is, voor een onbekende lezer of
+      // toekomstige importeur — onderdeel van AVG art. 20 "begrijpelijk".
+      readme: [
+        'Dit is een volledige export van je Aura-data (AVG art. 20).',
+        'Profile bevat je persoonlijke instellingen; logs bevat één entry per kalenderdag (yyyy-mm-dd).',
+        'Alle data verliet je apparaat alleen op jouw initiatief.',
+      ].join('\n'),
+    },
+    profile: profile ?? null,
+    logs,
+  };
+
+  return JSON.stringify(payload, null, 2);
+}
+
+/** Suggest a filename like `aura-full-export-2026-05-12.json`. */
+export function fullJsonExportFilename(today = new Date()) {
+  const d = today instanceof Date ? today : new Date(today);
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `aura-full-export-${y}-${m}-${dd}.json`;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Apple Health XML export                                            */
 /* ------------------------------------------------------------------ */
 
