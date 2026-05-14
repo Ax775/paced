@@ -175,8 +175,20 @@
             if (raw) {
               let b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
               const pad = b64.length % 4; if (pad) b64 += '='.repeat(4 - pad);
-              const m = JSON.parse(decodeURIComponent(atob(b64)));
-              if (m && m.id === id) { this.saveMatch(m); return m; }
+              const decoded = JSON.parse(decodeURIComponent(atob(b64)));
+              const m = decoded?.m || decoded;
+              const t = decoded?.t;
+              if (m && m.id === id) {
+                if (t && t.id && !localStorage.getItem(`td:team:${t.id}`)) {
+                  if (!t.fines) t.fines = { rules: [], entries: [] };
+                  if (!t.settings) t.settings = { yellowSuspensionAt: 5 };
+                  if (!t.matchIds) t.matchIds = [];
+                  if (!t.matchIds.includes(m.id)) t.matchIds.push(m.id);
+                  this.saveTeam(t);
+                }
+                this.saveMatch(m);
+                return m;
+              }
             }
           }
           return null;
@@ -1295,12 +1307,18 @@
                 <button onClick={() => {
                     try {
                       const raw = btoa(encodeURIComponent(JSON.stringify({
-                        id: match.id, teamId: match.teamId,
-                        opponent: match.opponent, date: match.date, time: match.time,
-                        location: match.location, driversNeeded: match.driversNeeded,
-                        drivers: match.drivers, tasks: match.tasks,
-                        availability: match.availability || {},
-                        lineup: match.lineup, result: match.result,
+                        m: {
+                          id: match.id, teamId: match.teamId,
+                          opponent: match.opponent, date: match.date, time: match.time,
+                          location: match.location, driversNeeded: match.driversNeeded,
+                          drivers: match.drivers, tasks: match.tasks,
+                          availability: match.availability || {},
+                          lineup: match.lineup, result: match.result,
+                        },
+                        t: team && {
+                          id: team.id, name: team.name, color: team.color,
+                          players: team.players || [],
+                        },
                       })));
                       const payload = raw.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
                       const base = window.location.href.split('#')[0];
