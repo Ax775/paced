@@ -3217,6 +3217,11 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
         </div>
       </Card>
 
+      {/* Cyclus-kalender — direct onder de hero zodat datum-correcties
+          één klik weg zijn vanaf "Dag X van je cyclus". Tap een dag om
+          een menstruatie-start te markeren of corrigeren. */}
+      {!hidden.has('cycleCalendar') && <CycleCalendarCard profile={profile} onUpdateProfile={onUpdateProfile} />}
+
       {/* Late-cycle prompt — verschijnt automatisch als de cyclus over tijd is */}
       {!hidden.has('lateCycleCheck') && (
         <LateCycleCheckCard profile={profile} state={state} log={log} onUpdate={updateLog} />
@@ -3272,9 +3277,6 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
 
       {/* Recent cycles (only renders once there's ≥1 completed cycle) */}
       {!hidden.has('cycleHistory') && <CycleHistoryStrip profile={profile} />}
-
-      {/* Cycle calendar — 6×7 grid with logged + predicted markers */}
-      {!hidden.has('cycleCalendar') && <CycleCalendarCard profile={profile} onUpdateProfile={onUpdateProfile} />}
 
       {/* Today's nourishment */}
       {!hidden.has('todayNutrition') && <CollapsibleCard
