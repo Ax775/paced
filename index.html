@@ -476,7 +476,20 @@
       const create = () => {
         if (!name.trim() || players.length === 0) return;
         const id = db.uid();
-        const team = { id, name: name.trim(), color, players, matchIds: [], createdAt: Date.now() };
+        const team = {
+          id, name: name.trim(), color, players, matchIds: [],
+          fines: {
+            rules: [
+              { id: db.uid(), label: 'Te laat',         amount: 2 },
+              { id: db.uid(), label: 'Gele kaart',      amount: 5 },
+              { id: db.uid(), label: 'Rode kaart',      amount: 10 },
+              { id: db.uid(), label: 'Vergeten was',    amount: 5 },
+            ],
+            entries: [],
+          },
+          settings: { yellowSuspensionAt: 5 },
+          createdAt: Date.now(),
+        };
         db.saveTeam(team);
         onCreated(id);
       };
@@ -568,6 +581,7 @@
       const [matches, setMatches] = useState([]);
       const [tab, setTab] = useState('matches');
       const [editRoster, setEditRoster] = useState(false);
+      const [modal, setModal] = useState(null);
 
       useEffect(() => {
         const t = db.getTeam(teamId);
@@ -636,8 +650,9 @@
           <div className="px-4 mt-4 space-y-4">
             <Tabs theme={team.color} active={tab} onChange={setTab} tabs={[
               { id: 'matches',  label: 'Wedstrijden', icon: <Calendar size={13} /> },
-              { id: 'scorers',  label: 'Topscorers',  icon: <Trophy size={13} /> },
+              { id: 'scorers',  label: 'Stats',       icon: <Trophy size={13} /> },
               { id: 'roster',   label: 'Spelers',     icon: <Users size={13} /> },
+              { id: 'fines',    label: 'Pot',         icon: <span className="text-[12px]">💰</span> },
             ]} />
 
             {/* TAB: MATCHES */}
@@ -673,13 +688,20 @@
 
             {/* TAB: ROSTER */}
             {tab === 'roster' && (
-              <RosterTab team={team} theme={team.color} edit={editRoster}
+              <RosterTab team={team} stats={stats} theme={team.color} edit={editRoster}
                 onToggleEdit={() => setEditRoster(v => !v)}
                 onAddPlayer={(p) => updateTeam(t => ({ ...t, players: [...t.players, { id: db.uid(), ...p }] }))}
                 onRemovePlayer={(id) => updateTeam(t => ({ ...t, players: t.players.filter(x => x.id !== id) }))}
               />
             )}
+
+            {/* TAB: FINES */}
+            {tab === 'fines' && (
+              <FinesTab team={team} theme={team.color} setModal={setModal}
+                persist={(t) => { db.saveTeam(t); setTeam(t); }} />
+            )}
           </div>
+          {modal}
         </div>
       );
     }
@@ -843,10 +865,12 @@
       );
     }
 
-    function RosterTab({ team, theme, edit, onToggleEdit, onAddPlayer, onRemovePlayer }) {
+    function RosterTab({ team, stats, theme, edit, onToggleEdit, onAddPlayer, onRemovePlayer }) {
       const c = COLORS[theme];
       const [pName, setPName] = useState('');
       const [pNum, setPNum] = useState('');
+      const susThr = team.settings?.yellowSuspensionAt || 5;
+      const playerStats = (id) => stats?.players.find(s => s.player.id === id) || { yellow: 0, red: 0, played: 0, goals: 0 };
       const add = () => {
         if (!pName.trim()) return;
         onAddPlayer({ name: pName.trim(), number: pNum.trim() });
@@ -862,19 +886,44 @@
               </button>
             </div>
             <div className="space-y-1.5">
-              {team.players.map(p => (
-                <div key={p.id} className="flex items-center gap-3 rounded-xl bg-slate-700/40 px-3 py-2.5">
-                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${c.solid} text-white font-black`}>
-                    {p.number || initials(p.name)}
+              {team.players.map(p => {
+                const s = playerStats(p.id);
+                const susWarn = s.yellow >= susThr - 1 && s.yellow < susThr;
+                const susHit  = s.yellow >= susThr || s.red > 0;
+                return (
+                  <div key={p.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${susHit ? 'bg-red-500/10 border border-red-500/30' : susWarn ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-slate-700/40'}`}>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${c.solid} text-white font-black`}>
+                      {p.number || initials(p.name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold truncate">{p.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs">
+                        <span className="text-slate-500">{s.played} wedstr.</span>
+                        {s.goals > 0 && <span className="text-slate-400">⚽ {s.goals}</span>}
+                        {s.yellow > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <span className="inline-block w-2 h-2.5 rounded-sm bg-yellow-400" />
+                            <span className="text-yellow-400 font-bold">{s.yellow}</span>
+                          </span>
+                        )}
+                        {s.red > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <span className="inline-block w-2 h-2.5 rounded-sm bg-red-500" />
+                            <span className="text-red-400 font-bold">{s.red}</span>
+                          </span>
+                        )}
+                      </div>
+                      {susHit && <p className="text-xs text-red-400 font-bold mt-0.5">🚫 GESCHORST</p>}
+                      {susWarn && !susHit && <p className="text-xs text-yellow-400 font-bold mt-0.5">⚠️ 1 geel weg van schorsing</p>}
+                    </div>
+                    {edit && (
+                      <button onClick={() => onRemovePlayer(p.id)} className="text-slate-500 hover:text-red-400 p-1.5">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
-                  <span className="flex-1 text-white font-semibold truncate">{p.name}</span>
-                  {edit && (
-                    <button onClick={() => onRemovePlayer(p.id)} className="text-slate-500 hover:text-red-400 p-1.5">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
             {edit && (
               <div className="mt-3 grid grid-cols-[1fr_64px_44px] gap-2">
@@ -918,6 +967,7 @@
           tasks: tasks.map((name, i) => ({ id: `t${i}_${id}`, name, claimedBy: null })),
           lineup: { formation: '4-4-2', positions: {} },
           result: { played: false, isHome: true, homeScore: 0, awayScore: 0, goals: [], cards: [], motmId: null },
+          availability: {},
           createdAt: Date.now(),
         };
         db.saveMatch(match);
@@ -1087,7 +1137,7 @@
               { id: 'result',  label: 'Uitslag',    icon: <Goal size={13} /> },
             ]} />
 
-            {tab === 'info'   && <InfoTab match={match} theme={themeKey} persist={persist} setModal={setModal} showToast={showToast} />}
+            {tab === 'info'   && <InfoTab match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} showToast={showToast} />}
             {tab === 'lineup' && <LineupTab match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} />}
             {tab === 'result' && <ResultTab match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} />}
           </div>
@@ -1107,8 +1157,97 @@
       );
     }
 
-    // ── INFO TAB (carpool + tasks) ─────────────────────
-    function InfoTab({ match, theme, persist, setModal, showToast }) {
+    // ── AVAILABILITY (per wedstrijd) ─────────────────────
+    function AvailabilitySection({ match, team, theme, persist }) {
+      const c = COLORS[theme];
+      if (!team || !team.players?.length) return null;
+
+      const av = match.availability || {};
+      const counts = team.players.reduce((acc, p) => {
+        const s = av[p.id]?.status;
+        if (s === 'yes') acc.yes++;
+        else if (s === 'maybe') acc.maybe++;
+        else if (s === 'no') acc.no++;
+        else acc.unknown++;
+        return acc;
+      }, { yes: 0, maybe: 0, no: 0, unknown: 0 });
+
+      const setStatus = (playerId, status) => {
+        const next = { ...av };
+        if (next[playerId]?.status === status) {
+          delete next[playerId]; // toggle off
+        } else {
+          next[playerId] = { status, updatedAt: Date.now() };
+        }
+        persist({ ...match, availability: next });
+      };
+
+      return (
+        <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${c.solid}/20`}>
+              <Users size={15} className={c.text} />
+            </div>
+            <h2 className="font-bold text-white">Wie komt?</h2>
+            <span className="ml-auto text-sm text-slate-500 tabular-nums">
+              {counts.yes + counts.maybe}/{team.players.length}
+            </span>
+          </div>
+
+          {/* Compact summary pills */}
+          <div className="mb-3 grid grid-cols-4 gap-2 text-center">
+            <div className="rounded-lg bg-green-500/15 border border-green-500/30 py-1.5">
+              <p className="text-green-400 font-black text-lg leading-none">{counts.yes}</p>
+              <p className="text-[10px] text-green-400/80 font-bold uppercase">komt</p>
+            </div>
+            <div className="rounded-lg bg-yellow-500/15 border border-yellow-500/30 py-1.5">
+              <p className="text-yellow-400 font-black text-lg leading-none">{counts.maybe}</p>
+              <p className="text-[10px] text-yellow-400/80 font-bold uppercase">twijfel</p>
+            </div>
+            <div className="rounded-lg bg-red-500/15 border border-red-500/30 py-1.5">
+              <p className="text-red-400 font-black text-lg leading-none">{counts.no}</p>
+              <p className="text-[10px] text-red-400/80 font-bold uppercase">niet</p>
+            </div>
+            <div className="rounded-lg bg-slate-700 border border-slate-600 py-1.5">
+              <p className="text-slate-400 font-black text-lg leading-none">{counts.unknown}</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase">?</p>
+            </div>
+          </div>
+
+          {/* Player rows with status buttons */}
+          <div className="space-y-1.5">
+            {team.players.map(p => {
+              const status = av[p.id]?.status;
+              return (
+                <div key={p.id} className="flex items-center gap-3 rounded-xl bg-slate-700/40 px-3 py-2">
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${c.solid} text-white font-black text-sm`}>
+                    {p.number || initials(p.name)}
+                  </div>
+                  <span className="flex-1 text-white font-semibold text-sm truncate">{p.name}</span>
+                  <div className="flex gap-1">
+                    <StatusPill icon="✅" active={status === 'yes'}   onClick={() => setStatus(p.id, 'yes')}   activeClr="bg-green-500" />
+                    <StatusPill icon="🤔" active={status === 'maybe'} onClick={() => setStatus(p.id, 'maybe')} activeClr="bg-yellow-500" />
+                    <StatusPill icon="❌" active={status === 'no'}    onClick={() => setStatus(p.id, 'no')}    activeClr="bg-red-500" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    function StatusPill({ icon, active, onClick, activeClr }) {
+      return (
+        <button onClick={onClick}
+          className={`h-8 w-8 rounded-lg text-sm transition-all flex items-center justify-center ${active ? `${activeClr} scale-110 shadow-lg` : 'bg-slate-700 hover:bg-slate-600 grayscale opacity-50'}`}>
+          {icon}
+        </button>
+      );
+    }
+
+    // ── INFO TAB (availability + carpool + tasks) ─────────────────────
+    function InfoTab({ match, team, theme, persist, setModal, showToast }) {
       const c = COLORS[theme];
       const filled = match.drivers.filter(d => d.name).length;
       const claimed = match.tasks.filter(t => t.claimedBy).length;
@@ -1135,6 +1274,9 @@
 
       return (
         <div className="space-y-4">
+          {/* Beschikbaarheid */}
+          <AvailabilitySection match={match} team={team} theme={theme} persist={persist} />
+
           {/* Carpool */}
           <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
             <div className="mb-4 flex items-center gap-2">
@@ -1548,6 +1690,284 @@
           <div className="mt-5 flex gap-3">
             <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600">Annuleer</button>
             <button onClick={() => onSave({ playerId, type, minute: minute ? parseInt(minute) : null })} disabled={!playerId}
+              className={`flex-1 rounded-2xl ${c.solid} py-3.5 text-white font-bold disabled:opacity-40 active:scale-95`}>Opslaan</button>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // FINES TAB (boete-pot per team)
+    // ════════════════════════════════════════════════════════════════
+    function FinesTab({ team, theme, persist, setModal }) {
+      const c = COLORS[theme];
+      const fines = team.fines || { rules: [], entries: [] };
+      const [view, setView] = useState('list'); // 'list' | 'rules'
+
+      const totals = fines.entries.reduce((acc, e) => {
+        acc.total += e.amount;
+        if (e.paid) acc.paid += e.amount; else acc.owed += e.amount;
+        return acc;
+      }, { total: 0, paid: 0, owed: 0 });
+
+      const perPlayer = team.players.map(p => {
+        const entries = fines.entries.filter(e => e.playerId === p.id);
+        const owed = entries.filter(e => !e.paid).reduce((s, e) => s + e.amount, 0);
+        const paid = entries.filter(e => e.paid).reduce((s, e) => s + e.amount, 0);
+        return { player: p, entries, owed, paid, total: owed + paid };
+      }).filter(x => x.total > 0).sort((a, b) => b.owed - a.owed);
+
+      const togglePaid = (entryId) => {
+        const next = { ...fines, entries: fines.entries.map(e => e.id === entryId ? { ...e, paid: !e.paid } : e) };
+        persist({ ...team, fines: next });
+      };
+      const removeEntry = (entryId) => {
+        const next = { ...fines, entries: fines.entries.filter(e => e.id !== entryId) };
+        persist({ ...team, fines: next });
+      };
+      const addEntry = () => {
+        if (fines.rules.length === 0) return;
+        setModal(<AddFineModal team={team} theme={theme}
+          onSave={(entry) => {
+            const next = { ...fines, entries: [{ id: db.uid(), date: Date.now(), paid: false, ...entry }, ...fines.entries] };
+            persist({ ...team, fines: next });
+            setModal(null);
+          }}
+          onCancel={() => setModal(null)} />);
+      };
+      const addRule = () => {
+        setModal(<AddRuleModal theme={theme}
+          onSave={(rule) => {
+            const next = { ...fines, rules: [...fines.rules, { id: db.uid(), ...rule }] };
+            persist({ ...team, fines: next });
+            setModal(null);
+          }}
+          onCancel={() => setModal(null)} />);
+      };
+      const removeRule = (id) => {
+        const next = { ...fines, rules: fines.rules.filter(r => r.id !== id) };
+        persist({ ...team, fines: next });
+      };
+
+      return (
+        <div className="space-y-4">
+          {/* Totaal-card */}
+          <div className={`rounded-2xl bg-gradient-to-br ${c.bg} p-5 text-white`}>
+            <p className="text-xs font-bold uppercase tracking-widest opacity-80">Totale pot</p>
+            <p className="mt-1 text-4xl font-black tabular-nums">€ {totals.total.toFixed(2).replace('.', ',')}</p>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-white/15 p-2 text-center">
+                <p className="text-lg font-black tabular-nums">€ {totals.paid.toFixed(2).replace('.', ',')}</p>
+                <p className="text-[10px] uppercase tracking-wider opacity-80 font-bold">betaald ✓</p>
+              </div>
+              <div className="rounded-xl bg-white/15 p-2 text-center">
+                <p className="text-lg font-black tabular-nums">€ {totals.owed.toFixed(2).replace('.', ',')}</p>
+                <p className="text-[10px] uppercase tracking-wider opacity-80 font-bold">openstaand</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Mini-tabs */}
+          <div className="flex gap-1 p-1 rounded-2xl bg-slate-800/80 border border-slate-700">
+            <button onClick={() => setView('list')}
+              className={`flex-1 rounded-xl py-2 text-xs font-bold transition-all ${view === 'list' ? `${c.solid} text-white` : 'text-slate-400'}`}>
+              Boetes ({fines.entries.length})
+            </button>
+            <button onClick={() => setView('rules')}
+              className={`flex-1 rounded-xl py-2 text-xs font-bold transition-all ${view === 'rules' ? `${c.solid} text-white` : 'text-slate-400'}`}>
+              Regels ({fines.rules.length})
+            </button>
+          </div>
+
+          {view === 'list' && (
+            <>
+              <button onClick={addEntry} disabled={fines.rules.length === 0}
+                className={`w-full rounded-2xl ${c.solid} py-3.5 text-white font-bold flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50`}>
+                <Plus size={18} /> Boete toevoegen
+              </button>
+
+              {/* Per speler ranking */}
+              {perPlayer.length > 0 && (
+                <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Per speler</p>
+                  <div className="space-y-1.5">
+                    {perPlayer.map(s => (
+                      <div key={s.player.id} className="flex items-center gap-3 rounded-xl bg-slate-700/40 px-3 py-2.5">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${c.solid} text-white font-black text-sm`}>
+                          {s.player.number || initials(s.player.name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-semibold text-sm truncate">{s.player.name}</p>
+                          <p className="text-xs text-slate-500">{s.entries.length} boete{s.entries.length !== 1 ? 's' : ''}</p>
+                        </div>
+                        <div className="text-right">
+                          {s.owed > 0 ? (
+                            <p className="text-red-400 font-black tabular-nums">€ {s.owed.toFixed(2).replace('.', ',')}</p>
+                          ) : (
+                            <p className="text-green-400 font-black tabular-nums">✓</p>
+                          )}
+                          {s.paid > 0 && <p className="text-[10px] text-slate-500">€ {s.paid.toFixed(2).replace('.', ',')} betaald</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recente boetes */}
+              {fines.entries.length > 0 ? (
+                <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
+                  <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Recent</p>
+                  <div className="space-y-1.5">
+                    {fines.entries.slice(0, 20).map(e => {
+                      const player = team.players.find(p => p.id === e.playerId);
+                      const rule = fines.rules.find(r => r.id === e.ruleId);
+                      return (
+                        <div key={e.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${e.paid ? 'bg-green-500/10 border border-green-500/20' : 'bg-slate-700/40'}`}>
+                          <button onClick={() => togglePaid(e.id)}
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${e.paid ? 'bg-green-500 border-green-500' : 'border-slate-600 hover:border-slate-500'}`}>
+                            {e.paid && <CheckCircle size={13} className="text-white" />}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-semibold ${e.paid ? 'text-slate-500 line-through' : 'text-white'}`}>
+                              {player?.name || '—'} · {rule?.label || e.label || '?'}
+                            </p>
+                            {e.reason && <p className="text-xs text-slate-500 truncate">{e.reason}</p>}
+                          </div>
+                          <span className={`font-black tabular-nums ${e.paid ? 'text-slate-500 line-through' : 'text-white'}`}>
+                            € {e.amount.toFixed(2).replace('.', ',')}
+                          </span>
+                          <button onClick={() => removeEntry(e.id)} className="text-slate-600 hover:text-red-400 p-1">
+                            <X size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-slate-800 border border-slate-700 p-8 text-center">
+                  <div className="text-4xl mb-2">💰</div>
+                  <p className="text-slate-400 text-sm font-semibold">Nog geen boetes</p>
+                  <p className="text-slate-600 text-xs mt-1">Klik op "Boete toevoegen" om te beginnen</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {view === 'rules' && (
+            <div className="space-y-3">
+              <button onClick={addRule}
+                className={`w-full rounded-2xl ${c.solid} py-3.5 text-white font-bold flex items-center justify-center gap-2 active:scale-95`}>
+                <Plus size={18} /> Regel toevoegen
+              </button>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-slate-500">Boete-regels</p>
+                {fines.rules.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-slate-500">Nog geen regels</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {fines.rules.map(r => (
+                      <div key={r.id} className="flex items-center gap-3 rounded-xl bg-slate-700/40 px-3 py-2.5">
+                        <span className={`${c.solid} text-white font-black text-xs px-2 py-1 rounded-md tabular-nums`}>
+                          € {r.amount.toFixed(2).replace('.', ',')}
+                        </span>
+                        <span className="flex-1 text-white font-medium text-sm">{r.label}</span>
+                        <button onClick={() => removeRule(r.id)} className="text-slate-500 hover:text-red-400 p-1">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function AddFineModal({ team, theme, onSave, onCancel }) {
+      const c = COLORS[theme];
+      const fines = team.fines || { rules: [] };
+      const [playerId, setPlayerId] = useState(null);
+      const [ruleId, setRuleId] = useState(fines.rules[0]?.id || null);
+      const [reason, setReason] = useState('');
+      const [picking, setPicking] = useState(false);
+      const player = team.players.find(p => p.id === playerId);
+      const rule = fines.rules.find(r => r.id === ruleId);
+
+      if (picking) return (
+        <PlayerPicker title="Wie krijgt de boete?" players={team.players} selected={playerId} theme={theme}
+          onPick={(id) => { setPlayerId(id); setPicking(false); }}
+          onCancel={() => setPicking(false)} />
+      );
+
+      return (
+        <Modal onClose={onCancel}>
+          <h3 className="text-white font-bold text-lg mb-4">💰 Boete toevoegen</h3>
+
+          <button onClick={() => setPicking(true)}
+            className="w-full mb-3 flex items-center gap-3 rounded-xl border-2 border-dashed border-slate-600 bg-slate-700/40 px-4 py-3 text-left">
+            <Users size={16} className={player ? c.text : 'text-slate-500'} />
+            <div className="flex-1">
+              <p className="text-xs font-bold uppercase text-slate-500">Speler</p>
+              <p className={`font-bold ${player ? 'text-white' : 'text-slate-500'}`}>{player?.name || 'Tap om te kiezen'}</p>
+            </div>
+          </button>
+
+          <p className="text-xs font-bold uppercase text-slate-500 mb-2">Reden</p>
+          <div className="space-y-1.5 mb-3 max-h-[40vh] overflow-y-auto no-scrollbar">
+            {fines.rules.map(r => (
+              <button key={r.id} onClick={() => setRuleId(r.id)}
+                className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all ${ruleId === r.id ? `${c.solid} text-white` : 'bg-slate-700/40 hover:bg-slate-700'}`}>
+                <span className={`font-black text-xs px-2 py-1 rounded-md tabular-nums ${ruleId === r.id ? 'bg-white/20' : c.solid + ' text-white'}`}>
+                  € {r.amount.toFixed(2).replace('.', ',')}
+                </span>
+                <span className={`flex-1 font-semibold text-sm ${ruleId === r.id ? 'text-white' : 'text-white'}`}>{r.label}</span>
+                {ruleId === r.id && <CheckCircle size={16} />}
+              </button>
+            ))}
+          </div>
+
+          <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Toelichting (optioneel)</p>
+          <input type="text" placeholder="bv. 5 min te laat" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={60}
+            className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+
+          <div className="mt-5 flex gap-3">
+            <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600">Annuleer</button>
+            <button onClick={() => onSave({ playerId, ruleId, label: rule?.label, amount: rule?.amount || 0, reason: reason.trim() })}
+              disabled={!playerId || !rule}
+              className={`flex-1 rounded-2xl ${c.solid} py-3.5 text-white font-bold disabled:opacity-40 active:scale-95`}>Opslaan</button>
+          </div>
+        </Modal>
+      );
+    }
+
+    function AddRuleModal({ theme, onSave, onCancel }) {
+      const c = COLORS[theme];
+      const [label, setLabel] = useState('');
+      const [amount, setAmount] = useState('');
+      const ref = useRef(null);
+      useEffect(() => { setTimeout(() => ref.current?.focus(), 60); }, []);
+      const valid = label.trim() && parseFloat(amount) > 0;
+
+      return (
+        <Modal onClose={onCancel}>
+          <h3 className="text-white font-bold text-lg mb-4">Nieuwe regel</h3>
+
+          <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Omschrijving</p>
+          <input ref={ref} type="text" placeholder="bv. Mobiel in kleedkamer" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={40}
+            className={`w-full mb-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+
+          <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Bedrag (€)</p>
+          <input type="number" inputMode="decimal" placeholder="bv. 2,50" value={amount}
+            onChange={(e) => setAmount(e.target.value.replace(',', '.'))} step="0.50" min="0"
+            className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+
+          <div className="mt-5 flex gap-3">
+            <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600">Annuleer</button>
+            <button onClick={() => valid && onSave({ label: label.trim(), amount: parseFloat(amount) })} disabled={!valid}
               className={`flex-1 rounded-2xl ${c.solid} py-3.5 text-white font-bold disabled:opacity-40 active:scale-95`}>Opslaan</button>
           </div>
         </Modal>
