@@ -3,7 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>TeamDrive — Team app voor amateurvoetbal</title>
+  <title>TeamDrive — App voor amateurvoetbal</title>
+  <meta name="description" content="Carpool, opstelling, uitslagen en boete-pot voor jouw amateurvoetbalteam. Geen account nodig." />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#f97316" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TeamDrive" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
+  <!-- Open Graph / social sharing -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="TeamDrive ⚡" />
+  <meta property="og:description" content="Carpool regelen, opstelling bepalen, uitslagen bijhouden — voor jouw amateurteam." />
+  <meta property="og:image" content="https://ax775.github.io/claude/icon.svg" />
+  <meta property="og:url" content="https://ax775.github.io/claude/" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="TeamDrive ⚡" />
+  <meta name="twitter:description" content="De app voor jouw amateurvoetbalteam." />
+
+  <!-- Favicon (SVG inline) -->
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -42,7 +66,20 @@
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <noscript>
+    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#020617;padding:32px;text-align:center">
+      <div style="font-size:48px">⚡</div>
+      <p style="color:#f97316;font-size:20px;font-weight:900;font-family:system-ui">TeamDrive</p>
+      <p style="color:#94a3b8;font-size:14px;font-family:system-ui">JavaScript is uitgeschakeld. Schakel het in om de app te gebruiken.</p>
+    </div>
+  </noscript>
+  <div id="root">
+    <div style="min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#020617">
+      <div style="width:64px;height:64px;border-radius:20px;background:#f97316;display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 20px 40px rgba(249,115,22,0.35)">⚡</div>
+      <p style="color:#f97316;font-size:18px;font-weight:900;font-family:system-ui,sans-serif;letter-spacing:0.08em;margin:0">TEAMDRIVE</p>
+      <p style="color:#475569;font-size:13px;font-family:system-ui,sans-serif;margin:0">Laden…</p>
+    </div>
+  </div>
   <script type="text/babel" data-type="module" data-presets="react">
     import { useState, useEffect, useRef, useMemo, memo } from 'react';
     import { createRoot } from 'react-dom/client';
@@ -127,7 +164,22 @@
       saveTeam(team)     { localStorage.setItem(`td:team:${team.id}`, JSON.stringify(team)); this._touchRecent(team.id); },
       getTeam(id)        { try { const r = localStorage.getItem(`td:team:${id}`); if (!r) return null; const t = JSON.parse(r); if (!t.fines) t.fines = { rules: [], entries: [] }; if (!t.fines.rules) t.fines.rules = []; if (!t.fines.entries) t.fines.entries = []; if (!t.settings) t.settings = { yellowSuspensionAt: 5 }; return t; } catch { return null; } },
       saveMatch(match)   { localStorage.setItem(`td:match:${match.id}`, JSON.stringify(match)); },
-      getMatch(id)       { try { const r = localStorage.getItem(`td:match:${id}`); return r ? JSON.parse(r) : null; } catch { return null; } },
+      getMatch(id) {
+        try {
+          const r = localStorage.getItem(`td:match:${id}`);
+          if (r) return JSON.parse(r);
+          // Shared link: try decoding ?d= param from URL hash
+          const hashQ = window.location.hash.split('?')[1];
+          if (hashQ) {
+            const d = new URLSearchParams(hashQ).get('d');
+            if (d) {
+              const m = JSON.parse(decodeURIComponent(atob(d)));
+              if (m && m.id === id) { this.saveMatch(m); return m; }
+            }
+          }
+          return null;
+        } catch { return null; }
+      },
       deleteMatch(id, teamId) {
         localStorage.removeItem(`td:match:${id}`);
         if (teamId) {
@@ -164,9 +216,9 @@
       if (hash.startsWith('#team-')) {
         const rest = hash.slice(6);
         if (rest.includes('/new-match')) return { name: 'newMatch', teamId: rest.split('/')[0] };
-        return { name: 'team', teamId: rest };
+        return { name: 'team', teamId: rest.split('?')[0] };
       }
-      if (hash.startsWith('#match-')) return { name: 'match', matchId: hash.slice(7) };
+      if (hash.startsWith('#match-')) return { name: 'match', matchId: hash.slice(7).split('?')[0] };
       return { name: 'home' };
     }
 
@@ -406,6 +458,36 @@
     // ════════════════════════════════════════════════════════════════
     function WelcomeView({ onCreateTeam, onOpenTeam }) {
       const recent = db.getRecentTeams().map(id => db.getTeam(id)).filter(Boolean);
+
+      const exportData = () => {
+        const data = {};
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k.startsWith('td:')) data[k] = localStorage.getItem(k);
+        }
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        Object.assign(document.createElement('a'), {
+          href: url, download: `teamdrive-backup-${new Date().toISOString().slice(0,10)}.json`
+        }).click();
+        URL.revokeObjectURL(url);
+      };
+
+      const importData = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            let count = 0;
+            Object.entries(data).forEach(([k, v]) => { if (k.startsWith('td:')) { localStorage.setItem(k, v); count++; } });
+            if (count > 0) window.location.reload(); else alert('Geen geldige data gevonden in bestand.');
+          } catch { alert('Ongeldig bestand — selecteer een TeamDrive backup (.json).'); }
+        };
+        reader.readAsText(file);
+      };
+
       return (
         <div className="min-h-screen bg-slate-950 pb-14">
           <div className="relative overflow-hidden bg-gradient-to-br from-orange-600 via-orange-500 to-amber-500 px-5 pt-14 pb-12">
@@ -464,13 +546,25 @@
                 ))}
               </div>
             )}
-            <div className="flex items-center justify-center gap-3 pt-2 text-slate-700">
+            <div className="flex items-center justify-center gap-3 text-slate-700">
               <span className="text-xs">🔒 Geen account</span>
               <span className="text-slate-800">·</span>
               <span className="text-xs">📱 Lokale opslag</span>
               <span className="text-slate-800">·</span>
               <span className="text-xs">🔗 Deelbaar</span>
             </div>
+            {recent.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={exportData}
+                  className="rounded-xl bg-slate-800 border border-slate-700 py-2.5 text-xs font-bold text-slate-500 hover:text-white hover:bg-slate-700 active:scale-95 transition-all">
+                  ⬇ Exporteer data
+                </button>
+                <label className="rounded-xl bg-slate-800 border border-slate-700 py-2.5 text-xs font-bold text-slate-500 hover:text-white hover:bg-slate-700 active:scale-95 transition-all cursor-pointer text-center">
+                  ⬆ Importeer data
+                  <input type="file" accept=".json" onChange={importData} className="hidden" />
+                </label>
+              </div>
+            )}
           </div>
         </div>
       );
@@ -1157,6 +1251,7 @@
       const [toast, setToast] = useState(null);
       const [modal, setModal] = useState(null);
 
+      const isSharedLink = window.location.hash.includes('?d=');
       useEffect(() => {
         const m = db.getMatch(matchId);
         setMatch(m);
@@ -1184,12 +1279,32 @@
                style={{ background: 'linear-gradient(145deg, #0f172a 0%, #1e3a5f 55%, #0f172a 100%)' }}>
             <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full opacity-25"
                  style={{ background: `radial-gradient(circle, ${c.hex} 0%, transparent 70%)` }} />
+            {isSharedLink && !team && (
+              <div className="relative mb-3 rounded-xl bg-blue-500/15 border border-blue-500/30 px-3 py-2 flex items-center gap-2">
+                <span className="text-blue-400 text-xs font-bold">🔗 Gedeelde wedstrijdlink</span>
+                <span className="text-blue-400/70 text-xs">— je wijzigingen worden lokaal opgeslagen</span>
+              </div>
+            )}
             <div className="relative flex items-center justify-between mb-4">
               <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white">
                 <ArrowLeft size={14} /> {team?.name || 'Terug'}
               </button>
               <div className="flex items-center gap-2">
-                <button onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link gekopieerd! 🔗'); }}
+                <button onClick={() => {
+                    try {
+                      const payload = btoa(encodeURIComponent(JSON.stringify({
+                        id: match.id, teamId: match.teamId,
+                        opponent: match.opponent, date: match.date, time: match.time,
+                        location: match.location, driversNeeded: match.driversNeeded,
+                        drivers: match.drivers, tasks: match.tasks,
+                        availability: match.availability || {},
+                        lineup: match.lineup, result: match.result,
+                      })));
+                      const base = window.location.href.split('#')[0];
+                      navigator.clipboard.writeText(`${base}#match-${match.id}?d=${payload}`);
+                      showToast('Teamlink gekopieerd! Stuur naar teamleden 🔗');
+                    } catch { navigator.clipboard.writeText(window.location.href); showToast('Link gekopieerd! 🔗'); }
+                  }}
                   className={`flex items-center gap-1.5 rounded-full border ${c.border} bg-white/5 px-3 py-1 text-xs font-bold ${c.text} active:scale-95 transition-all`}>
                   <Share2 size={12} /> Deel
                 </button>

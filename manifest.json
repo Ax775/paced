@@ -1,0 +1,16 @@
+{
+  "name": "TeamDrive",
+  "short_name": "TeamDrive",
+  "description": "Carpool, opstelling, uitslagen en boete-pot voor jouw amateurvoetbalteam.",
+  "start_url": "/claude/",
+  "scope": "/claude/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#f97316",
+  "lang": "nl",
+  "categories": ["sports", "utilities"],
+  "icons": [
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ]
+}
