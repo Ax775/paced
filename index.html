@@ -125,7 +125,7 @@
     // ════════════════════════════════════════════════════════════════
     const db = {
       saveTeam(team)     { localStorage.setItem(`td:team:${team.id}`, JSON.stringify(team)); this._touchRecent(team.id); },
-      getTeam(id)        { try { const r = localStorage.getItem(`td:team:${id}`); return r ? JSON.parse(r) : null; } catch { return null; } },
+      getTeam(id)        { try { const r = localStorage.getItem(`td:team:${id}`); if (!r) return null; const t = JSON.parse(r); if (!t.fines) t.fines = { rules: [], entries: [] }; if (!t.fines.rules) t.fines.rules = []; if (!t.fines.entries) t.fines.entries = []; if (!t.settings) t.settings = { yellowSuspensionAt: 5 }; return t; } catch { return null; } },
       saveMatch(match)   { localStorage.setItem(`td:match:${match.id}`, JSON.stringify(match)); },
       getMatch(id)       { try { const r = localStorage.getItem(`td:match:${id}`); return r ? JSON.parse(r) : null; } catch { return null; } },
       deleteMatch(id, teamId) {
@@ -287,8 +287,8 @@
             <span className={`font-bold tabular-nums ${full ? 'text-green-400' : c.text}`}>{current}/{total}{full ? ' ✓' : ''}</span>
           </div>
           <div className="h-2.5 overflow-hidden rounded-full bg-slate-700">
-            <div className={`h-full rounded-full transition-all duration-700 ease-out ${full ? 'bg-gradient-to-r from-green-500 to-emerald-400' : `bg-gradient-to-r ${c.bg}`}`}
-              style={{ width: `${pct}%` }} />
+            <div className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${pct}%`, background: full ? 'linear-gradient(to right, #22c55e, #10b981)' : c.hex }} />
           </div>
         </div>
       );
@@ -447,9 +447,13 @@
                 </div>
               </div>
             )}
-            <p className="text-center text-xs text-slate-700 pt-4">
-              Geen account nodig · alle data lokaal opgeslagen · deelbaar via link
-            </p>
+            <div className="flex items-center justify-center gap-3 pt-4 text-slate-700">
+              <span className="text-xs">🔒 Geen account</span>
+              <span className="text-slate-800">·</span>
+              <span className="text-xs">📱 Lokale opslag</span>
+              <span className="text-slate-800">·</span>
+              <span className="text-xs">🔗 Deelbaar</span>
+            </div>
           </div>
         </div>
       );
@@ -564,7 +568,7 @@
 
             <button onClick={create} disabled={!name.trim() || players.length === 0}
               className={`w-full rounded-2xl py-4 text-lg font-black transition-all ${name.trim() && players.length > 0
-                ? `bg-gradient-to-r ${c.bg} text-white shadow-xl shadow-${color}-500/25 active:scale-95`
+                ? `bg-gradient-to-r ${c.bg} text-white shadow-xl active:scale-95`
                 : 'cursor-not-allowed bg-slate-800 text-slate-600'}`}>
               ⚡ Maak team aan
             </button>
@@ -582,6 +586,7 @@
       const [tab, setTab] = useState('matches');
       const [editRoster, setEditRoster] = useState(false);
       const [modal, setModal] = useState(null);
+      const [shareToast, setShareToast] = useState(null);
 
       useEffect(() => {
         const t = db.getTeam(teamId);
@@ -599,8 +604,8 @@
 
       const c = COLORS[team.color || 'orange'];
       const stats = computeStats(team, matches);
-      const upcoming = matches.filter(m => !m.result?.played);
-      const played   = matches.filter(m => m.result?.played);
+      const upcoming = matches.filter(m => !m.result?.played).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const played   = matches.filter(m => m.result?.played).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
       const updateTeam = (updater) => {
         const next = updater(team);
@@ -617,9 +622,9 @@
               <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white">
                 <ArrowLeft size={14} /> Home
               </button>
-              <button onClick={() => { navigator.clipboard.writeText(window.location.href); }}
-                className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs text-white font-semibold hover:bg-white/25">
-                <Share2 size={12} /> Deel team-link
+              <button onClick={() => { navigator.clipboard.writeText(window.location.href); setShareToast('Link gekopieerd! 🔗'); setTimeout(() => setShareToast(null), 2400); }}
+                className="flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs text-white font-semibold hover:bg-white/25 active:scale-95 transition-all">
+                <Share2 size={12} /> Deel link
               </button>
             </div>
             <div className="relative">
@@ -648,11 +653,11 @@
           </div>
 
           <div className="px-4 mt-4 space-y-4">
-            <Tabs theme={team.color} active={tab} onChange={setTab} tabs={[
-              { id: 'matches',  label: 'Wedstrijden', icon: <Calendar size={13} /> },
-              { id: 'scorers',  label: 'Stats',       icon: <Trophy size={13} /> },
-              { id: 'roster',   label: 'Spelers',     icon: <Users size={13} /> },
-              { id: 'fines',    label: 'Pot',         icon: <span className="text-[12px]">💰</span> },
+            <Tabs theme={team.color} active={tab} onChange={(t) => { setTab(t); window.scrollTo({ top: 0, behavior: 'smooth' }); }} tabs={[
+              { id: 'matches',  label: 'Wedstr.',  icon: <Calendar size={13} /> },
+              { id: 'scorers',  label: 'Stats',    icon: <Trophy size={13} /> },
+              { id: 'roster',   label: 'Spelers',  icon: <Users size={13} /> },
+              { id: 'fines',    label: 'Pot',      icon: <span className="text-[12px]">💰</span> },
             ]} />
 
             {/* TAB: MATCHES */}
@@ -675,9 +680,10 @@
                   </>
                 )}
                 {matches.length === 0 && (
-                  <div className="rounded-2xl bg-slate-800 border border-slate-700 p-8 text-center">
-                    <div className="text-4xl mb-2">📅</div>
-                    <p className="text-slate-400 text-sm">Nog geen wedstrijden gepland</p>
+                  <div className="rounded-2xl bg-slate-800 border border-slate-700 p-10 text-center">
+                    <div className="text-5xl mb-3">📅</div>
+                    <p className="text-white font-bold mb-1">Geen wedstrijden</p>
+                    <p className="text-slate-500 text-sm">Plan de eerste wedstrijd via de knop hierboven.</p>
                   </div>
                 )}
               </div>
@@ -702,6 +708,7 @@
             )}
           </div>
           {modal}
+          {shareToast && <Toast key={shareToast} message={shareToast} />}
         </div>
       );
     }
@@ -752,17 +759,17 @@
       return (
         <div className="space-y-4">
           {empty ? (
-            <div className="rounded-2xl bg-slate-800 border border-slate-700 p-8 text-center">
-              <div className="text-4xl mb-2">🏆</div>
-              <p className="text-slate-400 text-sm font-semibold">Nog geen statistieken</p>
-              <p className="text-slate-600 text-xs mt-1">Voer een wedstrijduitslag in om te zien wie er scoort</p>
+            <div className="rounded-2xl bg-slate-800 border border-slate-700 p-10 text-center">
+              <div className="text-5xl mb-3">🏆</div>
+              <p className="text-white font-bold mb-1">Geen statistieken</p>
+              <p className="text-slate-500 text-sm">Voer een uitslag in via het Uitslag-tab om doelpunten bij te houden.</p>
             </div>
           ) : (
             <>
               {/* Topscorers */}
               <div className="rounded-2xl bg-slate-800 border border-slate-700 p-5">
                 <div className="mb-4 flex items-center gap-2">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${c.solid}/20`}>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: c.hex + '33' }}>
                     <Goal size={15} className={c.text} />
                   </div>
                   <h2 className="font-bold text-white">Topscorers</h2>
@@ -793,7 +800,7 @@
               {topA.length > 0 && (
                 <div className="rounded-2xl bg-slate-800 border border-slate-700 p-5">
                   <div className="mb-4 flex items-center gap-2">
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${c.solid}/20`}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: c.hex + '33' }}>
                       <TrendingUp size={15} className={c.text} />
                     </div>
                     <h2 className="font-bold text-white">Top assists</h2>
@@ -819,7 +826,7 @@
               {topM.length > 0 && (
                 <div className="rounded-2xl bg-slate-800 border border-slate-700 p-5">
                   <div className="mb-4 flex items-center gap-2">
-                    <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${c.solid}/20`}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: c.hex + '33' }}>
                       <Crown size={15} className={c.text} />
                     </div>
                     <h2 className="font-bold text-white">Man of the Match</h2>
@@ -1105,18 +1112,24 @@
               <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white">
                 <ArrowLeft size={14} /> {team?.name || 'Terug'}
               </button>
-              <button onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link gekopieerd!'); }}
-                className={`flex items-center gap-1.5 rounded-full border ${c.border} bg-white/5 px-3 py-1 text-xs font-bold ${c.text}`}>
-                <Share2 size={12} /> Deel
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { navigator.clipboard.writeText(window.location.href); showToast('Link gekopieerd! 🔗'); }}
+                  className={`flex items-center gap-1.5 rounded-full border ${c.border} bg-white/5 px-3 py-1 text-xs font-bold ${c.text} active:scale-95 transition-all`}>
+                  <Share2 size={12} /> Deel
+                </button>
+                <button onClick={() => { if (window.confirm('Wedstrijd verwijderen?')) { db.deleteMatch(matchId, match.teamId); onTeamUpdated?.(); onBack(); } }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 active:scale-95 transition-all">
+                  <Trash2 size={12} />
+                </button>
+              </div>
             </div>
             <div className="relative">
               <p className="text-sm font-medium text-slate-500">vs.</p>
               <h1 className="mt-0.5 text-3xl font-black leading-tight text-white">{match.opponent}</h1>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Pill icon={<Calendar size={11} />}>{fmtDate(match.date)}</Pill>
-                <Pill icon={<Clock size={11} />}>{match.time}</Pill>
-                <Pill icon={<MapPin size={11} />}>{match.location}</Pill>
+                <Pill icon={<Calendar size={11} />} iconClass={c.text}>{fmtDate(match.date)}</Pill>
+                <Pill icon={<Clock size={11} />} iconClass={c.text}>{match.time}</Pill>
+                <Pill icon={<MapPin size={11} />} iconClass={c.text}>{match.location}</Pill>
               </div>
               {match.result?.played && (
                 <div className={`mt-4 inline-flex items-center gap-2 rounded-2xl ${
@@ -1131,7 +1144,7 @@
           </div>
 
           <div className="px-4 mt-4 space-y-4">
-            <Tabs theme={themeKey} active={tab} onChange={setTab} tabs={[
+            <Tabs theme={themeKey} active={tab} onChange={(t) => { setTab(t); window.scrollTo({ top: 0, behavior: 'smooth' }); }} tabs={[
               { id: 'info',    label: 'Info',       icon: <Car size={13} /> },
               { id: 'lineup',  label: 'Opstelling', icon: <Shirt size={13} /> },
               { id: 'result',  label: 'Uitslag',    icon: <Goal size={13} /> },
@@ -1148,10 +1161,10 @@
       );
     }
 
-    function Pill({ icon, children }) {
+    function Pill({ icon, children, iconClass = 'text-slate-400' }) {
       return (
         <div className="flex max-w-[220px] items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5">
-          <span className="shrink-0 text-orange-400">{icon}</span>
+          <span className={`shrink-0 ${iconClass}`}>{icon}</span>
           <span className="truncate text-xs font-semibold text-white">{children}</span>
         </div>
       );
@@ -1185,7 +1198,7 @@
       return (
         <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
           <div className="mb-3 flex items-center gap-2">
-            <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${c.solid}/20`}>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: c.hex + '33' }}>
               <Users size={15} className={c.text} />
             </div>
             <h2 className="font-bold text-white">Wie komt?</h2>
@@ -1280,7 +1293,7 @@
           {/* Carpool */}
           <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
             <div className="mb-4 flex items-center gap-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${c.solid}/20`}>
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: c.hex + '33' }}>
                 <Car size={15} className={c.text} />
               </div>
               <h2 className="font-bold text-white">Carpool</h2>
@@ -1314,7 +1327,7 @@
           {match.tasks.length > 0 && (
             <div className="rounded-2xl border border-slate-700 bg-slate-800 p-5">
               <div className="mb-4 flex items-center gap-2">
-                <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${c.solid}/20`}>
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ backgroundColor: c.hex + '33' }}>
                   <ClipboardList size={15} className={c.text} />
                 </div>
                 <h2 className="font-bold text-white">Team-taken</h2>
@@ -1704,7 +1717,7 @@
       const fines = team.fines || { rules: [], entries: [] };
       const [view, setView] = useState('list'); // 'list' | 'rules'
 
-      const totals = fines.entries.reduce((acc, e) => {
+      const totals = (fines.entries || []).reduce((acc, e) => {
         acc.total += e.amount;
         if (e.paid) acc.paid += e.amount; else acc.owed += e.amount;
         return acc;
@@ -1846,10 +1859,10 @@
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl bg-slate-800 border border-slate-700 p-8 text-center">
-                  <div className="text-4xl mb-2">💰</div>
-                  <p className="text-slate-400 text-sm font-semibold">Nog geen boetes</p>
-                  <p className="text-slate-600 text-xs mt-1">Klik op "Boete toevoegen" om te beginnen</p>
+                <div className="rounded-2xl bg-slate-800 border border-slate-700 p-10 text-center">
+                  <div className="text-5xl mb-3">💰</div>
+                  <p className="text-white font-bold mb-1">Pot is leeg</p>
+                  <p className="text-slate-500 text-sm">Voeg een boete toe via de knop hierboven.</p>
                 </div>
               )}
             </>
