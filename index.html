@@ -27,7 +27,8 @@
     @keyframes slideUp { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
     @keyframes popIn   { 0% { transform: scale(0.75); opacity: 0 } 65% { transform: scale(1.06) } 100% { transform: scale(1); opacity: 1 } }
     @keyframes toastSlide { from { transform: translateX(-50%) translateY(16px); opacity: 0 } to { transform: translateX(-50%) translateY(0); opacity: 1 } }
-    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+    @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+    .tab-fade { animation: fadeSlideIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) both }
     .anim-slide-up { animation: slideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) }
     .anim-pop-in   { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) }
     .anim-toast    { animation: toastSlide 0.28s cubic-bezier(0.22, 1, 0.36, 1) }
@@ -415,8 +416,8 @@
                 <Zap size={13} className="text-white" />
                 <span className="text-xs font-black tracking-widest text-white">TEAMDRIVE</span>
               </div>
-              <h1 className="text-4xl font-black leading-none text-white">De app voor<br/>jouw team</h1>
-              <p className="mt-2 text-sm text-white/80">Carpool, opstelling, uitslagen & topscorers — zonder gedoe.</p>
+              <h1 className="text-4xl font-black leading-none text-white">De app voor<br/>jouw team ⚽</h1>
+              <p className="mt-2 text-sm text-white/80">Carpool · opstelling · uitslagen · boete-pot</p>
             </div>
           </div>
           <div className="px-4 -mt-5 space-y-4">
@@ -432,22 +433,38 @@
                     const c = COLORS[team.color || 'orange'];
                     return (
                       <button key={team.id} onClick={() => onOpenTeam(team.id)}
-                        className="w-full flex items-center gap-3 rounded-xl bg-slate-700/50 hover:bg-slate-700 px-4 py-3 transition-colors active:scale-[0.98]">
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${c.solid} text-white font-black`}>
+                        className="w-full flex items-center gap-3 rounded-xl bg-slate-700/50 hover:bg-slate-700 px-4 py-3.5 transition-colors active:scale-[0.98]">
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${c.solid} text-white font-black text-sm`}>
                           {initials(team.name)}
                         </div>
                         <div className="flex-1 text-left min-w-0">
                           <p className="text-white font-bold truncate">{team.name}</p>
-                          <p className="text-xs text-slate-500">{(team.players || []).length} spelers · {(team.matchIds || []).length} wedstrijden</p>
+                          <p className="text-xs text-slate-500">{(team.players || []).length} sp. · {(team.matchIds || []).length} wedstr.</p>
                         </div>
-                        <ChevronRight size={16} className="text-slate-500" />
+                        <ChevronRight size={16} className="text-slate-500 shrink-0" />
                       </button>
                     );
                   })}
                 </div>
               </div>
             )}
-            <div className="flex items-center justify-center gap-3 pt-4 text-slate-700">
+            {recent.length === 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { icon: '🚗', title: 'Carpool', desc: 'Samen rijden regelen' },
+                  { icon: '⚽', title: 'Opstelling', desc: 'Formatie bepalen' },
+                  { icon: '🏆', title: 'Topscorers', desc: 'Stats bijhouden' },
+                  { icon: '💰', title: 'Boete-pot', desc: 'Straf per overtreding' },
+                ].map(f => (
+                  <div key={f.title} className="rounded-2xl bg-slate-800/80 border border-slate-700/60 p-4">
+                    <div className="text-2xl mb-2">{f.icon}</div>
+                    <p className="text-white font-bold text-sm leading-tight">{f.title}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-3 pt-2 text-slate-700">
               <span className="text-xs">🔒 Geen account</span>
               <span className="text-slate-800">·</span>
               <span className="text-xs">📱 Lokale opslag</span>
@@ -649,6 +666,24 @@
                   <p className="text-[10px] uppercase tracking-wider text-white/70 font-bold">verlies</p>
                 </div>
               </div>
+              {/* Laatste 5 vorm */}
+              {played.length > 0 && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-xs text-white/60 font-semibold">Vorm:</span>
+                  <div className="flex gap-1">
+                    {played.slice(0, 5).map(m => {
+                      const us = m.result.isHome ? m.result.homeScore : m.result.awayScore;
+                      const them = m.result.isHome ? m.result.awayScore : m.result.homeScore;
+                      const r = us > them ? 'W' : us < them ? 'V' : 'G';
+                      return (
+                        <span key={m.id} className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-black leading-none ${
+                          r === 'W' ? 'bg-green-500 text-white' : r === 'V' ? 'bg-red-500 text-white' : 'bg-white/30 text-white'
+                        }`}>{r}</span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -662,7 +697,7 @@
 
             {/* TAB: MATCHES */}
             {tab === 'matches' && (
-              <div className="space-y-3">
+              <div key="matches" className="tab-fade space-y-3">
                 <button onClick={onCreateMatch}
                   className={`w-full rounded-2xl ${c.solid} py-3.5 text-white font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-lg`}>
                   <Plus size={18} /> Nieuwe wedstrijd
@@ -690,22 +725,26 @@
             )}
 
             {/* TAB: SCORERS */}
-            {tab === 'scorers' && <ScorersTab stats={stats} theme={team.color} />}
+            {tab === 'scorers' && <div key="scorers" className="tab-fade"><ScorersTab stats={stats} theme={team.color} /></div>}
 
             {/* TAB: ROSTER */}
             {tab === 'roster' && (
-              <RosterTab team={team} stats={stats} theme={team.color} edit={editRoster}
-                onToggleEdit={() => setEditRoster(v => !v)}
-                onAddPlayer={(p) => updateTeam(t => ({ ...t, players: [...t.players, { id: db.uid(), ...p }] }))}
-                onRemovePlayer={(id) => updateTeam(t => ({ ...t, players: t.players.filter(x => x.id !== id) }))}
-                onUpdateSettings={(s) => updateTeam(t => ({ ...t, settings: { ...t.settings, ...s } }))}
-              />
+              <div key="roster" className="tab-fade">
+                <RosterTab team={team} stats={stats} theme={team.color} edit={editRoster}
+                  onToggleEdit={() => setEditRoster(v => !v)}
+                  onAddPlayer={(p) => updateTeam(t => ({ ...t, players: [...t.players, { id: db.uid(), ...p }] }))}
+                  onRemovePlayer={(id) => updateTeam(t => ({ ...t, players: t.players.filter(x => x.id !== id) }))}
+                  onUpdateSettings={(s) => updateTeam(t => ({ ...t, settings: { ...t.settings, ...s } }))}
+                />
+              </div>
             )}
 
             {/* TAB: FINES */}
             {tab === 'fines' && (
-              <FinesTab team={team} theme={team.color} setModal={setModal}
-                persist={(t) => { db.saveTeam(t); setTeam(t); }} />
+              <div key="fines" className="tab-fade">
+                <FinesTab team={team} theme={team.color} setModal={setModal}
+                  persist={(t) => { db.saveTeam(t); setTeam(t); }} />
+              </div>
             )}
           </div>
           {modal}
@@ -740,9 +779,18 @@
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-white font-bold truncate">vs. {match.opponent}</p>
-            <p className="text-xs text-slate-500 truncate">
-              {fmtDate(match.date)} · {match.time} · {match.location}
-            </p>
+            <p className="text-xs text-slate-500 truncate">{fmtDate(match.date)} · {match.time}</p>
+            {!played && (() => {
+              const yesCount = Object.values(match.availability || {}).filter(v => v.status === 'yes').length;
+              const driversIn = (match.drivers || []).filter(d => d.name).length;
+              if (!yesCount && !driversIn) return null;
+              return (
+                <div className="flex items-center gap-2 mt-0.5">
+                  {yesCount > 0 && <span className="text-[11px] font-bold text-green-400">✓ {yesCount} aanwezig</span>}
+                  {driversIn > 0 && <span className="text-[11px] font-semibold text-slate-500">🚗 {driversIn}/{match.driversNeeded}</span>}
+                </div>
+              );
+            })()}
           </div>
           <ChevronRight size={16} className="text-slate-600 shrink-0" />
         </button>
@@ -977,7 +1025,13 @@
     // ════════════════════════════════════════════════════════════════
     function CreateMatchView({ team, onCreated, onBack }) {
       const c = COLORS[team.color];
-      const [form, setForm] = useState({ opponent: '', date: '', time: '', location: '', driversNeeded: 2 });
+      const nextSat = (() => {
+        const d = new Date();
+        const days = (6 - d.getDay() + 7) % 7 || 7;
+        d.setDate(d.getDate() + days);
+        return d.toISOString().split('T')[0];
+      })();
+      const [form, setForm] = useState({ opponent: '', date: nextSat, time: '10:00', location: '', driversNeeded: 2 });
       const [tasks, setTasks] = useState(['Was meenemen', 'Scheidsrechter regelen', 'Snacks & drinken']);
       const [taskInput, setTaskInput] = useState('');
 
@@ -1180,9 +1234,9 @@
               { id: 'result',  label: 'Uitslag',    icon: <Goal size={13} /> },
             ]} />
 
-            {tab === 'info'   && <InfoTab match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} showToast={showToast} />}
-            {tab === 'lineup' && <LineupTab match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} />}
-            {tab === 'result' && <ResultTab match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} />}
+            {tab === 'info'   && <div key="info"   className="tab-fade"><InfoTab   match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} showToast={showToast} /></div>}
+            {tab === 'lineup' && <div key="lineup" className="tab-fade"><LineupTab match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} /></div>}
+            {tab === 'result' && <div key="result" className="tab-fade"><ResultTab match={match} team={team} theme={themeKey} persist={persist} setModal={setModal} /></div>}
           </div>
 
           {modal}
@@ -1317,6 +1371,51 @@
 
       return (
         <div className="space-y-4">
+          {/* Uitslag-banner als gespeeld */}
+          {match.result?.played && (() => {
+            const r = match.result;
+            const us = r.isHome ? r.homeScore : r.awayScore;
+            const them = r.isHome ? r.awayScore : r.homeScore;
+            const outcome = us > them ? 'win' : us < them ? 'loss' : 'draw';
+            const motm = team?.players.find(p => p.id === r.motmId);
+            const scorers = (r.goals || []).reduce((acc, g) => {
+              const n = team?.players.find(p => p.id === g.scorerId)?.name?.split(' ')[0];
+              if (n) { acc[n] = (acc[n] || 0) + 1; }
+              return acc;
+            }, {});
+            return (
+              <div className={`rounded-2xl p-4 border ${
+                outcome === 'win'  ? 'bg-green-500/10 border-green-500/30' :
+                outcome === 'loss' ? 'bg-red-500/10 border-red-500/30' :
+                'bg-slate-700/40 border-slate-600'}`}>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Eindstand · {r.isHome ? 'Thuis' : 'Uit'}</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-4xl font-black text-white tabular-nums leading-none">{us} – {them}</p>
+                    <p className={`text-sm font-bold mt-1.5 ${outcome === 'win' ? 'text-green-400' : outcome === 'loss' ? 'text-red-400' : 'text-slate-400'}`}>
+                      {outcome === 'win' ? '🏆 Gewonnen' : outcome === 'loss' ? '😤 Verloren' : '🤝 Gelijkspel'}
+                    </p>
+                  </div>
+                  {motm && (
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-yellow-400/80">MOTM</p>
+                      <p className="text-sm font-bold text-yellow-300 mt-0.5">⭐ {motm.name.split(' ')[0]}</p>
+                    </div>
+                  )}
+                </div>
+                {Object.keys(scorers).length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {Object.entries(scorers).map(([name, n]) => (
+                      <span key={name} className="rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold text-white">
+                        ⚽ {name}{n > 1 ? ` ×${n}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Beschikbaarheid */}
           <AvailabilitySection match={match} team={team} theme={theme} persist={persist} />
 
@@ -1335,7 +1434,7 @@
                 return (
                   <div key={driver.id}
                     onClick={() => !claimed && claimDriver(driver.id)}
-                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all ${claimed ? 'card-claimed border-green-500/30' : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-orange-500/50 active:scale-95'}`}>
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all ${claimed ? 'card-claimed border-green-500/30' : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-slate-500 active:scale-95'}`}>
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-black ${claimed ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-500'}`}>
                       {claimed ? (driver.name?.[0]?.toUpperCase() ?? '?') : i + 1}
                     </div>
@@ -1370,7 +1469,7 @@
                   return (
                     <div key={task.id}
                       onClick={() => !isClaimed && claimTask(task.id, task.name)}
-                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all ${isClaimed ? 'card-claimed border-green-500/30' : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-orange-500/50 active:scale-95'}`}>
+                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all ${isClaimed ? 'card-claimed border-green-500/30' : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-slate-500 active:scale-95'}`}>
                       <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border-2 ${isClaimed ? 'border-green-500 bg-green-500' : 'border-slate-600'}`}>
                         {isClaimed && <CheckCircle size={13} className="text-white" />}
                       </div>
