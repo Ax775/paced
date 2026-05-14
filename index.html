@@ -43,13 +43,12 @@
 <body>
   <div id="root"></div>
   <script type="text/babel" data-type="module" data-presets="react">
-    import { useState, useEffect, useRef, useMemo } from 'react';
+    import { useState, useEffect, useRef, useMemo, memo } from 'react';
     import { createRoot } from 'react-dom/client';
     import {
       Car, MapPin, Calendar, Clock, Trophy, Share2, CheckCircle, Plus, X,
-      ChevronRight, Zap, ClipboardList, ArrowLeft, Users, Shirt, Target,
-      Award, Star, UserPlus, Edit2, Trash2, ChevronDown, Goal, Hash,
-      TrendingUp, Crown, Pencil
+      ChevronRight, Zap, ClipboardList, ArrowLeft, Users, Shirt,
+      Star, Trash2, Goal, Settings, TrendingUp, Crown, Pencil
     } from 'lucide-react';
 
     // ════════════════════════════════════════════════════════════════
@@ -221,7 +220,8 @@
     // ════════════════════════════════════════════════════════════════
     function Toast({ message }) {
       return (
-        <div className="anim-toast pointer-events-none fixed bottom-8 z-[100] flex items-center gap-2 rounded-full bg-green-500 px-5 py-3 text-sm font-bold text-white shadow-2xl shadow-green-500/40"
+        <div role="alert" aria-live="polite"
+             className="anim-toast pointer-events-none fixed bottom-8 z-[100] flex items-center gap-2 rounded-full bg-green-500 px-5 py-3 text-sm font-bold text-white shadow-2xl shadow-green-500/40"
              style={{ left: '50%', transform: 'translateX(-50%)' }}>
           <CheckCircle size={15} />{message}
         </div>
@@ -265,10 +265,10 @@
     function Tabs({ tabs, active, onChange, theme='orange' }) {
       const c = COLORS[theme];
       return (
-        <div className="flex gap-1 p-1 rounded-2xl bg-slate-800/80 border border-slate-700">
+        <div role="tablist" className="flex gap-1 p-1 rounded-2xl bg-slate-800/80 border border-slate-700">
           {tabs.map(t => (
-            <button key={t.id} onClick={() => onChange(t.id)}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition-all ${active === t.id ? `${c.solid} text-white shadow-lg` : 'text-slate-400 hover:text-white'}`}>
+            <button key={t.id} role="tab" aria-selected={active === t.id} onClick={() => onChange(t.id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition-all ${active === t.id ? `${c.solid} text-white shadow-lg` : 'text-slate-400 hover:text-white'}`}>
               {t.icon}<span>{t.label}</span>
             </button>
           ))}
@@ -339,7 +339,7 @@
     // ════════════════════════════════════════════════════════════════
     // VOETBALVELD (SVG)
     // ════════════════════════════════════════════════════════════════
-    function Pitch({ formation, positions, players, onPositionTap, theme = 'orange' }) {
+    const Pitch = memo(function Pitch({ formation, positions, players, onPositionTap, theme = 'orange' }) {
       const fm = FORMATIONS[formation];
       const c = COLORS[theme];
       return (
@@ -398,7 +398,7 @@
           </svg>
         </div>
       );
-    }
+    });
 
     // ════════════════════════════════════════════════════════════════
     // WELCOME / HOME
@@ -432,7 +432,7 @@
                     const c = COLORS[team.color || 'orange'];
                     return (
                       <button key={team.id} onClick={() => onOpenTeam(team.id)}
-                        className="w-full flex items-center gap-3 rounded-xl bg-slate-700/50 hover:bg-slate-700 px-4 py-3 transition-colors active:scale-98">
+                        className="w-full flex items-center gap-3 rounded-xl bg-slate-700/50 hover:bg-slate-700 px-4 py-3 transition-colors active:scale-[0.98]">
                         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${c.solid} text-white font-black`}>
                           {initials(team.name)}
                         </div>
@@ -603,7 +603,7 @@
       );
 
       const c = COLORS[team.color || 'orange'];
-      const stats = computeStats(team, matches);
+      const stats = useMemo(() => computeStats(team, matches), [team, matches]);
       const upcoming = matches.filter(m => !m.result?.played).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       const played   = matches.filter(m => m.result?.played).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
@@ -698,6 +698,7 @@
                 onToggleEdit={() => setEditRoster(v => !v)}
                 onAddPlayer={(p) => updateTeam(t => ({ ...t, players: [...t.players, { id: db.uid(), ...p }] }))}
                 onRemovePlayer={(id) => updateTeam(t => ({ ...t, players: t.players.filter(x => x.id !== id) }))}
+                onUpdateSettings={(s) => updateTeam(t => ({ ...t, settings: { ...t.settings, ...s } }))}
               />
             )}
 
@@ -723,7 +724,7 @@
       const resultClr = result === 'W' ? 'bg-green-500' : result === 'V' ? 'bg-red-500' : result === 'G' ? 'bg-slate-500' : '';
       return (
         <button onClick={onOpen}
-          className="w-full flex items-center gap-3 rounded-2xl bg-slate-800 border border-slate-700 hover:border-slate-600 px-4 py-3.5 text-left transition-all active:scale-98">
+          className="w-full flex items-center gap-3 rounded-2xl bg-slate-800 border border-slate-700 hover:border-slate-600 px-4 py-3.5 text-left transition-all active:scale-[0.98]">
           <div className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl ${played ? resultClr : 'bg-slate-700'} text-white`}>
             {played ? (
               <>
@@ -872,7 +873,7 @@
       );
     }
 
-    function RosterTab({ team, stats, theme, edit, onToggleEdit, onAddPlayer, onRemovePlayer }) {
+    function RosterTab({ team, stats, theme, edit, onToggleEdit, onAddPlayer, onRemovePlayer, onUpdateSettings }) {
       const c = COLORS[theme];
       const [pName, setPName] = useState('');
       const [pNum, setPNum] = useState('');
@@ -945,6 +946,27 @@
                 </button>
               </div>
             )}
+          </div>
+
+          {/* Team-instellingen */}
+          <div className="rounded-2xl border border-slate-700 bg-slate-800 p-4 mt-3">
+            <div className="flex items-center gap-2 mb-3">
+              <Settings size={14} className="text-slate-500" />
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Instellingen</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-white">Schorsingsdrempel</p>
+                <p className="text-xs text-slate-500 mt-0.5">Gele kaarten voor schorsing</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => onUpdateSettings({ yellowSuspensionAt: Math.max(1, susThr - 1) })}
+                  className="h-9 w-9 rounded-xl bg-slate-700 text-white font-bold hover:bg-slate-600 active:scale-95 transition-all text-lg leading-none">−</button>
+                <span className="text-white font-black text-xl w-8 text-center tabular-nums">{susThr}</span>
+                <button onClick={() => onUpdateSettings({ yellowSuspensionAt: Math.min(10, susThr + 1) })}
+                  className="h-9 w-9 rounded-xl bg-slate-700 text-white font-bold hover:bg-slate-600 active:scale-95 transition-all text-lg leading-none">+</button>
+              </div>
+            </div>
           </div>
         </div>
       );
@@ -1117,7 +1139,15 @@
                   className={`flex items-center gap-1.5 rounded-full border ${c.border} bg-white/5 px-3 py-1 text-xs font-bold ${c.text} active:scale-95 transition-all`}>
                   <Share2 size={12} /> Deel
                 </button>
-                <button onClick={() => { if (window.confirm('Wedstrijd verwijderen?')) { db.deleteMatch(matchId, match.teamId); onTeamUpdated?.(); onBack(); } }}
+                <button aria-label="Wedstrijd bewerken"
+                  onClick={() => setModal(<EditMatchModal match={match} theme={themeKey}
+                    onSave={(f) => { persist({ ...match, ...f }); setModal(null); showToast('Opgeslagen ✓'); }}
+                    onCancel={() => setModal(null)} />)}
+                  className={`flex h-7 w-7 items-center justify-center rounded-full bg-white/10 border border-white/20 ${c.text} hover:bg-white/20 active:scale-95 transition-all`}>
+                  <Pencil size={12} />
+                </button>
+                <button aria-label="Wedstrijd verwijderen"
+                  onClick={() => { if (window.confirm('Wedstrijd verwijderen?')) { db.deleteMatch(matchId, match.teamId); onTeamUpdated?.(); onBack(); } }}
                   className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 active:scale-95 transition-all">
                   <Trash2 size={12} />
                 </button>
@@ -1238,9 +1268,9 @@
                   </div>
                   <span className="flex-1 text-white font-semibold text-sm truncate">{p.name}</span>
                   <div className="flex gap-1">
-                    <StatusPill icon="✅" active={status === 'yes'}   onClick={() => setStatus(p.id, 'yes')}   activeClr="bg-green-500" />
-                    <StatusPill icon="🤔" active={status === 'maybe'} onClick={() => setStatus(p.id, 'maybe')} activeClr="bg-yellow-500" />
-                    <StatusPill icon="❌" active={status === 'no'}    onClick={() => setStatus(p.id, 'no')}    activeClr="bg-red-500" />
+                    <StatusPill icon="✅" active={status === 'yes'}   onClick={() => setStatus(p.id, 'yes')}   activeClr="bg-green-500"  ariaLabel="Ik kom" />
+                    <StatusPill icon="🤔" active={status === 'maybe'} onClick={() => setStatus(p.id, 'maybe')} activeClr="bg-yellow-500" ariaLabel="Misschien" />
+                    <StatusPill icon="❌" active={status === 'no'}    onClick={() => setStatus(p.id, 'no')}    activeClr="bg-red-500"    ariaLabel="Ik kom niet" />
                   </div>
                 </div>
               );
@@ -1250,10 +1280,10 @@
       );
     }
 
-    function StatusPill({ icon, active, onClick, activeClr }) {
+    function StatusPill({ icon, active, onClick, activeClr, ariaLabel }) {
       return (
-        <button onClick={onClick}
-          className={`h-8 w-8 rounded-lg text-sm transition-all flex items-center justify-center ${active ? `${activeClr} scale-110 shadow-lg` : 'bg-slate-700 hover:bg-slate-600 grayscale opacity-50'}`}>
+        <button onClick={onClick} aria-label={ariaLabel} aria-pressed={active}
+          className={`h-9 w-9 rounded-lg text-sm transition-all flex items-center justify-center ${active ? `${activeClr} scale-110 shadow-lg` : 'bg-slate-700 hover:bg-slate-600 grayscale opacity-50'}`}>
           {icon}
         </button>
       );
@@ -1307,7 +1337,7 @@
                     onClick={() => !claimed && claimDriver(driver.id)}
                     className={`flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all ${claimed ? 'card-claimed border-green-500/30' : 'cursor-pointer border-dashed border-slate-600 bg-slate-700/40 hover:border-orange-500/50 active:scale-95'}`}>
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-black ${claimed ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-500'}`}>
-                      {claimed ? driver.name[0].toUpperCase() : i + 1}
+                      {claimed ? (driver.name?.[0]?.toUpperCase() ?? '?') : i + 1}
                     </div>
                     <div className="min-w-0 flex-1">
                       {claimed
@@ -1502,7 +1532,7 @@
                 <p className="text-xs font-bold text-slate-500 mb-2">{r.isHome ? team?.name || 'Wij' : match.opponent}</p>
                 <div className="flex items-center justify-center gap-2">
                   <button onClick={() => adjustScore('homeScore', -1)} className="h-8 w-8 rounded-lg bg-slate-700 text-white font-bold hover:bg-slate-600">−</button>
-                  <input type="number" value={r.homeScore} onChange={(e) => setScore('homeScore', e.target.value)}
+                  <input type="number" min="0" max="99" inputMode="numeric" value={r.homeScore} onChange={(e) => setScore('homeScore', e.target.value)}
                     className={`w-14 text-center text-3xl font-black bg-transparent text-white outline-none border-b-2 ${c.border} tabular-nums`} />
                   <button onClick={() => adjustScore('homeScore', 1)} className="h-8 w-8 rounded-lg bg-slate-700 text-white font-bold hover:bg-slate-600">+</button>
                 </div>
@@ -1512,7 +1542,7 @@
                 <p className="text-xs font-bold text-slate-500 mb-2">{!r.isHome ? team?.name || 'Wij' : match.opponent}</p>
                 <div className="flex items-center justify-center gap-2">
                   <button onClick={() => adjustScore('awayScore', -1)} className="h-8 w-8 rounded-lg bg-slate-700 text-white font-bold hover:bg-slate-600">−</button>
-                  <input type="number" value={r.awayScore} onChange={(e) => setScore('awayScore', e.target.value)}
+                  <input type="number" min="0" max="99" inputMode="numeric" value={r.awayScore} onChange={(e) => setScore('awayScore', e.target.value)}
                     className={`w-14 text-center text-3xl font-black bg-transparent text-white outline-none border-b-2 ${c.border} tabular-nums`} />
                   <button onClick={() => adjustScore('awayScore', 1)} className="h-8 w-8 rounded-lg bg-slate-700 text-white font-bold hover:bg-slate-600">+</button>
                 </div>
@@ -1581,7 +1611,7 @@
 
           {/* MOTM */}
           <button onClick={setMotm} disabled={!team}
-            className="w-full rounded-2xl border border-slate-700 bg-slate-800 p-4 text-left hover:bg-slate-700/50 active:scale-98 transition-all disabled:opacity-50">
+            className="w-full rounded-2xl border border-slate-700 bg-slate-800 p-4 text-left hover:bg-slate-700/50 active:scale-[0.98] transition-all disabled:opacity-50">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-yellow-500/20">
                 <Crown size={18} className="text-yellow-400" />
@@ -1625,7 +1655,8 @@
           <p className="text-slate-400 text-sm mb-4">Wie scoorde, met assist en minuut</p>
 
           <button onClick={() => setPicking('scorer')}
-            className={`w-full mb-2 flex items-center gap-3 rounded-xl border-2 ${scorer ? c.border + ' bg-' + theme + '-500/10' : 'border-dashed border-slate-600 bg-slate-700/40'} px-4 py-3 text-left`}>
+            className={`w-full mb-2 flex items-center gap-3 rounded-xl border-2 ${scorer ? c.border : 'border-dashed border-slate-600 bg-slate-700/40'} px-4 py-3 text-left`}
+            style={scorer ? { backgroundColor: c.hex + '1a' } : {}}>
             <Goal size={16} className={scorer ? c.text : 'text-slate-500'} />
             <div className="flex-1">
               <p className="text-xs font-bold uppercase text-slate-500">Schutter *</p>
@@ -1644,7 +1675,7 @@
 
           <div className="mt-3">
             <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Minuut (optioneel)</p>
-            <input type="number" inputMode="numeric" placeholder="bv. 23" value={minute} onChange={(e) => setMinute(e.target.value.replace(/\D/g, '').slice(0, 3))}
+            <input type="number" inputMode="numeric" placeholder="bv. 23" value={minute} onChange={(e) => setMinute(String(Math.min(120, parseInt(e.target.value.replace(/\D/g, '') || '0'))))}
               className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none focus:border-${theme}-500`} />
           </div>
 
@@ -1697,7 +1728,7 @@
           </div>
 
           <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Minuut (optioneel)</p>
-          <input type="number" inputMode="numeric" placeholder="bv. 67" value={minute} onChange={(e) => setMinute(e.target.value.replace(/\D/g, '').slice(0, 3))}
+          <input type="number" inputMode="numeric" placeholder="bv. 67" value={minute} onChange={(e) => setMinute(String(Math.min(120, parseInt(e.target.value.replace(/\D/g, '') || '0'))))}
             className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none focus:border-${theme}-500`} />
 
           <div className="mt-5 flex gap-3">
@@ -1982,6 +2013,53 @@
             <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600">Annuleer</button>
             <button onClick={() => valid && onSave({ label: label.trim(), amount: parseFloat(amount) })} disabled={!valid}
               className={`flex-1 rounded-2xl ${c.solid} py-3.5 text-white font-bold disabled:opacity-40 active:scale-95`}>Opslaan</button>
+          </div>
+        </Modal>
+      );
+    }
+
+    // ── WEDSTRIJD BEWERKEN MODAL ─────────────────────
+    function EditMatchModal({ match, theme, onSave, onCancel }) {
+      const c = COLORS[theme];
+      const [form, setForm] = useState({
+        opponent: match.opponent,
+        date: match.date,
+        time: match.time,
+        location: match.location,
+      });
+      const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+      const isValid = form.opponent.trim() && form.date && form.time && form.location.trim();
+      return (
+        <Modal onClose={onCancel}>
+          <h3 className="text-white font-bold text-lg mb-4">Wedstrijd bewerken</h3>
+          <div className="space-y-3 mb-5">
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Tegenstander</p>
+              <input type="text" value={form.opponent} onChange={set('opponent')} placeholder="bv. FC Tegenstand"
+                className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none text-sm focus:border-${theme}-500`} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Datum</p>
+                <input type="date" value={form.date} onChange={set('date')}
+                  className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Aanvang</p>
+                <input type="time" value={form.time} onChange={set('time')}
+                  className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Locatie</p>
+              <input type="text" value={form.location} onChange={set('location')} placeholder="bv. Sportpark Noord, veld 2"
+                className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none text-sm focus:border-${theme}-500`} />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600">Annuleer</button>
+            <button onClick={() => isValid && onSave({ ...form, opponent: form.opponent.trim(), location: form.location.trim() })} disabled={!isValid}
+              className={`flex-1 rounded-2xl ${c.solid} py-3.5 text-white font-bold disabled:opacity-40 active:scale-95 transition-all`}>Opslaan</button>
           </div>
         </Modal>
       );
