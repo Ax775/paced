@@ -2250,9 +2250,16 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
     heightCm:        profile.heightCm        || '',
     activityLevel:   profile.activityLevel   || 'moderate',
     cycleLength:     profile.cycleLength     || 28,
+    mensDuration:    profile.mensDuration    || 5,
     contraception:   profile.contraception   || '',
     pregnancyIntent: profile.pregnancyIntent || '',
   });
+  // Of de gebruiker handmatig haar cycluslengte heeft vastgepind.
+  // We tonen 'm in de UI zodat ze weet wat ze kiest, en bij Save
+  // sturen we 'm mee zodat logPeriodStart 'm respecteert.
+  const [cycleLengthSource, setCycleLengthSource] = useState(
+    profile.cycleLengthSource || 'auto'
+  );
   const [goals, setGoals] = useState({
     calories:  (profile.goals?.calories)  || '',
     protein:   (profile.goals?.protein)   || '',
@@ -2327,6 +2334,12 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
       heightCm,
       activityLevel:   form.activityLevel,
       cycleLength:     Number(form.cycleLength),
+      mensDuration:    Number(form.mensDuration) || 5,
+      // Pas de manual-flag mee zodat logPeriodStart de cycleLength
+      // niet meer auto-overschrijft. Default 'auto' — pas zodra de
+      // gebruiker hier in Settings een waarde aanpast, klikken we
+      // 'm op 'manual' (zie +/- handlers hieronder).
+      cycleLengthSource,
       goals:           cleanGoals,
       notifEnabled,
       notifTime,
@@ -2421,7 +2434,11 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
               <button
                 type="button"
                 aria-label={t('onb.cycle.length.dec')}
-                onClick={() => setF('cycleLength', Math.max(21, form.cycleLength - 1))}
+                onClick={() => {
+                  setF('cycleLength', Math.max(21, form.cycleLength - 1));
+                  // Aanraking aan de cycluslengte = expliciete manual-keuze.
+                  setCycleLengthSource('manual');
+                }}
                 className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                            text-ink-600 hover:bg-sage-100 hover:border-sage-200
                            transition text-xl flex items-center justify-center"
@@ -2435,12 +2452,65 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
               <button
                 type="button"
                 aria-label={t('onb.cycle.length.inc')}
-                onClick={() => setF('cycleLength', Math.min(45, form.cycleLength + 1))}
+                onClick={() => {
+                  setF('cycleLength', Math.min(45, form.cycleLength + 1));
+                  setCycleLengthSource('manual');
+                }}
                 className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
                            text-ink-600 hover:bg-sage-100 hover:border-sage-200
                            transition text-xl flex items-center justify-center"
               >+</button>
             </div>
+            {/* Auto-vs-manual status strook. Default 'auto': leert uit
+                je periode-historie via rolling-average. 'manual' pint
+                de waarde vast — handig voor onregelmatige cycli waar
+                de gemiddelde-leerstrategie misleidende voorspellingen
+                geeft. Tik op de link om terug naar auto te gaan. */}
+            <div className="flex items-center justify-between mt-2 text-[11px]">
+              <span className="text-ink-400">
+                {cycleLengthSource === 'manual'
+                  ? t('settings.cycleLength.manual')
+                  : t('settings.cycleLength.auto')}
+              </span>
+              {cycleLengthSource === 'manual' && (
+                <button
+                  type="button"
+                  onClick={() => setCycleLengthSource('auto')}
+                  className="text-sage-700 hover:text-sage-800 underline decoration-dotted underline-offset-4 transition py-1 min-h-[36px]"
+                >
+                  {t('settings.cycleLength.resetAuto')}
+                </button>
+              )}
+            </div>
+          </Field>
+
+          <Field>
+            <Label>{t('settings.mensDuration')}</Label>
+            <div className="flex items-center gap-4 mt-1">
+              <button
+                type="button"
+                aria-label={t('settings.mensDuration.dec')}
+                onClick={() => setF('mensDuration', Math.max(2, form.mensDuration - 1))}
+                className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
+                           text-ink-600 hover:bg-sage-100 hover:border-sage-200
+                           transition text-xl flex items-center justify-center"
+              >−</button>
+              <div className="flex-1 text-center" aria-live="polite">
+                <span className="font-display text-[36px] text-ink-700 leading-none">
+                  {form.mensDuration}
+                </span>
+                <span className="text-sm text-ink-400 ml-1.5">{t('common.daysShort')}</span>
+              </div>
+              <button
+                type="button"
+                aria-label={t('settings.mensDuration.inc')}
+                onClick={() => setF('mensDuration', Math.min(10, form.mensDuration + 1))}
+                className="w-11 h-11 rounded-full bg-cream-100 border border-cream-200
+                           text-ink-600 hover:bg-sage-100 hover:border-sage-200
+                           transition text-xl flex items-center justify-center"
+              >+</button>
+            </div>
+            <p className="text-[11px] text-ink-400 mt-2">{t('settings.mensDuration.hint')}</p>
           </Field>
 
           <Field>

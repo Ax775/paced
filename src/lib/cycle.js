@@ -441,7 +441,15 @@ export function logPeriodStart(profile, today = new Date()) {
   }
 
   history.push(dateISO);
-  const cycleLength = learnedCycleLength(history, profile.cycleLength);
+  // Respecteer een handmatig-ingestelde cycluslengte. Als de gebruikster
+  // in Instellingen een waarde heeft gezet (`cycleLengthSource === 'manual'`)
+  // dan overschrijft auto-learning dat NIET — anders verliest ze haar
+  // aanpassing bij de volgende periode-log. Default-source is 'auto'
+  // voor profielen van vóór deze fix (gedrag onveranderd voor hen).
+  const isManual = profile.cycleLengthSource === 'manual';
+  const cycleLength = isManual
+    ? clampCycleLength(profile.cycleLength)
+    : learnedCycleLength(history, profile.cycleLength);
 
   return {
     ...profile,

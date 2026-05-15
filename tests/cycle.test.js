@@ -786,3 +786,46 @@ describe("getFertilityStatus with profile — 'overdue' status", () => {
     expect(r.overdueDays).toBe(14);
   });
 });
+
+/* ──────────────────  cycleLengthSource: 'manual' lock  ─────────────── */
+
+describe('logPeriodStart respects manual cycleLength', () => {
+  it('auto-learns by default (cycleLengthSource undefined of "auto")', () => {
+    // Drie cycli van 30 dagen → rolling-average wordt 30, ook al was
+    // de oorspronkelijke profile.cycleLength 28.
+    const profile = {
+      lastPeriodStart: '2026-01-01',
+      cycleLength: 28,
+      periodHistory: ['2026-01-01', '2026-01-31', '2026-03-02'],
+    };
+    const next = logPeriodStart(profile, new Date(2026, 3, 1)); // Apr 1
+    expect(next.cycleLength).toBe(30);
+  });
+
+  it('keeps manual cycleLength wanneer source = "manual"', () => {
+    // Zelfde setup als boven maar nu met manual-lock. De rolling-
+    // average zou 30 zeggen — Aura moet 28 laten staan.
+    const profile = {
+      lastPeriodStart: '2026-01-01',
+      cycleLength: 28,
+      cycleLengthSource: 'manual',
+      periodHistory: ['2026-01-01', '2026-01-31', '2026-03-02'],
+    };
+    const next = logPeriodStart(profile, new Date(2026, 3, 1));
+    expect(next.cycleLength).toBe(28);
+    expect(next.cycleLengthSource).toBe('manual'); // niet weggewist
+  });
+
+  it('clampCycleLength wordt ook in manual-mode toegepast (defensief)', () => {
+    // Een corrupt profile met cycleLength buiten 21-45 mag niet als-is
+    // doorlekken — clampCycleLength is de tweede defense.
+    const profile = {
+      lastPeriodStart: '2026-01-01',
+      cycleLength: 999,
+      cycleLengthSource: 'manual',
+      periodHistory: ['2026-01-01', '2026-01-31'],
+    };
+    const next = logPeriodStart(profile, new Date(2026, 2, 1));
+    expect(next.cycleLength).toBe(45); // clamped
+  });
+});
