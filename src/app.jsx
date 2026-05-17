@@ -2277,6 +2277,24 @@ function Onboarding({ onComplete }) {
                 </div>
               ))}
             </div>
+            {/* Trial-disclosure — staat hier zodat de gebruiker bij
+                "Start" weet wat ze precies start. Geen verborgen
+                auto-renew, geen kaart vooraf — dat is bewust dichtgezet
+                door de license-architectuur (zie premium.js). */}
+            <div className="mb-6 px-4 py-4 rounded-xl bg-sage-50 border border-sage-200">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base" aria-hidden="true">🌿</span>
+                <span className="text-[10px] uppercase tracking-[0.16em] text-sage-700 font-semibold">
+                  {t('onb.welcome.trial.badge')}
+                </span>
+              </div>
+              <div className="text-sm font-medium text-sage-800 leading-snug mb-1.5">
+                {t('onb.welcome.trial.title')}
+              </div>
+              <p className="text-[12px] text-ink-600 leading-relaxed">
+                {t('onb.welcome.trial.body')}
+              </p>
+            </div>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -2290,7 +2308,7 @@ function Onboarding({ onComplete }) {
                 type="button"
                 onClick={complete}
                 className="flex-1 rounded-xl bg-sage-600 text-cream-50 py-3 font-medium
-                           hover:bg-sage-600 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
+                           hover:bg-sage-700 active:scale-[0.98] transition flex items-center justify-center gap-2 text-sm"
               >
                 {t('onb.welcome.start')} <ArrowRight className="w-4 h-4" />
               </button>

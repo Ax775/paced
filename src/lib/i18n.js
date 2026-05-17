@@ -1036,7 +1036,10 @@ const STRINGS = {
     'onb.welcome.nav.logboek': 'Jouw dagelijkse geschiedenis',
     'onb.welcome.nav.stats':   'Patronen in je cyclus en data',
     'onb.welcome.nav.settings':'Doelen, herinneringen en meer',
-    'onb.welcome.start':       'Begin',
+    'onb.welcome.trial.badge': '30 dagen gratis',
+    'onb.welcome.trial.title': 'Je begint met 30 dagen Premium — gratis',
+    'onb.welcome.trial.body':  'Alle functies (Voeding, Logboek, Inzichten, Charts) zitten er bij voor 30 dagen. Daarna blijft Vandaag voor altijd gratis; de rest wordt Premium. Geen automatische afschrijving, geen creditcard vooraf.',
+    'onb.welcome.start':       'Start gratis proefperiode',
 
     /* settings */
     'settings.title':            'Instellingen',
@@ -1564,7 +1567,10 @@ const STRINGS = {
     'onb.welcome.nav.logboek': 'Your daily history',
     'onb.welcome.nav.stats':   'Patterns in your cycle and data',
     'onb.welcome.nav.settings':'Goals, reminders and more',
-    'onb.welcome.start':       'Start',
+    'onb.welcome.trial.badge': '30 days free',
+    'onb.welcome.trial.title': "You're starting with 30 days of Premium — free",
+    'onb.welcome.trial.body':  'All features (Food, Journal, Insights, Charts) are included for 30 days. After that, Today stays free forever; the rest becomes Premium. No automatic charge, no card required upfront.',
+    'onb.welcome.start':       'Start free trial',
 
     'settings.title':            'Settings',
     'settings.profile':          'Profile',
@@ -1620,8 +1626,6 @@ const STRINGS = {
     'settings.validate.height':  'Height must be between 120 and 220 cm',
     'settings.version':          'Aura · v1.3',
 
-    'reset.title':   'Reset profile?',
-    'reset.body':    'Are you sure? All profile data will be erased. Daily logs will be kept.',
     'reset.title':   'Erase all data?',
     'reset.body':    'This erases your profile, all daily logs and your preferences. Cannot be undone. Confirm by typing ERASE below.',
     'reset.input.placeholder': 'Type ERASE to confirm',
