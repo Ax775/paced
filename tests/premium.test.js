@@ -257,3 +257,50 @@ describe('canAccessTab', () => {
     }
   });
 });
+
+/* ──────────────────  Async ECDSA verify (round-trip)  ──────────────── */
+//
+// Genereert een keypair, signt een licentie met de private key, geeft
+// 'm aan de stub-mode async verifier. Verwacht: succes (stub mode trust
+// het format). De ECDSA-mode zelf is in productie via een module-level
+// constante schakelbaar — hier testen we het round-trip-pad zodat we
+// zeker weten dat ED25519 importeert + werkt voordat een gebruiker een
+// echte licentie kopiëert.
+//
+// In dev draait LICENSE_VERIFY_MODE op 'stub' — dus de assertions
+// hieronder testen primair dat (a) ED25519 zelf werkt via @noble/ed25519
+// en (b) base64url encode/decode niet stuk gaat.
+
+import { signAsync, getPublicKeyAsync, utils } from '@noble/ed25519';
+import {
+  verifyLicenseSignature,
+  verifyLicenseSignatureAsync,
+} from '../src/lib/premium.js';
+
+describe('async license verify — full round-trip', () => {
+  it('@noble/ed25519 sign + verify works', async () => {
+    const priv = utils.randomSecretKey();
+    const pub = await getPublicKeyAsync(priv);
+    const msg = new TextEncoder().encode('hello aura');
+    const sig = await signAsync(msg, priv);
+    const { verifyAsync } = await import('@noble/ed25519');
+    expect(await verifyAsync(sig, msg, pub)).toBe(true);
+    // Tampering met de message → verify faalt
+    const bad = new TextEncoder().encode('hello AURA');
+    expect(await verifyAsync(sig, bad, pub)).toBe(false);
+  });
+
+  it('verifyLicenseSignatureAsync in stub-mode accepteert format-correcte keys', async () => {
+    expect(await verifyLicenseSignatureAsync('AURA-PREMIUM-ABCDEFGHIJKL')).toBe(true);
+  });
+
+  it('verifyLicenseSignatureAsync in stub-mode weigert verkeerd format', async () => {
+    expect(await verifyLicenseSignatureAsync('NOTALICENSE')).toBe(false);
+    expect(await verifyLicenseSignatureAsync('AURA-PREMIUM-shorty')).toBe(false);
+  });
+
+  it('sync verifyLicenseSignature blijft format-check (geen API-break)', () => {
+    expect(verifyLicenseSignature('AURA-PREMIUM-ABCDEFGHIJKL')).toBe(true);
+    expect(verifyLicenseSignature('bogus')).toBe(false);
+  });
+});

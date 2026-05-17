@@ -1,11 +1,14 @@
-# Aura Premium — wat ik scaffolde + wat jij moet inrichten
+# Aura Premium — alles wat klaar staat + jouw 5 stappen
 
-**Stand:** 15 mei 2026 · v1.5 · branch `feature/premium-tier-and-content`
+**Stand:** 15 mei 2026 · v1.5 · branch `feature/premium-and-content`
 
 Aura is offline-first met "geen accounts, geen server". Premium maken
 zonder die belofte te breken vereist een specifieke architectuur:
-**eenmalig betalen → ondertekende licentie offline valideren**. Hieronder
-wat er nu staat, wat jij nog moet doen, en de exacte commando's.
+**eenmalig betalen → ondertekende licentie offline valideren**.
+
+In deze branch staat álle code daarvoor klaar — inclusief de
+Cloudflare Worker. Jij hoeft alleen Stripe + Cloudflare aan te zetten
+en twee waarden in de code te plakken. Hieronder de 5 concrete stappen.
 
 ## Wat al klaar staat (client-side, in deze branch)
 

@@ -28,9 +28,11 @@ import {
   TRIAL_DAYS,
   trialDaysRemaining,
   verifyLicenseSignature,
+  verifyLicenseSignatureAsync,
   isPremium,
   premiumStatus,
   canAccessTab,
+  PREMIUM_CHECKOUT_URL,
 } from './lib/premium.js';
 import {
   loadProfile, saveProfile, clearProfile, setStorageErrorHandler,
@@ -2309,22 +2311,35 @@ function PremiumCard({ profile, onUpdateProfile, showToast }) {
   const [keyInput, setKeyInput] = useState('');
   const status = premiumStatus(profile);
 
-  const activate = () => {
+  const [activating, setActivating] = useState(false);
+  const activate = async () => {
     const trimmed = keyInput.trim();
-    if (!verifyLicenseSignature(trimmed)) {
-      showToast?.(t('premium.error.invalid'));
-      return;
+    setActivating(true);
+    try {
+      // Async verify zodat ECDSA-mode (zodra geconfigureerd) écht
+      // valideert, niet alleen het format. In stub-mode is dit één
+      // tick langer maar gedraagt zich identiek.
+      const ok = await verifyLicenseSignatureAsync(trimmed);
+      if (!ok) {
+        showToast?.(t('premium.error.invalid'));
+        return;
+      }
+      onUpdateProfile({
+        ...profile,
+        license: {
+          key:         trimmed.toUpperCase(),
+          validatedAt: new Date().toISOString(),
+          // Plan + exp later vullen vanuit de gedecodeerde payload
+          // wanneer ECDSA-mode aanstaat — sync hasValidLicense parsed
+          // 'm dan automatisch uit de key.
+          plan:        'lifetime',
+        },
+      });
+      setKeyInput('');
+      showToast?.(t('premium.activated'));
+    } finally {
+      setActivating(false);
     }
-    onUpdateProfile({
-      ...profile,
-      license: {
-        key:         trimmed.toUpperCase(),
-        validatedAt: new Date().toISOString(),
-        plan:        'lifetime',          // stub; echte plan komt uit Worker JWT
-      },
-    });
-    setKeyInput('');
-    showToast?.(t('premium.activated'));
   };
 
   const deactivate = () => {
@@ -2373,7 +2388,10 @@ function PremiumCard({ profile, onUpdateProfile, showToast }) {
             // dat dit het pad is dat naar Stripe Checkout opent zodra
             // de gebruiker dat heeft ingericht (zie docs/premium-setup.md).
             onClick={() => {
-              const url = profile?.premiumCheckoutUrl || '';
+              // Prioriteit: per-profile override (testing), dan de
+              // module-level PREMIUM_CHECKOUT_URL constante uit
+              // premium.js. Leeg = nog niet geconfigureerd → toast.
+              const url = profile?.premiumCheckoutUrl || PREMIUM_CHECKOUT_URL;
               if (url) {
                 window.open(url, '_blank', 'noopener');
               } else {
@@ -3784,7 +3802,7 @@ function UndoToast({ visible, dismissing, onUndo }) {
 /*  Bottom navigation                                                  */
 /* ------------------------------------------------------------------ */
 
-function BottomNav({ active, onSelect }) {
+function BottomNav({ active, onSelect, profile }) {
   const { t } = useT();
   const tabs = [
     { id: 'home',      labelKey: 'nav.home',     icon: Flower2   },
@@ -3801,19 +3819,35 @@ function BottomNav({ active, onSelect }) {
       {tabs.map(({ id, labelKey, icon: Icon }) => {
         const on = active === id;
         const label = t(labelKey);
+        // Basic-users zien een slot-icoontje op gated tabs. Tab blijft
+        // klikbaar — bij click toont de Paywall i.p.v. de view, met
+        // duidelijke "upgrade" CTA. We disabelen 'm niet zodat de
+        // ontdekkingsweg "wat zit hier" intact blijft.
+        const locked = !canAccessTab(id, profile);
         return (
           <button
             key={id}
             type="button"
             onClick={() => onSelect(id)}
-            aria-label={label}
+            aria-label={locked ? `${label} (Premium)` : label}
             aria-current={on ? 'page' : undefined}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] active:scale-95 ${
-              on ? 'text-sage-600' : 'text-ink-400 hover:text-ink-600'
+            className={`relative flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] active:scale-95 ${
+              on
+                ? 'text-sage-600'
+                : locked
+                  ? 'text-ink-400/50 hover:text-ink-400'
+                  : 'text-ink-400 hover:text-ink-600'
             }`}
           >
             <Icon aria-hidden="true" className="w-5 h-5" strokeWidth={on ? 2 : 1.5} />
             <span className="text-[10px] uppercase tracking-wider font-medium">{label}</span>
+            {locked && (
+              <span
+                aria-hidden="true"
+                className="absolute top-1.5 right-[28%] text-[10px] leading-none"
+                title="Premium"
+              >🔒</span>
+            )}
           </button>
         );
       })}
@@ -6227,7 +6261,7 @@ function App() {
           <LegalView onBack={() => setTab('settings')} />
         )}
       </main>
-      <BottomNav active={tab} onSelect={setTab} />
+      <BottomNav active={tab} onSelect={setTab} profile={profile} />
       <PWAInstallBanner />
       <ReminderBanner profile={profile} />
     </>

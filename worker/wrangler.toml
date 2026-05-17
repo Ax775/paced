@@ -1,0 +1,15 @@
+name = "aura-license-worker"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Plain Worker, geen Pages-functions wrapper. Deploy met:
+#   cd worker && wrangler deploy
+#
+# Secrets (zet eenmalig, leggen we hier NIET als plaintext-vars):
+#   wrangler secret put STRIPE_WEBHOOK_SECRET
+#   wrangler secret put LICENSE_PRIV_KEY
+#   wrangler secret put RESEND_API_KEY
+#
+# Plain env-vars (mag je hier zetten of via CF dashboard):
+[vars]
+LICENSE_FROM_EMAIL = "aura@example.com"   # vervang met je geverifieerde Resend-domein

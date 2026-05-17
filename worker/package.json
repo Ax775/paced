@@ -1,0 +1,17 @@
+{
+  "name": "aura-license-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev":    "wrangler dev",
+    "tail":   "wrangler tail"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^3.1.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}
