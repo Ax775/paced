@@ -4111,8 +4111,6 @@ function formatLogDate(date, isToday, t, dayName, monthShort) {
 function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, onGoToToday }) {
   const { t, dayName, monthShort, bleedingLabel, sportIntensities, phaseMeta: getPhaseMeta } = useT();
   const dateLabel = formatLogDate(date, isToday, t, dayName, monthShort);
-  const syms = log.symptoms || {};
-  const symptomsLogged = Object.entries(syms).filter(([, v]) => v > 0);
   const waterTarget = Math.max(6, Math.round(targets.hydrationL * 4));
   const ovulationMarked = !!(log.ovulation?.felt || log.ovulation?.fromTemp);
   const bleeding = log.bleeding || {};
@@ -4222,15 +4220,11 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                   <span>{bleedingSummary}</span>
                 </div>
               )}
-              {symptomsLogged.length > 0 && (
-                <div className="flex items-center gap-1 mt-2 pt-2 border-t border-cream-200/60 flex-wrap">
-                  {symptomsLogged.map(([id, val]) => (
-                    <span key={id} className="text-[10px] text-ink-500 bg-cream-100 border border-cream-200 px-1.5 py-0.5 rounded-full">
-                      {id[0].toUpperCase()}{val}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {/* Cryptische E2/M2/C5/B5-symptoombadges verwijderd:
+                  niet-zelfverklarend en confronteerde gebruikers met
+                  rauwe data-codes zonder uitleg. Symptoom-detail blijft
+                  zichtbaar op het "Vandaag"-scherm waar de invoer
+                  gebeurt, en in Inzichten met juiste labels. */}
               {log.note ? (
                 <div className="text-[11px] text-ink-400/80 italic mt-1 line-clamp-2">"{log.note}"</div>
               ) : null}
@@ -5358,6 +5352,12 @@ function TipVanDeDag({ phase, log, goals, targets, name }) {
   const tipFn = phaseTips[dayOfWeek % phaseTips.length];
 
   const displayName = name ? name.split(' ')[0] : '';
+  // De tip-templates gebruiken {namePart} — een prefix die ofwel leeg
+  // is (geen naam) ofwel ", Anna" (met komma + spatie). Zo blijft de
+  // zin grammaticaal: "Je sliep gisteren 6 uur." vs. "Je sliep gisteren
+  // 6 uur, Anna.". Voorheen werd `{ name }` doorgegeven — wat de
+  // {namePart}-tokens letterlijk in de tekst liet staan.
+  const namePart = displayName ? `, ${displayName}` : '';
   let tip = tipFn(displayName);
 
   const yLog = useMemo(() => {
@@ -5372,15 +5372,15 @@ function TipVanDeDag({ phase, log, goals, targets, name }) {
 
   // Contextual override: pick the most actionable tip from yesterday's data.
   if (yLog.sleep > 0 && yLog.sleep < sleepTarget - 1.5) {
-    tip = t('tip.sleepLow', { name: displayName, h: yLog.sleep });
+    tip = t('tip.sleepLow', { namePart, h: yLog.sleep });
   } else if (yLog.symptoms?.mood > 0 && yLog.symptoms.mood <= 2) {
-    tip = t('tip.moodLow', { name: displayName });
+    tip = t('tip.moodLow', { namePart });
   } else if (yLog.symptoms?.cramps > 0 && yLog.symptoms.cramps <= 2) {
-    tip = t('tip.cramps', { name: displayName });
+    tip = t('tip.cramps', { namePart });
   } else if (yLog.movement > 0 && yLog.movement < movementTarget * 0.5) {
-    tip = t('tip.movementLow', { name: displayName, min: movementTarget });
+    tip = t('tip.movementLow', { namePart, min: movementTarget });
   } else if (yLog.protein > 0 && yLog.protein < proteinTarget * 0.7) {
-    tip = t('tip.proteinLow', { name: displayName, target: proteinTarget });
+    tip = t('tip.proteinLow', { namePart, target: proteinTarget });
   } else if (yLog.hydration > 0 && yLog.hydration * 250 < hydrationTarget * 0.7) {
     const litres = (hydrationTarget / 1000).toFixed(1);
     tip = t('tip.hydrationLow', { actual: (yLog.hydration * 0.25).toFixed(1), target: litres });
