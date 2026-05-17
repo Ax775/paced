@@ -2927,6 +2927,8 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         <div className="space-y-1">
           {[
             { id: 'goalRings',       label: 'Voortgangs-ringen' },
+            { id: 'metabolism',      label: t('metabolism.title') },
+            { id: 'superpowers',     label: t('superpowers.title') },
             { id: 'symptoms',        label: t('symptoms.title') },
             { id: 'todayNutrition',  label: t('nutrition.today') },
             { id: 'wellbeing',       label: t('wellbeing.title') },
