@@ -178,6 +178,15 @@ export function emptyLog() {
     // het onderscheid zien met "expliciet 1 (slecht)".
     energie:    null,    // null | 1..5
     stemming:   null,    // null | 1..5
+    // Vijf extra dimensies — toegevoegd in v1.5 om patronen tussen
+    // cyclus-fases en cognitieve/sociale ervaring te kunnen tonen.
+    // Allemaal 1..5 schaal of null; null = "niet ingevuld" zodat
+    // statistiek-aggregatie ongeloggde dagen kan negeren.
+    focus:        null,  // null | 1..5  (1=mistig, 5=helder)
+    social:       null,  // null | 1..5  (1=leeg/op, 5=zin in mensen)
+    stressLevel:  null,  // null | 1..5  (1=heel rustig, 5=overprikkeld)
+    sleepQuality: null,  // null | 1..5  (1=onrustig, 5=diep + uitgerust)
+    libido:       null,  // null | 1..5  (1=afwezig, 5=hoog)
     symptomen:  [],      // ['Buikkrampen', 'Hoofdpijn', …]
     gut: {
       probiotics: false,
@@ -235,6 +244,16 @@ function num(v, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+// 1..5 self-rating of null. Een corrupt log met `focus: 99` of
+// `social: "high"` mag de UI niet als een geldige waarde tonen.
+function scale5(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  const r = Math.round(n);
+  return r >= 1 && r <= 5 ? r : null;
+}
+
 export function loadLog(date = new Date()) {
   try {
     const raw = localStorage.getItem(logKey(date));
@@ -259,6 +278,14 @@ export function loadLog(date = new Date()) {
       note: typeof parsed.note === 'string' ? parsed.note.slice(0, 280) : '',
       meals:     Array.isArray(parsed.meals)     ? parsed.meals.slice(0, 50)     : [],
       symptomen: Array.isArray(parsed.symptomen) ? parsed.symptomen.slice(0, 20) : [],
+      // 1..5 self-rating dimensies — clamp + null-fallback
+      energie:      scale5(parsed.energie),
+      stemming:     scale5(parsed.stemming),
+      focus:        scale5(parsed.focus),
+      social:       scale5(parsed.social),
+      stressLevel:  scale5(parsed.stressLevel),
+      sleepQuality: scale5(parsed.sleepQuality),
+      libido:       scale5(parsed.libido),
       gut:       { ...base.gut,       ...safeObj(parsed.gut)       },
       symptoms:  { ...base.symptoms,  ...safeObj(parsed.symptoms)  },
       ovulation: { ...base.ovulation, ...safeObj(parsed.ovulation) },

@@ -23,7 +23,15 @@ import {
   predictNextPeriod, getFertileWindow, getFertilityStatus, atMidnight,
   daysBetween, getOverdueDays,
 } from './lib/cycle.js';
-import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
+import { getDailyTargets, ACTIVITY_LEVELS, activityMultiplier } from './lib/nutrition.js';
+import {
+  TRIAL_DAYS,
+  trialDaysRemaining,
+  verifyLicenseSignature,
+  isPremium,
+  premiumStatus,
+  canAccessTab,
+} from './lib/premium.js';
 import {
   loadProfile, saveProfile, clearProfile, setStorageErrorHandler,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
@@ -924,8 +932,16 @@ function SectionInfoModal({ title, body, onClose }) {
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
-        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0">
-          <p className="text-sm text-ink-600 leading-relaxed">{body}</p>
+        <div className="px-6 py-5 overflow-y-auto flex-1 min-h-0 space-y-3">
+          {/* Split op dubbele-newline zodat een gestructureerd body
+              ('intro\n\n• punt 1\n• punt 2') leesbaar gerenderd
+              wordt ipv één wall-of-text. Backward compatible: bodies
+              zonder dubbele-newline renderen gewoon als één paragraaf. */}
+          {String(body || '').split(/\n\n+/).map((para, i) => (
+            <p key={i} className="text-sm text-ink-600 leading-relaxed whitespace-pre-line">
+              {para}
+            </p>
+          ))}
         </div>
       </div>
     </div>
@@ -938,7 +954,12 @@ function SectionInfoButton({ title, body }) {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        // stopPropagation extra defense-in-depth: de wrapper-div in
+        // CollapsibleCard heeft 'm al, maar iOS Safari laat soms een
+        // pointer-event door als de child een button is. Beide zetten
+        // = zekerheid dat tap-(i) niet de fold/uitklap toggelt.
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        onPointerDown={(e) => e.stopPropagation()}
         aria-label={`Info: ${title}`}
         className="relative inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full text-ink-400 hover:text-ink-600 active:scale-95 transition"
       >
@@ -1000,6 +1021,48 @@ function GutChecklist({ gut, onToggle }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Generic 1–5 self-rating row                                        */
+/* ------------------------------------------------------------------ */
+//
+// Compacte 5-knops schaal voor subjectieve dimensies (focus, sociale
+// batterij, stress, slaapkwaliteit, libido). Tikt 2× op dezelfde
+// waarde wist 'm naar null — consistent met SymptomTracker. Anchor-
+// labels onder de schaal helpen "wat is 1 vs 5?".
+
+function WellbeingScaleRow({ label, lowLabel, highLabel, value, onChange }) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2">{label}</div>
+      <div className="flex gap-1.5">
+        {[1, 2, 3, 4, 5].map((n) => {
+          const active = value === n;
+          return (
+            <button
+              key={n}
+              type="button"
+              aria-label={`${label}: ${n} van 5`}
+              aria-pressed={active}
+              onClick={() => onChange(active ? null : n)}
+              className={`flex-1 min-h-[40px] py-2 rounded-lg border text-sm transition active:scale-95 ${
+                active
+                  ? 'bg-sage-100 border-sage-300 text-sage-700 font-semibold'
+                  : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
+              }`}
+            >
+              {n}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex justify-between text-[10px] text-ink-400 mt-1.5">
+        <span>{lowLabel}</span>
+        <span>{highLabel}</span>
+      </div>
     </div>
   );
 }
@@ -2241,6 +2304,132 @@ function Onboarding({ onComplete }) {
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
+function PremiumCard({ profile, onUpdateProfile, showToast }) {
+  const { t } = useT();
+  const [keyInput, setKeyInput] = useState('');
+  const status = premiumStatus(profile);
+
+  const activate = () => {
+    const trimmed = keyInput.trim();
+    if (!verifyLicenseSignature(trimmed)) {
+      showToast?.(t('premium.error.invalid'));
+      return;
+    }
+    onUpdateProfile({
+      ...profile,
+      license: {
+        key:         trimmed.toUpperCase(),
+        validatedAt: new Date().toISOString(),
+        plan:        'lifetime',          // stub; echte plan komt uit Worker JWT
+      },
+    });
+    setKeyInput('');
+    showToast?.(t('premium.activated'));
+  };
+
+  const deactivate = () => {
+    onUpdateProfile({ ...profile, license: undefined });
+    showToast?.(t('premium.deactivated'));
+  };
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[11px] uppercase tracking-[0.18em] text-ink-400">{t('premium.title')}</span>
+        <span
+          className={`text-[10px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-full ${
+            status === 'premium' ? 'bg-sage-100 text-sage-800' :
+            status === 'trial'   ? 'bg-cream-100 text-ink-600' :
+                                   'bg-terracotta-100 text-terracotta-700'
+          }`}
+        >
+          {t(`premium.status.${status}`)}
+        </span>
+      </div>
+
+      {status === 'trial' && (
+        <p className="text-sm text-ink-600 leading-relaxed mb-4">
+          {t('premium.trial.body', { n: trialDaysRemaining(profile) })}
+        </p>
+      )}
+      {status === 'basic' && (
+        <p className="text-sm text-ink-600 leading-relaxed mb-4">
+          {t('premium.basic.body')}
+        </p>
+      )}
+      {status === 'premium' && (
+        <p className="text-sm text-ink-600 leading-relaxed mb-4">
+          {t('premium.activated.body', {
+            plan: profile?.license?.plan || 'lifetime',
+          })}
+        </p>
+      )}
+
+      {status !== 'premium' && (
+        <>
+          <button
+            type="button"
+            // Stub — er is geen Stripe-koppeling yet. Wel duidelijk
+            // dat dit het pad is dat naar Stripe Checkout opent zodra
+            // de gebruiker dat heeft ingericht (zie docs/premium-setup.md).
+            onClick={() => {
+              const url = profile?.premiumCheckoutUrl || '';
+              if (url) {
+                window.open(url, '_blank', 'noopener');
+              } else {
+                showToast?.(t('premium.checkout.notConfigured'));
+              }
+            }}
+            className="w-full mb-4 rounded-xl py-3.5 font-medium text-sm bg-sage-600 text-cream-50 hover:bg-sage-700 active:scale-[0.98] transition flex items-center justify-center gap-2"
+          >
+            {t('premium.upgrade.cta')}
+          </button>
+
+          <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-2">
+            {t('premium.activate.label')}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+              placeholder={t('premium.activate.placeholder')}
+              aria-label={t('premium.activate.aria')}
+              autoCapitalize="characters"
+              autoComplete="off"
+              spellCheck={false}
+              className="flex-1 min-h-[44px] px-3 py-2.5 rounded-lg border border-cream-300 bg-white text-sm text-ink-700 placeholder-ink-400/60 focus:outline-none focus:border-sage-300 focus:ring-2 focus:ring-sage-200/60"
+            />
+            <button
+              type="button"
+              onClick={activate}
+              disabled={!keyInput.trim()}
+              aria-disabled={!keyInput.trim()}
+              className={`shrink-0 px-4 min-h-[44px] rounded-lg text-sm font-medium transition ${
+                keyInput.trim()
+                  ? 'bg-sage-600 text-cream-50 hover:bg-sage-700 active:scale-[0.98]'
+                  : 'bg-cream-200 text-ink-400 cursor-not-allowed'
+              }`}
+            >
+              {t('premium.activate.btn')}
+            </button>
+          </div>
+        </>
+      )}
+
+      {status === 'premium' && (
+        <button
+          type="button"
+          onClick={deactivate}
+          className="text-[12px] text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition py-2 min-h-[36px]"
+        >
+          {t('premium.deactivate')}
+        </button>
+      )}
+    </Card>
+  );
+}
+
 function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onThemeChange, onOpenLegal }) {
   const { t, locale, setLocale, activityMeta } = useT();
   const [form, setForm] = useState({
@@ -2789,6 +2978,9 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         {saved ? <><Check className="w-4 h-4" /> {t('settings.save')} ✓</> : t('settings.save')}
       </button>
 
+      {/* Aura Premium — status + licentie invoer */}
+      <PremiumCard profile={profile} onUpdateProfile={onSave} showToast={showToast} />
+
       {/* Export */}
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('settings.export')}</div>
@@ -3210,6 +3402,13 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
   const setSleep    = (h)    => updateLog({ sleep: h });
   const setMovement = (m)    => updateLog({ movement: m });
   const setNote     = (txt)  => updateLog({ note: txt });
+  // Self-rated wellbeing dimensies (v1.5+). Null = niet ingevuld;
+  // 1..5 = expliciet gerapporteerd. Patroon-aggregatie negeert nulls.
+  const setFocus        = (n) => updateLog({ focus: n });
+  const setSocial       = (n) => updateLog({ social: n });
+  const setStressLevel  = (n) => updateLog({ stressLevel: n });
+  const setSleepQuality = (n) => updateLog({ sleepQuality: n });
+  const setLibido       = (n) => updateLog({ libido: n });
   const setTemperature  = (t)    => updateLog({ temperature: t });
   const setSportIntensity = (id) => updateLog({ sportIntensity: id });
 
@@ -3249,6 +3448,9 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
           </button>
         </div>
       </header>
+
+      {/* Trial banner — verschijnt alleen tijdens proefperiode */}
+      <TrialBanner profile={profile} onUpgrade={onOpenSettings} />
 
       {/* Day summary — compact above-the-fold progress */}
       <DaySummaryStrip
@@ -3312,6 +3514,10 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
 
       {/* Goal progress rings */}
       {!hidden.has('goalRings') && <GoalRings log={log} goals={profile.goals} targets={targets} />}
+
+      {/* Metabolisme deze fase — educatief, alleen relevant als
+          leeftijd/gewicht/lengte bekend zijn (anders is BMR 0). */}
+      {!hidden.has('metabolism') && <MetabolismCard profile={profile} state={state} targets={targets} />}
 
       {/* Symptom tracker */}
       {!hidden.has('symptoms') && <SymptomTracker log={log} onUpdate={updateLog} />}
@@ -3389,7 +3595,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
         </div>
       </CollapsibleCard>}
 
-      {/* Wellbeing — sleep + movement */}
+      {/* Wellbeing — slaap + beweging + 5 subjectieve dimensies */}
       {!hidden.has('wellbeing') && <CollapsibleCard
         id="wellbeing"
         title={t('wellbeing.title')}
@@ -3401,8 +3607,50 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
           <SleepTracker hours={log.sleep} onChange={setSleep} />
           <div className="h-px bg-cream-200/70" />
           <MovementTracker minutes={log.movement} onChange={setMovement} phase={state.phase} />
+          <div className="h-px bg-cream-200/70" />
+          {/* Subjectieve dimensies — laat patronen tussen fase en
+              ervaring zien wanneer de gebruikster ze invult. Vrijwillig,
+              null = niet beoordeeld (telt niet mee in aggregatie). */}
+          <WellbeingScaleRow
+            label={t('wb.focus')}
+            lowLabel={t('wb.focus.low')}
+            highLabel={t('wb.focus.high')}
+            value={log.focus}
+            onChange={setFocus}
+          />
+          <WellbeingScaleRow
+            label={t('wb.social')}
+            lowLabel={t('wb.social.low')}
+            highLabel={t('wb.social.high')}
+            value={log.social}
+            onChange={setSocial}
+          />
+          <WellbeingScaleRow
+            label={t('wb.stress')}
+            lowLabel={t('wb.stress.low')}
+            highLabel={t('wb.stress.high')}
+            value={log.stressLevel}
+            onChange={setStressLevel}
+          />
+          <WellbeingScaleRow
+            label={t('wb.sleepQuality')}
+            lowLabel={t('wb.sleepQuality.low')}
+            highLabel={t('wb.sleepQuality.high')}
+            value={log.sleepQuality}
+            onChange={setSleepQuality}
+          />
+          <WellbeingScaleRow
+            label={t('wb.libido')}
+            lowLabel={t('wb.libido.low')}
+            highLabel={t('wb.libido.high')}
+            value={log.libido}
+            onChange={setLibido}
+          />
         </div>
       </CollapsibleCard>}
+
+      {/* Cyclus-superkrachten — beste fase per activiteit */}
+      {!hidden.has('superpowers') && <CycleSuperpowersCard state={state} />}
 
       {/* Tip van de dag */}
       <TipVanDeDag phase={state.phase} log={log} goals={profile.goals} targets={targets} name={profile.name} />
@@ -4433,6 +4681,139 @@ function GoalRings({ log, goals, targets }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Cyclus-superkrachten — "best phase for X"                          */
+/* ------------------------------------------------------------------ */
+//
+// Vertaalt de cyclus-engine in praktische planning-suggesties. Geen
+// medische claim, geen voorschrift — alleen: "rond deze fase voelen
+// veel vrouwen zich het beste op X". Onderliggende heuristiek volgt
+// het ratio-model in `buildPhaseMap` zodat ook bij niet-28-daagse
+// cycli de juiste fase-dagen worden getoond.
+//
+// 5 activiteiten, mapped op fase:
+//   deepwork → late folliculair → ovulatie (oestrogeen-piek)
+//   social   → ovulatie
+//   creative → folliculair (frisheid + risico nemen)
+//   rest     → menstruatie (eer de behoefte aan rust)
+//   training → ovulatie + folliculair (kracht + herstel)
+
+const SUPERPOWER_MAP = [
+  { key: 'deepwork',  phase: PHASES.OVULATORY,  icon: '🎯' },
+  { key: 'social',    phase: PHASES.OVULATORY,  icon: '✨' },
+  { key: 'creative',  phase: PHASES.FOLLICULAR, icon: '🌱' },
+  { key: 'rest',      phase: PHASES.MENSTRUAL,  icon: '🌙' },
+  { key: 'training',  phase: PHASES.OVULATORY,  icon: '💪' },
+];
+
+function CycleSuperpowersCard({ state }) {
+  const { t, phaseMeta } = useT();
+  if (!state?.phaseMap || !state.cycleLength) return null;
+
+  // Map phase → { startDay, endDay } uit de phaseMap zodat we accurate
+  // dagen tonen voor de gebruikster's eigen cycluslengte.
+  const slotByPhase = {};
+  for (const slot of state.phaseMap) slotByPhase[slot.phase] = slot;
+
+  return (
+    <CollapsibleCard
+      id="superpowers"
+      title={t('superpowers.title')}
+      className="mb-5"
+    >
+      <p className="text-[12px] text-ink-500 mb-4 leading-relaxed">
+        {t('superpowers.subtitle')}
+      </p>
+      <div className="space-y-2">
+        {SUPERPOWER_MAP.map(({ key, phase, icon }) => {
+          const slot = slotByPhase[phase];
+          if (!slot) return null;
+          const isNow = state.phase === phase;
+          const meta = phaseMeta(phase);
+          return (
+            <div
+              key={key}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
+                isNow
+                  ? 'bg-sage-50 border-sage-200'
+                  : 'bg-cream-50 border-cream-200'
+              }`}
+            >
+              <span className="text-xl shrink-0" aria-hidden="true">{icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium text-ink-700">
+                  {t(`superpowers.${key}`)}
+                </div>
+                <div className="text-[11px] text-ink-400 mt-0.5">
+                  {meta.label} · {t('superpowers.daysLabel', { start: slot.startDay, end: slot.endDay })}
+                  {isNow && <span className="text-sage-700 font-medium">{t('superpowers.now')}</span>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </CollapsibleCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Metabolisme deze fase                                              */
+/* ------------------------------------------------------------------ */
+//
+// Educatieve kaart die laat zien dat de standaard "1 BMR / dag" formule
+// die je in fitness-apps ziet, voor vrouwen niet klopt — je metabolisme
+// is cyclisch. Toont de berekende BMR + TDEE + fase-delta uit de
+// nutrition-engine, en een korte uitleg over het leeftijds-effect dat
+// Mifflin-St Jeor automatisch meeneemt. Volledige uitleg in de (i).
+
+function MetabolismCard({ profile, state, targets }) {
+  const { t } = useT();
+  // Render niet als er geen leeftijd/gewicht/lengte is — dan is BMR 0
+  // en is de kaart misleidend.
+  if (!profile?.age || !profile?.weightKg || !profile?.heightCm) return null;
+
+  const phaseKey = state?.phase || 'follicular';
+  const deltaKey = `metabolism.delta.${phaseKey}`;
+  const bmr = Math.round((targets.baseTDEE || 0) / activityMultiplier(profile.activityLevel || 'sedentary'));
+  const delta = targets.calorieDelta;
+
+  return (
+    <CollapsibleCard
+      id="metabolism"
+      title={t('metabolism.title')}
+      infoButton={<SectionInfoButton title={t('metabolism.title')} body={t('metabolism.info')} />}
+      className="mb-5"
+    >
+      <div className="space-y-3">
+        <div className="flex items-baseline justify-between">
+          <span className="text-[12px] text-ink-500">{t('metabolism.bmr.label')}</span>
+          <span className="font-display text-[17px] text-ink-700">{bmr} <span className="text-xs text-ink-400">kcal</span></span>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <span className="text-[12px] text-ink-500">{t('metabolism.tdee.label')}</span>
+          <span className="font-display text-[17px] text-ink-700">{targets.baseTDEE} <span className="text-xs text-ink-400">kcal</span></span>
+        </div>
+        <div className="flex items-baseline justify-between">
+          <span className="text-[12px] text-ink-500">{t('metabolism.delta.label')}</span>
+          <span className={`font-display text-[17px] ${delta > 0 ? 'text-sage-700' : 'text-ink-700'}`}>
+            {delta > 0 ? `+${delta}` : '0'} <span className="text-xs text-ink-400">kcal</span>
+          </span>
+        </div>
+        <p className="text-[13px] text-ink-600 leading-relaxed pt-1 border-t border-cream-200">
+          {t(deltaKey)}
+        </p>
+        {profile.age >= 30 && (
+          <div className="mt-3 px-3 py-2.5 rounded-lg bg-cream-100/70 border border-cream-200">
+            <div className="text-[11px] uppercase tracking-[0.14em] text-ink-400 mb-1">{t('metabolism.age.title')}</div>
+            <p className="text-[12px] text-ink-500 leading-relaxed">{t('metabolism.age.body')}</p>
+          </div>
+        )}
+      </div>
+    </CollapsibleCard>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Fertility-window awareness                                         */
 /* ------------------------------------------------------------------ */
 
@@ -5445,6 +5826,84 @@ class ErrorBoundary extends React.Component {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Paywall — verschijnt in plaats van premium-tabs voor basic users    */
+/* ------------------------------------------------------------------ */
+//
+// Twee redenen waarom we de Settings-tab níét gaten: (a) gebruikster
+// moet altijd haar licentie kunnen invoeren, (b) ze moet altijd haar
+// data kunnen exporteren of wissen (AVG-rechten). Home blijft open
+// als basic-functionaliteit. Voeding/Logboek/Inzichten zijn premium.
+
+function Paywall({ tabId, onUpgrade, onBack }) {
+  const { t } = useT();
+  return (
+    <main id="main" className="min-h-dvh flex items-center justify-center px-5 py-10">
+      <div className="w-full max-w-md">
+        <div className="rounded-xl3 bg-cream-50/95 backdrop-blur-sm shadow-glow border border-cream-200/60 p-7 anim-fade-up text-center">
+          <div className="text-4xl mb-4" aria-hidden="true">🔒</div>
+          <h1 className="font-display text-[26px] text-ink-700 leading-tight mb-3">
+            {t('paywall.title')}
+          </h1>
+          <p className="text-sm text-ink-600 leading-relaxed mb-5">
+            {t(`paywall.body.${tabId}`)}
+          </p>
+          <ul className="text-sm text-ink-600 text-left space-y-1.5 mb-6">
+            <li>{t('paywall.bullet.voeding')}</li>
+            <li>{t('paywall.bullet.logboek')}</li>
+            <li>{t('paywall.bullet.stats')}</li>
+            <li>{t('paywall.bullet.charts')}</li>
+          </ul>
+          <button
+            type="button"
+            onClick={onUpgrade}
+            className="w-full rounded-xl py-3.5 font-medium text-sm bg-sage-600 text-cream-50 hover:bg-sage-700 active:scale-[0.98] transition flex items-center justify-center gap-2 mb-3"
+          >
+            {t('paywall.upgrade')}
+            <ArrowRight className="w-4 h-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onBack}
+            className="w-full py-2 min-h-[44px] text-sm text-ink-500 hover:text-ink-700 underline decoration-dotted underline-offset-4"
+          >
+            {t('paywall.back')}
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Trial banner — toont resterende dagen in de trial-periode          */
+/* ------------------------------------------------------------------ */
+
+function TrialBanner({ profile, onUpgrade }) {
+  const { t } = useT();
+  const status = premiumStatus(profile);
+  if (status !== 'trial') return null;
+  const days = trialDaysRemaining(profile);
+  return (
+    <div className="mb-5 px-4 py-3 rounded-xl bg-sage-50 border border-sage-200 flex items-center gap-3 anim-fade-up">
+      <span aria-hidden="true" className="text-base">⏳</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[12px] font-medium text-sage-800">
+          {t('trial.banner.title', { n: days })}
+        </div>
+        <div className="text-[11px] text-sage-700/80 mt-0.5">{t('trial.banner.body')}</div>
+      </div>
+      <button
+        type="button"
+        onClick={onUpgrade}
+        className="shrink-0 px-3 py-2 min-h-[36px] rounded-lg bg-sage-600 text-cream-50 text-[12px] font-medium hover:bg-sage-700 transition"
+      >
+        {t('trial.banner.cta')}
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Consent gate — AVG art. 9 expliciete toestemming                   */
 /* ------------------------------------------------------------------ */
 
@@ -5624,12 +6083,18 @@ function App() {
     return (
       <ConsentGate
         onAccept={() => {
+          const nowIso = new Date().toISOString();
           const next = {
             ...profile,
             consent: {
-              givenAt: new Date().toISOString(),
+              givenAt: nowIso,
               version: CONSENT_VERSION,
             },
+            // Seed trial-start. Bestaande gebruikers van vóór v1.5
+            // krijgen 'm hier voor het eerst gezet — gaan dus mee in
+            // de 30-dagen trial vanaf nu. Eenmaal gezet nooit meer
+            // overschreven (zie spread-volgorde hieronder).
+            firstLaunchAt: profile.firstLaunchAt || nowIso,
           };
           saveProfile(next);
           setProfile(next);
@@ -5725,12 +6190,26 @@ function App() {
             onOpenVoeding={() => setTab('voeding')}
           />
         )}
-        {tab === 'voeding' && <VoedingView profile={profile} />}
-        {tab === 'logboek' && (
-          <LogboekView profile={profile} onGoHome={() => setTab('home')} />
+        {tab === 'voeding' && (
+          canAccessTab('voeding', profile)
+            ? <VoedingView profile={profile} />
+            : <Paywall tabId="voeding" onUpgrade={() => setTab('settings')} onBack={() => setTab('home')} />
         )}
-        {tab === 'stats' && <InsightsView profile={profile} onOpenCharts={() => setTab('charts')} />}
-        {tab === 'charts' && <AllChartsView profile={profile} onBack={() => setTab('stats')} />}
+        {tab === 'logboek' && (
+          canAccessTab('logboek', profile)
+            ? <LogboekView profile={profile} onGoHome={() => setTab('home')} />
+            : <Paywall tabId="logboek" onUpgrade={() => setTab('settings')} onBack={() => setTab('home')} />
+        )}
+        {tab === 'stats' && (
+          canAccessTab('stats', profile)
+            ? <InsightsView profile={profile} onOpenCharts={() => setTab('charts')} />
+            : <Paywall tabId="stats" onUpgrade={() => setTab('settings')} onBack={() => setTab('home')} />
+        )}
+        {tab === 'charts' && (
+          canAccessTab('charts', profile)
+            ? <AllChartsView profile={profile} onBack={() => setTab('stats')} />
+            : <Paywall tabId="charts" onUpgrade={() => setTab('settings')} onBack={() => setTab('home')} />
+        )}
         {tab === 'settings' && (
           <SettingsScreen
             profile={profile}
