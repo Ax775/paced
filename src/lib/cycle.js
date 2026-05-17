@@ -247,14 +247,25 @@ export function toISODate(input = new Date()) {
  * Returns an array of `{ phase, startDay, endDay, length }` where day 1
  * is the first day of bleeding.
  *
- * Menstrual length stays fixed (5 days) — bleeds don't usually scale
- * with cycle length. The remaining 23 reference days are redistributed
- * proportionally across Follicular / Ovulatory / Luteal.
+ * `mensDuration` is the user's actual typical bleed length (2..10).
+ * Bleed length is biologically independent of cycle length — a 35-day
+ * cycler doesn't bleed longer than a 25-day cycler — so we don't scale
+ * it. When omitted, falls back to the 5-day reference. The remaining
+ * days are redistributed proportionally across Follicular / Ovulatory /
+ * Luteal so a shorter or longer bleed doesn't break the rest of the map.
  */
-export function buildPhaseMap(cycleLength) {
+export function buildPhaseMap(cycleLength, mensDuration) {
   const len = clampCycleLength(cycleLength);
-  const menstrual = REFERENCE_28[PHASES.MENSTRUAL];
-  const remaining = len - menstrual;
+  // Clamp to the same 2..10 range the Settings stepper enforces, so the
+  // engine can't be poisoned by a corrupted profile value (e.g. 0 or 99).
+  const rawMens = Number(mensDuration);
+  const menstrual = Number.isFinite(rawMens)
+    ? Math.min(10, Math.max(2, Math.round(rawMens)))
+    : REFERENCE_28[PHASES.MENSTRUAL];
+  // Never let the bleed eat the entire cycle — keep at least 6 days for
+  // the other three phases (folliculair gets ~3, ovulation ≥2, luteal ≥1).
+  const safeMens  = Math.min(menstrual, Math.max(2, len - 6));
+  const remaining = len - safeMens;
 
   // Proportional share of the non-menstrual days.
   const nonMenstrualRef =
@@ -273,7 +284,7 @@ export function buildPhaseMap(cycleLength) {
   const luteal = remaining - follicular - ovulatory;
 
   const lengths = {
-    [PHASES.MENSTRUAL]:  menstrual,
+    [PHASES.MENSTRUAL]:  safeMens,
     [PHASES.FOLLICULAR]: follicular,
     [PHASES.OVULATORY]:  ovulatory,
     [PHASES.LUTEAL]:     luteal,
@@ -297,8 +308,8 @@ export function buildPhaseMap(cycleLength) {
 }
 
 /** Given a cycle-day (1..len), return the matching phase. */
-export function phaseForCycleDay(cycleDay, cycleLength) {
-  const map = buildPhaseMap(cycleLength);
+export function phaseForCycleDay(cycleDay, cycleLength, mensDuration) {
+  const map = buildPhaseMap(cycleLength, mensDuration);
   for (const slot of map) {
     if (cycleDay >= slot.startDay && cycleDay <= slot.endDay) return slot.phase;
   }
@@ -342,8 +353,10 @@ export function currentCycleDay(lastPeriodStart, cycleLength, today = new Date()
  * @param {Date}        [today]                  Override for testing
  */
 export function getCycleState(profile, today = new Date()) {
-  const cycleLength = clampCycleLength(profile?.cycleLength ?? 28);
-  const start       = profile?.lastPeriodStart;
+  const cycleLength  = clampCycleLength(profile?.cycleLength ?? 28);
+  const mensDuration = profile?.mensDuration;
+  const start        = profile?.lastPeriodStart;
+  const periodEndISO = profile?.lastPeriodEnd ? toISODate(profile.lastPeriodEnd) : null;
 
   if (!start) {
     // No period data yet — fall back to a neutral follicular-ish view
@@ -353,16 +366,26 @@ export function getCycleState(profile, today = new Date()) {
       cycleDay:       null,
       phase:          PHASES.FOLLICULAR,
       phaseMeta:      PHASE_META[PHASES.FOLLICULAR],
-      phaseMap:       buildPhaseMap(cycleLength),
+      phaseMap:       buildPhaseMap(cycleLength, mensDuration),
       daysUntilNext:  null,
       progressPct:    0,
       hasData:        false,
     };
   }
 
-  const cycleDay = currentCycleDay(start, cycleLength, today);
-  const phase    = phaseForCycleDay(cycleDay, cycleLength);
-  const phaseMap = buildPhaseMap(cycleLength);
+  const cycleDay   = currentCycleDay(start, cycleLength, today);
+  let   phase      = phaseForCycleDay(cycleDay, cycleLength, mensDuration);
+  const phaseMap   = buildPhaseMap(cycleLength, mensDuration);
+
+  // Per-cycle override: if the user explicitly marked her period as
+  // ended (via "Menstruatie afgelopen") and today is strictly past that
+  // date, force-promote the phase out of MENSTRUAL into FOLLICULAR.
+  // The engine's mensDuration is her *typical* bleed; this respects
+  // what actually happened *this* cycle without re-training the average.
+  if (phase === PHASES.MENSTRUAL && periodEndISO) {
+    const todayISO = toISODate(today);
+    if (todayISO > periodEndISO) phase = PHASES.FOLLICULAR;
+  }
 
   return {
     cycleLength,
@@ -455,6 +478,113 @@ export function logPeriodStart(profile, today = new Date()) {
     ...profile,
     periodHistory:    history,
     lastPeriodStart:  dateISO,
+    // Nieuwe cyclus → eventuele vorige "menstruatie-afgelopen"-marker
+    // is irrelevant geworden. Zou-ie blijven staan dan zou de engine
+    // direct vanaf cycle-day 1 al uit MENSTRUAL springen omdat
+    // todayISO > oude lastPeriodEnd. Daarom hier wissen.
+    lastPeriodEnd:    null,
+    cycleLength,
+  };
+}
+
+/**
+ * Pure profile transform: "my period actually ended on this day".
+ *
+ * Stores the end-of-bleed date on the profile so `getCycleState` can
+ * promote the phase out of MENSTRUAL early — without messing with the
+ * user's *typical* `mensDuration` setting. The engine treats
+ * `mensDuration` as the average over many cycles; `lastPeriodEnd` is
+ * the per-cycle truth for *this* bleed.
+ *
+ * Validates that the end-date is on or after the start of the current
+ * bleed (a period can't end before it started) — silently no-ops if not.
+ *
+ * @returns {object} possibly the same profile (no-op) or a new one
+ */
+export function markPeriodEnded(profile, today = new Date()) {
+  if (!profile) return profile;
+  const endISO = toISODate(today);
+  const startISO = profile.lastPeriodStart ? toISODate(profile.lastPeriodStart) : null;
+  // Bescherm tegen "einde vóór start" — kan gebeuren als de gebruiker
+  // eerst zonder lastPeriodStart een einde markeert, of als ze een veel
+  // oudere datum kiest. Stille no-op: het UI valideert ook, maar de
+  // pure logica heeft een eigen barrière nodig.
+  if (!startISO || endISO < startISO) return profile;
+  if (profile.lastPeriodEnd === endISO) return profile;
+  return { ...profile, lastPeriodEnd: endISO };
+}
+
+/**
+ * Inverse: wis een eerder geplaatste "menstruatie-afgelopen"-marker.
+ * Gebruikt door de "ongedaan maken"-link naast de afgelopen-knop.
+ */
+export function clearPeriodEnd(profile) {
+  if (!profile || !profile.lastPeriodEnd) return profile;
+  return { ...profile, lastPeriodEnd: null };
+}
+
+/**
+ * Edit the start date of the most recent bleed in one transaction.
+ *
+ * Use this when a user logged "today" but realises her period started
+ * yesterday (or three days ago). Naïef zou je `unlog` + `log` chainen,
+ * maar de `SAME_PERIOD_GUARD_DAYS` in `logPeriodStart` zou het opnieuw
+ * loggen kunnen blokkeren als de verschuiving klein is. Deze functie
+ * vervangt eenvoudigweg de meest recente entry in `periodHistory` met
+ * de nieuwe datum.
+ *
+ * Silently no-ops on:
+ *  - future dates (a period can't start in the future)
+ *  - empty / missing periodHistory + no lastPeriodStart
+ *  - identical date (same as current)
+ *  - dates earlier than the second-most-recent entry (would re-order
+ *    history; user should use the calendar's per-day edit for that)
+ *
+ * @returns {object} possibly the same profile (no-op) or a new one
+ */
+export function editLastPeriodStart(profile, newDate) {
+  if (!profile) return profile;
+  const newISO   = toISODate(newDate);
+  const todayISO = toISODate(new Date());
+  if (newISO > todayISO) return profile; // no future starts
+
+  const history = Array.isArray(profile.periodHistory) ? profile.periodHistory.slice() : [];
+  const current = profile.lastPeriodStart ? toISODate(profile.lastPeriodStart) : null;
+  if (!current && history.length === 0) return profile;
+  if (newISO === current) return profile;
+
+  // Bescherm tegen rommelige geschiedenis: alleen de meest recente entry
+  // mag verschuiven, en alleen als de nieuwe datum daarná komt of géén
+  // eerdere overlap veroorzaakt. Voor het verschuiven naar een veel
+  // oudere datum (vóór de op-één-na laatste log) verwijst de UI naar
+  // de kalender.
+  if (history.length >= 2) {
+    const prev = history[history.length - 2];
+    if (newISO <= prev) return profile;
+  }
+
+  // Replace the most recent history entry (if any) with newISO.
+  if (history.length > 0) {
+    history[history.length - 1] = newISO;
+  } else {
+    history.push(newISO);
+  }
+  // Dedupe + sort defensively (history should already be sorted).
+  const dedup = Array.from(new Set(history)).sort();
+
+  const isManual = profile.cycleLengthSource === 'manual';
+  const cycleLength = isManual
+    ? clampCycleLength(profile.cycleLength)
+    : learnedCycleLength(dedup, profile.cycleLength);
+
+  return {
+    ...profile,
+    periodHistory:    dedup,
+    lastPeriodStart:  newISO,
+    // Bij verschuiven van de startdatum verliest een eventuele "afgelopen"-
+    // marker zijn betekenis (kan op een datum vóór de nieuwe start liggen).
+    // Veiliger: wissen, gebruiker mag opnieuw markeren.
+    lastPeriodEnd:    null,
     cycleLength,
   };
 }

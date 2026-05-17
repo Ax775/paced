@@ -18,6 +18,7 @@ import {
   getCycleState, PHASES, PHASE_META,
   CONTRACEPTION_OPTIONS, PREGNANCY_INTENTS, suppressesCycle,
   logPeriodStart, unlogPeriodStart, isPeriodLoggedOn,
+  markPeriodEnded, clearPeriodEnd, editLastPeriodStart,
   getCycleHistory, isValidTemperature, TEMP_MIN, TEMP_MAX,
   detectOvulationFromTemperatureSeries, toISODate,
   predictNextPeriod, getFertileWindow, getFertilityStatus, atMidnight,
@@ -800,34 +801,154 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
   const loggedToday = isPeriodLoggedOn(profile);
   const cyclesTracked = profile.periodHistory?.length ?? 0;
   const [justLogged, setJustLogged] = useState(false);
+  // Date-edit pop-up state — open === 'start' (verschuif begin) of
+  // 'end' (markeer einde) of 'logEarlier' (log een eerdere start).
+  // null als de inline editor dicht is.
+  const [editorOpen, setEditorOpen] = useState(null);
+  const [draftDate, setDraftDate] = useState('');
+  const [editError, setEditError] = useState('');
   const timerRef = useRef(null);
 
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  const todayISO = toISODate(new Date());
+  const startISO = profile?.lastPeriodStart ? toISODate(profile.lastPeriodStart) : null;
 
   // Days since most recent period start — only meaningful while in the
   // menstrual phase. Used to show "Day X" / "Started X days ago" so the
   // CTA confirms what was just logged instead of a generic "logged today".
   const daysSinceStart = useMemo(() => {
-    if (!profile.lastPeriodStart) return null;
-    const start = new Date(toISODate(profile.lastPeriodStart) + 'T00:00:00');
-    const now = new Date(toISODate(new Date()) + 'T00:00:00');
-    const diff = Math.round((now - start) / (24 * 60 * 60 * 1000));
+    if (!startISO) return null;
+    const diff = daysBetween(startISO, todayISO);
     return diff >= 0 && diff < 14 ? diff : null;
-  }, [profile.lastPeriodStart]);
+  }, [startISO, todayISO]);
 
   const inMenstrualPhase = state?.phase === PHASES.MENSTRUAL;
 
-  const handleLog = () => {
-    const next = logPeriodStart(profile);
-    if (next === profile) return;
-    onUpdateProfile(next);
+  const openEditor = (kind) => {
+    setEditError('');
+    setEditorOpen(kind);
+    // Preselecteer een zinnige datum: bestaande start bij 'start',
+    // vandaag bij 'end' en 'logEarlier' (gebruiker tikt verder terug).
+    if (kind === 'start' && startISO) setDraftDate(startISO);
+    else setDraftDate(todayISO);
+  };
+  const closeEditor = () => {
+    setEditorOpen(null);
+    setEditError('');
+    setDraftDate('');
+  };
+
+  const flashSuccess = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     setJustLogged(true);
     timerRef.current = setTimeout(() => setJustLogged(false), 2000);
   };
 
+  const handleLog = () => {
+    const next = logPeriodStart(profile);
+    if (next === profile) return;
+    onUpdateProfile(next);
+    flashSuccess();
+  };
+
   const handleUndo = () => {
     onUpdateProfile(unlogPeriodStart(profile));
+  };
+
+  const handleSaveEditor = () => {
+    setEditError('');
+    if (!draftDate) {
+      setEditError(t('period.edit.err.required'));
+      return;
+    }
+    if (draftDate > todayISO) {
+      setEditError(t('period.edit.err.future'));
+      return;
+    }
+
+    if (editorOpen === 'end') {
+      if (startISO && draftDate < startISO) {
+        setEditError(t('period.edit.err.endBeforeStart'));
+        return;
+      }
+      const next = markPeriodEnded(profile, new Date(`${draftDate}T00:00:00`));
+      if (next === profile) {
+        setEditError(t('period.edit.err.unchanged'));
+        return;
+      }
+      onUpdateProfile(next);
+      closeEditor();
+      flashSuccess();
+      return;
+    }
+
+    // 'start' (edit current start) or 'logEarlier' (new start in past)
+    const draftDateObj = new Date(`${draftDate}T00:00:00`);
+    const next = editorOpen === 'start'
+      ? editLastPeriodStart(profile, draftDateObj)
+      : logPeriodStart(profile, draftDateObj);
+    if (next === profile) {
+      setEditError(t('period.edit.err.unchanged'));
+      return;
+    }
+    onUpdateProfile(next);
+    closeEditor();
+    flashSuccess();
+  };
+
+  const handleClearEnd = () => {
+    const next = clearPeriodEnd(profile);
+    if (next === profile) return;
+    onUpdateProfile(next);
+  };
+
+  // ---- Inline date editor (dezelfde card voor alle drie de varianten) ----
+  const renderEditor = () => {
+    if (!editorOpen) return null;
+    const title =
+      editorOpen === 'start'      ? t('period.edit.start.title') :
+      editorOpen === 'end'        ? t('period.edit.end.title')   :
+      /* logEarlier */              t('period.edit.earlier.title');
+    const hint =
+      editorOpen === 'start'      ? t('period.edit.start.hint') :
+      editorOpen === 'end'        ? t('period.edit.end.hint')   :
+                                    t('period.edit.earlier.hint');
+    const minISO = editorOpen === 'end' ? (startISO || undefined) : undefined;
+    return (
+      <div className="mt-3 w-full max-w-[320px] px-4 py-4 rounded-xl bg-cream-50 border border-cream-200 anim-fade-up">
+        <div className="text-[12px] font-medium text-ink-700 mb-1">{title}</div>
+        <p className="text-[11px] text-ink-500 leading-relaxed mb-3">{hint}</p>
+        <input
+          type="date"
+          value={draftDate}
+          min={minISO}
+          max={todayISO}
+          onChange={(e) => setDraftDate(e.target.value)}
+          aria-label={title}
+          className="w-full min-h-[48px] px-3 py-2.5 rounded-lg border border-cream-200 bg-white text-sm text-ink-700 appearance-none"
+        />
+        {editError && (
+          <div className="text-[11px] text-terracotta-600 mt-2" role="alert">{editError}</div>
+        )}
+        <div className="flex gap-2 mt-3">
+          <button
+            type="button"
+            onClick={closeEditor}
+            className="flex-1 px-3 py-2.5 min-h-[44px] rounded-lg text-[12px] text-ink-500 bg-cream-100 border border-cream-200 hover:bg-cream-200 transition"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveEditor}
+            className="flex-1 px-3 py-2.5 min-h-[44px] rounded-lg text-[12px] text-cream-50 bg-terracotta-600 hover:bg-terracotta-700 transition font-medium"
+          >
+            {t('common.save')}
+          </button>
+        </div>
+      </div>
+    );
   };
 
   if (loggedToday) {
@@ -842,22 +963,33 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
             {t('period.day', { n: 1 })}
           </div>
         )}
-        <button
-          type="button"
-          onClick={handleUndo}
-          aria-label={t('period.logged.undoAria')}
-          className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
-        >
-          {t('period.logged.undo')}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleUndo}
+            aria-label={t('period.logged.undoAria')}
+            className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
+          >
+            {t('period.logged.undo')}
+          </button>
+          <button
+            type="button"
+            onClick={() => openEditor('start')}
+            className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
+          >
+            {t('period.edit.start.cta')}
+          </button>
+        </div>
+        {renderEditor()}
       </div>
     );
   }
 
-  // Period is currently active (any day in menstrual phase) → show day count, hide log button.
+  // Period is currently active (any day in menstrual phase) → show day
+  // count + give the user a way to end it early or correct the start.
   if (inMenstrualPhase) {
     return (
-      <div className="mt-6 flex flex-col items-center gap-2">
+      <div className={`mt-6 flex flex-col items-center gap-2 ${justLogged ? 'anim-pop' : ''}`}>
         <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-terracotta-100 border border-terracotta-200 text-terracotta-700 text-sm">
           <Droplet className="w-4 h-4" />
           {daysSinceStart !== null ? t('period.day', { n: daysSinceStart + 1 }) : t('period.active')}
@@ -867,12 +999,39 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
             {t('period.startedAgo', { n: daysSinceStart })}
           </div>
         )}
+        <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+          <button
+            type="button"
+            onClick={() => {
+              setEditError('');
+              setDraftDate(todayISO);
+              setEditorOpen('end');
+            }}
+            className="px-4 py-2 min-h-[44px] rounded-full text-[12px] font-medium text-terracotta-700 bg-cream-50 border border-terracotta-300 hover:bg-terracotta-50 transition"
+          >
+            {t('period.end.cta')}
+          </button>
+          <button
+            type="button"
+            onClick={() => openEditor('start')}
+            className="px-4 py-2 min-h-[44px] rounded-full text-[12px] text-ink-500 bg-cream-50 border border-cream-200 hover:bg-cream-200 transition"
+          >
+            {t('period.edit.start.cta')}
+          </button>
+        </div>
+        {renderEditor()}
       </div>
     );
   }
 
+  // Not menstruating right now. Either she's between periods, or her
+  // last logged "afgelopen"-marker just promoted her out of MENSTRUAL.
+  // Surface the standard log-CTA + a "begon eerder?" affordance + an
+  // undo-the-end-marker link if she ended it by mistake.
+  const justEndedEarly = !!profile?.lastPeriodEnd && daysSinceStart !== null && daysSinceStart < 14;
+
   return (
-    <div className="mt-6 flex flex-col items-center gap-2 w-full">
+    <div className={`mt-6 flex flex-col items-center gap-2 w-full ${justLogged ? 'anim-pop' : ''}`}>
       <button
         type="button"
         onClick={handleLog}
@@ -884,11 +1043,28 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
         <span aria-hidden="true" className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
         {t('period.log.button')}
       </button>
+      <button
+        type="button"
+        onClick={() => openEditor('logEarlier')}
+        className="text-xs text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
+      >
+        {t('period.edit.earlier.cta')}
+      </button>
+      {justEndedEarly && (
+        <button
+          type="button"
+          onClick={handleClearEnd}
+          className="text-[11px] text-ink-400 hover:text-ink-600 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
+        >
+          {t('period.end.undo')}
+        </button>
+      )}
       {cyclesTracked > 0 && (
         <div className="text-[10px] uppercase tracking-wider text-ink-400/80">
           {t('period.tracked', { n: cyclesTracked, label: plural(cyclesTracked, 'common.cycle') })}
         </div>
       )}
+      {renderEditor()}
     </div>
   );
 }

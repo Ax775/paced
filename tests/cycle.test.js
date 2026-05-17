@@ -29,6 +29,9 @@ import {
   logPeriodStart,
   unlogPeriodStart,
   isPeriodLoggedOn,
+  markPeriodEnded,
+  clearPeriodEnd,
+  editLastPeriodStart,
   getCycleHistory,
   isValidTemperature,
   TEMP_MIN,
@@ -827,5 +830,210 @@ describe('logPeriodStart respects manual cycleLength', () => {
     };
     const next = logPeriodStart(profile, new Date(2026, 2, 1));
     expect(next.cycleLength).toBe(45); // clamped
+  });
+});
+
+/* ─── mensDuration param + lastPeriodEnd override ──────────────────── */
+
+describe('buildPhaseMap with mensDuration', () => {
+  it('respects a 3-day bleed', () => {
+    const map = buildPhaseMap(28, 3);
+    expect(map[0].length).toBe(3);
+    expect(map[0].endDay).toBe(3);
+    expect(map[1].startDay).toBe(4);
+    expect(map.reduce((s, slot) => s + slot.length, 0)).toBe(28);
+  });
+
+  it('respects a 7-day bleed', () => {
+    const map = buildPhaseMap(28, 7);
+    expect(map[0].length).toBe(7);
+    expect(map.reduce((s, slot) => s + slot.length, 0)).toBe(28);
+  });
+
+  it('clamps mensDuration to [2, 10]', () => {
+    expect(buildPhaseMap(28, 0)[0].length).toBe(2);
+    expect(buildPhaseMap(28, 99)[0].length).toBe(10);
+  });
+
+  it('caps menstrual at cycleLength - 6 so the other phases still fit', () => {
+    // 21-day cycle with mensDuration=10 would leave 11 days for
+    // folliculair/ovulatie/luteaal — engine should cap menstrual at 15
+    // theoretically (21-6) but the input 10 is already lower → keeps 10.
+    expect(buildPhaseMap(21, 10)[0].length).toBe(10);
+    // 21-day cycle with mensDuration=99 would clamp to 10, then cap at
+    // 21-6=15 (no cap actually because 10 < 15).
+    expect(buildPhaseMap(21, 99)[0].length).toBe(10);
+  });
+
+  it('defaults to 5 when mensDuration is undefined (backwards compat)', () => {
+    expect(buildPhaseMap(28)[0].length).toBe(5);
+    expect(buildPhaseMap(28, undefined)[0].length).toBe(5);
+  });
+});
+
+describe('phaseForCycleDay with mensDuration', () => {
+  it('day 4 with 3-day bleed is folliculair, not menstrual', () => {
+    expect(phaseForCycleDay(3, 28, 3)).toBe(PHASES.MENSTRUAL);
+    expect(phaseForCycleDay(4, 28, 3)).toBe(PHASES.FOLLICULAR);
+  });
+
+  it('day 6 with 7-day bleed is still menstrual', () => {
+    expect(phaseForCycleDay(6, 28, 7)).toBe(PHASES.MENSTRUAL);
+    expect(phaseForCycleDay(8, 28, 7)).toBe(PHASES.FOLLICULAR);
+  });
+});
+
+describe('getCycleState honours lastPeriodEnd', () => {
+  it('promotes phase out of MENSTRUAL when today > lastPeriodEnd', () => {
+    // Period started 5 days ago, default 5-day bleed → cycleDay=6,
+    // would normally be in folliculair already. Move start to 3 days
+    // ago with a 5-day bleed → cycleDay=4 → MENSTRUAL by default.
+    // Mark afgelopen op de 3e dag (gisteren) → vandaag = folliculair.
+    const today = new Date(2026, 4, 17);                  // 17 mei 2026
+    const start = '2026-05-14';                           // 3 dagen geleden
+    const profile = {
+      lastPeriodStart: start,
+      cycleLength: 28,
+      mensDuration:  5,
+      lastPeriodEnd: '2026-05-16',                        // gisteren
+    };
+    const state = getCycleState(profile, today);
+    expect(state.cycleDay).toBe(4);
+    expect(state.phase).toBe(PHASES.FOLLICULAR);
+  });
+
+  it('keeps MENSTRUAL while today <= lastPeriodEnd (still bleeding)', () => {
+    const today = new Date(2026, 4, 17);
+    const profile = {
+      lastPeriodStart: '2026-05-14',
+      cycleLength: 28,
+      mensDuration:  5,
+      lastPeriodEnd: '2026-05-17',  // afgelopen vandaag
+    };
+    const state = getCycleState(profile, today);
+    expect(state.phase).toBe(PHASES.MENSTRUAL);
+  });
+
+  it('ignores stale lastPeriodEnd when phase is not menstrual', () => {
+    // CycleDay 20 → luteaal. lastPeriodEnd uit een vorige cyclus mag
+    // niet alsnog tot folliculair-promotie leiden — alleen MENSTRUAL
+    // wordt overschreven.
+    const today = new Date(2026, 4, 17);
+    const profile = {
+      lastPeriodStart: '2026-04-28',
+      cycleLength: 28,
+      mensDuration:  5,
+      lastPeriodEnd: '2026-05-02',
+    };
+    const state = getCycleState(profile, today);
+    expect(state.phase).toBe(PHASES.LUTEAL); // niet folliculair
+  });
+});
+
+describe('markPeriodEnded', () => {
+  it('sets lastPeriodEnd when end-date is on/after start', () => {
+    const p = { lastPeriodStart: '2026-05-14' };
+    const next = markPeriodEnded(p, new Date(2026, 4, 16));
+    expect(next.lastPeriodEnd).toBe('2026-05-16');
+    expect(next).not.toBe(p);
+  });
+
+  it('no-ops when end is before start', () => {
+    const p = { lastPeriodStart: '2026-05-14' };
+    const next = markPeriodEnded(p, new Date(2026, 4, 10));
+    expect(next).toBe(p); // referentieel gelijk
+  });
+
+  it('no-ops when end already equals current lastPeriodEnd', () => {
+    const p = { lastPeriodStart: '2026-05-14', lastPeriodEnd: '2026-05-16' };
+    const next = markPeriodEnded(p, new Date(2026, 4, 16));
+    expect(next).toBe(p);
+  });
+
+  it('no-ops when lastPeriodStart is missing', () => {
+    const p = { cycleLength: 28 };
+    const next = markPeriodEnded(p, new Date(2026, 4, 16));
+    expect(next).toBe(p);
+  });
+});
+
+describe('clearPeriodEnd', () => {
+  it('clears the lastPeriodEnd marker', () => {
+    const p = { lastPeriodEnd: '2026-05-16' };
+    const next = clearPeriodEnd(p);
+    expect(next.lastPeriodEnd).toBe(null);
+  });
+
+  it('no-ops when nothing to clear', () => {
+    const p = { lastPeriodStart: '2026-05-14' };
+    const next = clearPeriodEnd(p);
+    expect(next).toBe(p);
+  });
+});
+
+describe('logPeriodStart clears stale lastPeriodEnd', () => {
+  it('wipes lastPeriodEnd when starting a new cycle', () => {
+    // Vorige cyclus eindigde formeel; nu begint een nieuwe periode.
+    const profile = {
+      lastPeriodStart: '2026-04-14',
+      lastPeriodEnd:   '2026-04-17',
+      cycleLength:     28,
+      periodHistory:  ['2026-04-14'],
+    };
+    const next = logPeriodStart(profile, new Date(2026, 4, 14)); // 14 mei
+    expect(next.lastPeriodStart).toBe('2026-05-14');
+    expect(next.lastPeriodEnd).toBe(null);
+  });
+});
+
+describe('editLastPeriodStart', () => {
+  it('shifts the most recent start to a different date', () => {
+    const p = {
+      lastPeriodStart: '2026-05-16',
+      periodHistory: ['2026-04-18', '2026-05-16'],
+      cycleLength: 28,
+    };
+    const next = editLastPeriodStart(p, new Date(2026, 4, 14)); // 14 mei
+    expect(next.lastPeriodStart).toBe('2026-05-14');
+    expect(next.periodHistory).toEqual(['2026-04-18', '2026-05-14']);
+  });
+
+  it('rejects future dates', () => {
+    const p = {
+      lastPeriodStart: '2026-05-14',
+      periodHistory: ['2026-05-14'],
+    };
+    const future = new Date();
+    future.setDate(future.getDate() + 30);
+    const next = editLastPeriodStart(p, future);
+    expect(next).toBe(p);
+  });
+
+  it('rejects a new date that pre-dates the second-most-recent entry', () => {
+    const p = {
+      lastPeriodStart: '2026-05-16',
+      periodHistory: ['2026-04-18', '2026-05-16'],
+    };
+    const next = editLastPeriodStart(p, new Date(2026, 3, 10)); // 10 apr
+    expect(next).toBe(p); // would reorder history
+  });
+
+  it('clears lastPeriodEnd when start moves', () => {
+    const p = {
+      lastPeriodStart: '2026-05-16',
+      lastPeriodEnd: '2026-05-18',
+      periodHistory: ['2026-05-16'],
+    };
+    const next = editLastPeriodStart(p, new Date(2026, 4, 14));
+    expect(next.lastPeriodEnd).toBe(null);
+  });
+
+  it('no-ops when the new date equals the current start', () => {
+    const p = {
+      lastPeriodStart: '2026-05-14',
+      periodHistory: ['2026-05-14'],
+    };
+    const next = editLastPeriodStart(p, new Date(2026, 4, 14));
+    expect(next).toBe(p);
   });
 });
