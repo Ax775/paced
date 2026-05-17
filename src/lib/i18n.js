@@ -1040,6 +1040,7 @@ const STRINGS = {
     'onb.welcome.trial.title': 'Je begint met 30 dagen Premium — gratis',
     'onb.welcome.trial.body':  'Alle functies (Voeding, Logboek, Inzichten, Charts) zitten er bij voor 30 dagen. Daarna blijft Vandaag voor altijd gratis; de rest wordt Premium. Geen automatische afschrijving, geen creditcard vooraf.',
     'onb.welcome.start':       'Start gratis proefperiode',
+    'onb.lang.aria':           'Kies taal',
 
     /* settings */
     'settings.title':            'Instellingen',
@@ -1571,6 +1572,7 @@ const STRINGS = {
     'onb.welcome.trial.title': "You're starting with 30 days of Premium — free",
     'onb.welcome.trial.body':  'All features (Food, Journal, Insights, Charts) are included for 30 days. After that, Today stays free forever; the rest becomes Premium. No automatic charge, no card required upfront.',
     'onb.welcome.start':       'Start free trial',
+    'onb.lang.aria':           'Choose language',
 
     'settings.title':            'Settings',
     'settings.profile':          'Profile',

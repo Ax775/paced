@@ -1929,7 +1929,7 @@ function ReminderBanner({ profile }) {
 /* ------------------------------------------------------------------ */
 
 function Onboarding({ onComplete }) {
-  const { t, activityMeta } = useT();
+  const { t, locale, setLocale, activityMeta } = useT();
   const [step, setStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const [form, setForm] = useState({
@@ -1970,6 +1970,44 @@ function Onboarding({ onComplete }) {
     onComplete(profile);
   };
 
+  // Taal-toggle bovenaan onboarding. Een gebruiker met een Engelse
+  // systeem-locale krijgt EN by default (detectLocale), maar moet 'm
+  // direct kunnen wisselen — vooral relevant voor expats met NL-systeem
+  // die liever EN lezen, of andersom. Bewust een mini-segmented control,
+  // geen dropdown — twee opties, ~40 px hoog, niet afleidend.
+  const languageToggle = (
+    <div className="flex justify-center mb-5">
+      <div
+        role="group"
+        aria-label={t('onb.lang.aria')}
+        className="inline-flex rounded-full bg-cream-100 border border-cream-200 p-1"
+      >
+        {[
+          { id: 'nl', label: 'NL' },
+          { id: 'en', label: 'EN' },
+        ].map(({ id, label }) => {
+          const active = locale === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setLocale(id)}
+              aria-pressed={active}
+              className={
+                'px-3.5 py-1.5 rounded-full text-[11px] font-semibold tracking-wide transition ' +
+                (active
+                  ? 'bg-sage-600 text-cream-50 shadow-sm'
+                  : 'text-ink-500 hover:text-ink-700')
+              }
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   const dots = (
     <div className="flex justify-center gap-2 mb-8">
       {[0, 1, 2, 3].map(i => (
@@ -1991,6 +2029,7 @@ function Onboarding({ onComplete }) {
   return (
     <main id="main" className="min-h-dvh flex items-center justify-center px-5 py-10">
       <div className="w-full max-w-md">
+        {languageToggle}
         {dots}
 
         {/* Step 0 — Naam */}
