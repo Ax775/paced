@@ -777,6 +777,13 @@ const STRINGS = {
     'period.edit.err.endBeforeStart':'Het einde kan niet vóór de start liggen.',
     'period.edit.err.unchanged':     'Datum is hetzelfde — geen wijziging.',
 
+    /* cyclus-kalender */
+    'cal.title':        'Cyclus-kalender',
+    'cal.next':         'volgende',
+    'cal.prevMonth':    'Vorige maand',
+    'cal.nextMonth':    'Volgende maand',
+    'cal.jumpToToday':  'Spring naar vandaag',
+
     /* cycle ring */
     'cycleRing.outOf': 'van {n}',
     'cycleRing.ovulation.aria': 'Eisprong-indicator',
@@ -1344,6 +1351,12 @@ const STRINGS = {
     'period.edit.err.future':        "A period can't start or end in the future.",
     'period.edit.err.endBeforeStart':"The end can't be before the start.",
     'period.edit.err.unchanged':     'Same date — nothing to change.',
+
+    'cal.title':        'Cycle calendar',
+    'cal.next':         'next',
+    'cal.prevMonth':    'Previous month',
+    'cal.nextMonth':    'Next month',
+    'cal.jumpToToday':  'Jump to today',
 
     'cycleRing.outOf': 'of {n}',
     'cycleRing.ovulation.aria': 'Ovulation indicator',

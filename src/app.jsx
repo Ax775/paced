@@ -4681,66 +4681,115 @@ const CAL_COLORS = {
   ovulation: '#3d9e57',
 };
 
-function buildCalendarGrid(profile, today) {
-  const start = atMidnight(today);
-  const dow = (start.getDay() + 6) % 7;
-  start.setDate(start.getDate() - dow - 7);
+/**
+ * Bouw een month-anchored kalendergrid voor `viewMonth` — geeft een
+ * Monday-aligned grid terug dat de hele zichtbare maand + spillover-
+ * dagen van vorige/volgende maand bevat. Lengte varieert van 35 tot 42
+ * cellen (5 of 6 rijen) afhankelijk van hoe de maand uitvalt.
+ *
+ * Voorspellingen (period, fertile, ovulation) worden zowel voor- als
+ * achterwaarts geprojecteerd vanuit de meest recente periodHistory-
+ * entry, beperkt tot het zichtbare venster. Zo blijft navigeren naar
+ * een maand in het verleden zinvolle voorspellingen tonen, ook zonder
+ * dat die maanden destijds gelogd waren.
+ */
+function buildCalendarGrid(profile, viewMonth, today) {
+  // Visible month: 1st of viewMonth → laatste dag. Grid wordt Monday-
+  // aligned uitgevuld met spillover-cellen.
+  const monthStart = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
+  const dow = (monthStart.getDay() + 6) % 7; // 0 = ma, 6 = zo
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(monthStart.getDate() - dow);
+  const daysInMonth = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate();
+  const trailing = (7 - ((dow + daysInMonth) % 7)) % 7;
+  const totalCells = dow + daysInMonth + trailing;
+  const gridStartISO = toISODate(gridStart);
+  const gridEnd = new Date(gridStart);
+  gridEnd.setDate(gridStart.getDate() + totalCells - 1);
+  const gridEndISO = toISODate(gridEnd);
 
   const cycleLength = profile?.cycleLength || 28;
   const periodLen   = profile?.mensDuration || 5;
   const history     = Array.isArray(profile?.periodHistory) ? profile.periodHistory : [];
   const lastStart   = profile?.lastPeriodStart || null;
 
+  // Logged period days = expliciete history-entries uitgebreid met
+  // de bekende bleed-duur. Alleen days in het zichtbare venster.
   const loggedPeriodSet = new Set();
   for (const iso of history) {
     const d = new Date(`${iso}T00:00:00`);
     for (let i = 0; i < periodLen; i++) {
       const day = new Date(d);
       day.setDate(d.getDate() + i);
-      loggedPeriodSet.add(toISODate(day));
+      const dayISO = toISODate(day);
+      if (dayISO >= gridStartISO && dayISO <= gridEndISO) {
+        loggedPeriodSet.add(dayISO);
+      }
     }
   }
 
+  // Predicted sets — vanaf het meest recente anchor-punt projecteren
+  // we voor- en achterwaarts in cycli, met cycleLength als stap.
   const predictedPeriodSet = new Set();
-  if (lastStart) {
-    const base = new Date(`${toISODate(lastStart)}T00:00:00`);
-    for (let c = 1; c <= 6; c++) {
-      const cstart = new Date(base);
-      cstart.setDate(base.getDate() + cycleLength * c);
-      for (let i = 0; i < periodLen; i++) {
-        const day = new Date(cstart);
-        day.setDate(cstart.getDate() + i);
-        predictedPeriodSet.add(toISODate(day));
-      }
-    }
-  }
+  const fertileSet         = new Set();
+  const ovulationSet       = new Set();
+  const anchorISO = history.length > 0
+    ? history[history.length - 1]
+    : (lastStart ? toISODate(lastStart) : null);
 
-  const fertileSet = new Set();
-  const ovulationSet = new Set();
-  if (lastStart) {
-    const baseISO = toISODate(lastStart);
-    for (let c = 0; c <= 5; c++) {
-      const cBase = new Date(`${baseISO}T00:00:00`);
-      cBase.setDate(cBase.getDate() + cycleLength * c);
-      const window = getFertileWindow(cBase, cycleLength);
-      if (!window) continue;
-      const wStart = new Date(`${window.start}T00:00:00`);
-      const wEnd   = new Date(`${window.end}T00:00:00`);
-      for (let d = new Date(wStart); d <= wEnd; d.setDate(d.getDate() + 1)) {
-        fertileSet.add(toISODate(d));
+  if (anchorISO) {
+    const anchorD = new Date(`${anchorISO}T00:00:00`);
+    // Hoeveel cycli moeten we voor-/achterwaarts om het venster te
+    // dekken? +1 marge om bleed-overhang van de rand-cyclus mee te
+    // pakken (een periode die op de laatste dag van een cyclus
+    // begint heeft een staart in de volgende cyclus).
+    const daysToGridStart = daysBetween(anchorD, new Date(`${gridStartISO}T00:00:00`));
+    const daysToGridEnd   = daysBetween(anchorD, new Date(`${gridEndISO}T00:00:00`));
+    const minOffset = Math.floor(daysToGridStart / cycleLength) - 1;
+    const maxOffset = Math.ceil(daysToGridEnd   / cycleLength) + 1;
+
+    for (let c = minOffset; c <= maxOffset; c++) {
+      const cBase = new Date(anchorD);
+      cBase.setDate(anchorD.getDate() + cycleLength * c);
+
+      // Period-dagen van deze cyclus-projectie
+      for (let i = 0; i < periodLen; i++) {
+        const day = new Date(cBase);
+        day.setDate(cBase.getDate() + i);
+        const dayISO = toISODate(day);
+        if (dayISO < gridStartISO || dayISO > gridEndISO) continue;
+        // Niet dubbel-markeren — een expliciet gelogde start blijft "logged"
+        if (!loggedPeriodSet.has(dayISO)) predictedPeriodSet.add(dayISO);
       }
-      ovulationSet.add(window.ovulation);
+
+      // Fertile-venster + ovulatie van deze cyclus
+      const window = getFertileWindow(cBase, cycleLength);
+      if (window) {
+        const wStart = new Date(`${window.start}T00:00:00`);
+        const wEnd   = new Date(`${window.end}T00:00:00`);
+        for (let d = new Date(wStart); d <= wEnd; d.setDate(d.getDate() + 1)) {
+          const dayISO = toISODate(d);
+          if (dayISO >= gridStartISO && dayISO <= gridEndISO) fertileSet.add(dayISO);
+        }
+        if (window.ovulation >= gridStartISO && window.ovulation <= gridEndISO) {
+          ovulationSet.add(window.ovulation);
+        }
+      }
     }
   }
 
   const todayISO = toISODate(today);
+  const todayMs  = atMidnight(today).getTime();
+  const viewYear  = monthStart.getFullYear();
+  const viewMonthIdx = monthStart.getMonth();
   const out = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
+  for (let i = 0; i < totalCells; i++) {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + i);
     const iso = toISODate(d);
     const isToday  = iso === todayISO;
-    const isFuture = d.getTime() > atMidnight(today).getTime();
+    const isFuture = d.getTime() > todayMs;
+    const inMonth  = d.getFullYear() === viewYear && d.getMonth() === viewMonthIdx;
 
     let tag = null;
     let predicted = false;
@@ -4757,16 +4806,21 @@ function buildCalendarGrid(profile, today) {
       predicted = isFuture;
     }
 
-    out.push({ iso, day: d.getDate(), isToday, isFuture, tag, predicted });
+    out.push({ iso, day: d.getDate(), isToday, isFuture, inMonth, tag, predicted });
   }
   return out;
 }
 
 function CycleCalendarCard({ profile, onUpdateProfile }) {
-  const { formatDate } = useT();
+  const { t, locale, formatDate } = useT();
   const today = useMemo(() => new Date(), []);
   const todayISO = useMemo(() => toISODate(today), [today]);
-  const grid  = useMemo(() => buildCalendarGrid(profile, today), [profile, today]);
+  // Maand-anchored view: state houdt de 1e van de zichtbare maand vast.
+  // Knoppen ‹ / › verschuiven 1 maand per klik. "Vandaag"-knop springt
+  // terug naar de huidige maand. Geen harde limiet — gebruiker kan zo
+  // ver terug als ze wil; predictions worden voor het venster berekend.
+  const [viewMonth, setViewMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const grid = useMemo(() => buildCalendarGrid(profile, viewMonth, today), [profile, viewMonth, today]);
   const [selected, setSelected] = useState(null);
   const [editError, setEditError] = useState('');
 
@@ -4777,6 +4831,24 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
     if (profile?.lastPeriodStart) return predictNextPeriod(profile.lastPeriodStart, cycleLength);
     return null;
   }, [profile, cycleLength]);
+
+  // Maand-navigatie. setDate(1) niet nodig omdat viewMonth altijd al
+  // de 1e van de maand is — Date-constructor met dag=1 geeft daarbij
+  // automatisch het juiste 31-dec-rollover gedrag.
+  const goToPrevMonth = () => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  const goToNextMonth = () => setViewMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+  const goToCurrentMonth = () => setViewMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+
+  // Maand-label gehumaniseerd in de juiste taal. "mei 2026" / "May 2026".
+  // Eerste letter ge-capitalize-d voor visuele balans.
+  const monthLabel = useMemo(() => {
+    const raw = formatDate(viewMonth, { month: 'long', year: 'numeric' });
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }, [viewMonth, formatDate, locale]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Is de zichtbare maand de huidige? Bepaalt of de "Vandaag"-knop nuttig is.
+  const isCurrentMonth = viewMonth.getFullYear() === today.getFullYear()
+                       && viewMonth.getMonth() === today.getMonth();
 
   const tagLabel = (cell) => {
     if (!cell.tag) return cell.predicted ? '' : 'Geen markering';
@@ -4822,14 +4894,48 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
 
   return (
     <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '110ms' }}>
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">Cyclus-kalender</div>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 shrink-0">{t('cal.title')}</div>
         {nextStartISO && (
           <div className="text-[11px] text-terracotta-600 bg-terracotta-100 px-2 py-0.5 rounded-full">
-            volgende: {formatShortDate(nextStartISO, formatDate)}
+            {t('cal.next')}: {formatShortDate(nextStartISO, formatDate)}
           </div>
         )}
       </div>
+
+      {/* Maand-navigatie: ‹ vorige · MAAND JAAR · › volgende, met
+          rechtsboven een "Vandaag"-link wanneer we niet in de huidige
+          maand zitten. 44 px tap-targets voor mobile. */}
+      <div className="flex items-center justify-between mb-3 gap-1">
+        <button
+          type="button"
+          onClick={goToPrevMonth}
+          aria-label={t('cal.prevMonth')}
+          className="w-11 h-11 rounded-lg flex items-center justify-center text-ink-500 hover:bg-cream-100 active:scale-95 transition"
+        >
+          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+        </button>
+        <div className="flex-1 text-center text-[13px] font-medium text-ink-700">{monthLabel}</div>
+        <button
+          type="button"
+          onClick={goToNextMonth}
+          aria-label={t('cal.nextMonth')}
+          className="w-11 h-11 rounded-lg flex items-center justify-center text-ink-500 hover:bg-cream-100 active:scale-95 transition"
+        >
+          <ChevronRight className="w-4 h-4" aria-hidden="true" />
+        </button>
+      </div>
+      {!isCurrentMonth && (
+        <div className="flex justify-center mb-3">
+          <button
+            type="button"
+            onClick={goToCurrentMonth}
+            className="px-3 py-1.5 rounded-full text-[11px] font-medium text-sage-700 bg-sage-50 border border-sage-200 hover:bg-sage-100 active:scale-95 transition"
+          >
+            {t('cal.jumpToToday')}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-7 gap-1 mb-1.5">
         {CAL_DAY_HEADERS.map((d) => (
@@ -4842,7 +4948,11 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
       <div className="grid grid-cols-7 gap-1">
         {grid.map((cell) => {
           const bg = swatch(cell.tag);
-          const opacity = cell.predicted ? 0.4 : 1;
+          // Spillover-dagen (cellen uit de vorige/volgende maand) krijgen
+          // extra opacity-demping zodat de focus op de huidige maand ligt.
+          // Voorspellingen blijven hun eigen 0.4 opacity-laag dragen.
+          const baseOpacity = cell.predicted ? 0.4 : 1;
+          const opacity     = cell.inMonth ? baseOpacity : baseOpacity * 0.35;
           const isSelected = selected === cell.iso;
           return (
             <button
@@ -4853,8 +4963,10 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
               aria-pressed={isSelected}
               className={`relative aspect-square rounded-lg flex items-center justify-center text-[11px] transition active:scale-95 ${
                 bg ? 'text-cream-50 font-medium' : 'text-ink-500 bg-cream-50 border border-cream-200'
-              } ${cell.isToday ? 'ring-2 ring-sage-500 ring-offset-1 ring-offset-cream-50' : ''}`}
-              style={bg ? { background: bg, opacity } : undefined}
+              } ${cell.isToday ? 'ring-2 ring-sage-500 ring-offset-1 ring-offset-cream-50' : ''} ${
+                !cell.inMonth && !bg ? 'text-ink-300' : ''
+              }`}
+              style={bg ? { background: bg, opacity } : (!cell.inMonth ? { opacity: 0.55 } : undefined)}
             >
               {cell.day}
             </button>
