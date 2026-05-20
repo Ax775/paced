@@ -39,6 +39,7 @@ import {
   loadProfile, saveProfile, clearProfile, setStorageErrorHandler,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
   loadRecentLogs,
+  loadSavedMeals, addSavedMeal, touchSavedMeal, removeSavedMeal,
 } from './lib/storage.js';
 import {
   LocaleProvider, useT, t as tStatic, detectLocale,
@@ -5801,19 +5802,57 @@ function FoodLogCard({ log, onUpdate, targets }) {
   const [kcal, setKcal]     = useState('');
   const [protein, setProt]  = useState('');
   const [adding, setAdding] = useState(false);
+  // Saved-meals MRU lijst. Wordt eenmaal geladen, daarna lokaal beheerd
+  // via setSavedMeals zodat add/remove direct in de UI te zien is zonder
+  // round-trip naar localStorage te wachten (storage-laag persisteert
+  // wel synchroon, dus refresh is gedekt).
+  const [savedMeals, setSavedMeals] = useState(() => loadSavedMeals());
 
   const meals = log.meals || [];
   const totalKcal    = meals.reduce((s, m) => s + (m.kcal    || 0), 0);
   const totalProtein = meals.reduce((s, m) => s + (m.protein || 0), 0);
 
+  // Helper: voeg een maaltijd toe aan de daily log. Wordt zowel door de
+  // form-submit (handleAdd) als door de "tap-a-saved-meal" flow gebruikt.
+  const appendMealToLog = (mealLike) => {
+    const cleanName = (mealLike.name || '').trim().slice(0, 80) || t('food.log.item');
+    const k = Math.max(0, Math.min(9999, Number(mealLike.kcal) || 0));
+    const p = Math.max(0, Math.min(999,  Number(mealLike.protein) || 0));
+    const newMeal = { id: Date.now() + Math.random(), name: cleanName, kcal: k, protein: p };
+    onUpdate({
+      meals:    [...meals, newMeal],
+      calories: log.calories + k,
+      protein:  log.protein  + p,
+    });
+    return { cleanName, k, p };
+  };
+
   const handleAdd = () => {
     const k = Math.max(0, Number(kcal) || 0);
     const p = Math.max(0, Number(protein) || 0);
     if (!name.trim() && k === 0 && p === 0) return;
-    const meal = { id: Date.now(), name: name.trim() || t('food.log.item'), kcal: k, protein: p };
-    onUpdate({ meals: [...meals, meal], calories: log.calories + k, protein: log.protein + p });
+    const { cleanName, k: appliedK, p: appliedP } = appendMealToLog({ name, kcal: k, protein: p });
+    // Auto-save: als de gebruiker een naam + voedingswaarden invulde,
+    // pikken we 'm op in de MRU-lijst. Dedup op naam, dus dezelfde
+    // maaltijd vaker loggen zorgt niet voor 10× dezelfde chip.
+    if (cleanName && cleanName !== t('food.log.item') && (appliedK > 0 || appliedP > 0)) {
+      setSavedMeals(addSavedMeal({ name: cleanName, kcal: appliedK, protein: appliedP }));
+    }
     setName(''); setKcal(''); setProt('');
     setAdding(false);
+  };
+
+  const handleQuickAdd = (saved) => {
+    appendMealToLog(saved);
+    // Touch zodat veel-gebruikte maaltijden vooraan blijven staan.
+    setSavedMeals(touchSavedMeal(saved.id));
+  };
+
+  const handleForgetSaved = (id, e) => {
+    // Het X-knopje zit binnen de chip-knop — voorkom dat de tap ook
+    // de "add to log"-handler triggert.
+    if (e) { e.stopPropagation(); e.preventDefault(); }
+    setSavedMeals(removeSavedMeal(id));
   };
 
   const handleRemove = (meal) => {
@@ -5926,14 +5965,62 @@ function FoodLogCard({ log, onUpdate, targets }) {
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-dashed border-cream-300 text-sm text-ink-500 hover:border-sage-300 hover:text-sage-700 hover:bg-sage-50 active:scale-[0.98] transition"
-        >
-          <Plus className="w-4 h-4" />
-          {t('food.log.addMeal')}
-        </button>
+        <>
+          {/* Snel-toevoegen suggesties uit eerder gelogde maaltijden.
+              MRU-gesorteerd (recent eerst). Tap chip → meteen toegevoegd
+              aan vandaag. X op de chip → verwijderen uit suggesties
+              (verandert niets aan de daily log). */}
+          {savedMeals.length > 0 && (
+            <div className="mb-3">
+              <div className="text-[10px] uppercase tracking-wider text-ink-400 mb-2">
+                {t('food.log.saved.title')}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {savedMeals.map((s) => {
+                  const macro = [
+                    s.kcal    > 0 ? `${s.kcal} kcal`      : null,
+                    s.protein > 0 ? `${s.protein}g eiwit` : null,
+                  ].filter(Boolean).join(' · ');
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => handleQuickAdd(s)}
+                      className="group inline-flex items-center gap-1.5 max-w-full px-3 py-2 min-h-[40px] rounded-full bg-sage-50 border border-sage-200 text-[12px] text-sage-700 hover:bg-sage-100 active:scale-95 transition"
+                      aria-label={t('food.log.saved.addAria', { name: s.name })}
+                    >
+                      <Plus className="w-3 h-3 shrink-0" aria-hidden="true" />
+                      <span className="truncate max-w-[160px] text-left">{s.name}</span>
+                      {macro && (
+                        <span className="text-[10px] text-sage-600/80 shrink-0">· {macro}</span>
+                      )}
+                      <span
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => handleForgetSaved(s.id, e)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') handleForgetSaved(s.id, e);
+                        }}
+                        aria-label={t('food.log.saved.forgetAria', { name: s.name })}
+                        className="ml-0.5 w-6 h-6 rounded-full flex items-center justify-center text-sage-500/60 hover:text-terracotta-500 hover:bg-cream-50 transition active:scale-90"
+                      >
+                        <X className="w-3 h-3" aria-hidden="true" />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-dashed border-cream-300 text-sm text-ink-500 hover:border-sage-300 hover:text-sage-700 hover:bg-sage-50 active:scale-[0.98] transition"
+          >
+            <Plus className="w-4 h-4" />
+            {t('food.log.addMeal')}
+          </button>
+        </>
       )}
     </CollapsibleCard>
   );

@@ -25,7 +25,11 @@ const SCHEMA_VERSION = 1;
 const PROFILE_KEY        = 'aura.profile';
 const LOG_PREFIX         = 'aura.log.';
 const CARD_ORDER_KEY     = 'aura.cardOrder';
+const SAVED_MEALS_KEY    = 'aura.savedMeals';
 const SCHEMA_VERSION_KEY = 'aura_schema_version';
+
+/** Max number of saved-meal entries before LRU-eviction kicks in. */
+const SAVED_MEALS_MAX = 24;
 
 /* ------------------------------------------------------------------ */
 /*  Storage error reporting                                            */
@@ -122,6 +126,118 @@ export function saveCardOrder(order) {
       localStorage.setItem(CARD_ORDER_KEY, JSON.stringify(order));
     }
   } catch (err) { notifyStorageError(err); }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Saved meals — "snel opnieuw toevoegen"-lijst                       */
+/* ------------------------------------------------------------------ */
+//
+// Een MRU (most-recently-used) lijst van eerder gelogde maaltijden zodat
+// een gebruiker een maaltijd die ze vaker eet met één tik kan toevoegen.
+// Bewust géén relatie met de daily-log entries — die hebben hun eigen
+// timestamp en kunnen apart verwijderd worden zonder de "snel toevoegen"-
+// suggesties te beïnvloeden.
+//
+// Shape: { id, name, kcal, protein, ts }
+//   - id      stabiele identifier (Date.now() + name-hash) voor remove
+//   - name    max 80 chars (dezelfde cap als log.meals)
+//   - kcal    0..9999
+//   - protein 0..999
+//   - ts      laatste-gebruik timestamp (epoch ms) voor MRU-sortering
+//
+// Dedup-regel: case-insensitive name-match → bestaande entry wordt
+// bijgewerkt (nieuwste kcal/protein, ts vernieuwd, niet verdubbeld).
+
+/** @returns {Array<{id:string, name:string, kcal:number, protein:number, ts:number}>} */
+export function loadSavedMeals() {
+  try {
+    const raw = localStorage.getItem(SAVED_MEALS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Defensief — schoon corrupted shapes weg ipv crashen
+    return parsed
+      .filter((m) => m && typeof m === 'object' && typeof m.name === 'string')
+      .map((m) => ({
+        id:      String(m.id ?? `${m.name}-${m.ts ?? 0}`),
+        name:    String(m.name).slice(0, 80),
+        kcal:    Math.max(0, Math.min(9999, Number(m.kcal) || 0)),
+        protein: Math.max(0, Math.min(999,  Number(m.protein) || 0)),
+        ts:      Number.isFinite(m.ts) ? Number(m.ts) : 0,
+      }))
+      .sort((a, b) => b.ts - a.ts);
+  } catch {
+    return [];
+  }
+}
+
+function persistSavedMeals(list) {
+  try {
+    localStorage.setItem(SAVED_MEALS_KEY, JSON.stringify(list));
+  } catch (err) { notifyStorageError(err); }
+}
+
+/**
+ * Voeg een maaltijd toe aan de saved-meals lijst (of werk een bestaande
+ * bij). Dedup gebeurt op case-insensitive name. MRU-sortering wordt
+ * vastgelegd via `ts`. Bij overschrijden van SAVED_MEALS_MAX worden de
+ * oudste entries weggeknipt.
+ *
+ * Lege namen, of records zonder kcal én protein, worden genegeerd.
+ *
+ * @param {{name:string, kcal:number, protein:number}} meal
+ * @returns {Array} de nieuwe gesorteerde lijst (handig voor optimistic UI)
+ */
+export function addSavedMeal(meal) {
+  if (!meal || typeof meal !== 'object') return loadSavedMeals();
+  const name = String(meal.name || '').trim().slice(0, 80);
+  const kcal    = Math.max(0, Math.min(9999, Number(meal.kcal)    || 0));
+  const protein = Math.max(0, Math.min(999,  Number(meal.protein) || 0));
+  if (!name || (kcal === 0 && protein === 0)) return loadSavedMeals();
+
+  const list = loadSavedMeals();
+  const lcName = name.toLowerCase();
+  const existingIdx = list.findIndex((m) => m.name.toLowerCase() === lcName);
+  const ts = Date.now();
+  if (existingIdx !== -1) {
+    list[existingIdx] = { ...list[existingIdx], name, kcal, protein, ts };
+  } else {
+    // ID = timestamp + random-suffix. Twee adds binnen dezelfde ms zouden
+    // anders dezelfde id krijgen — wat removeSavedMeal kan laten over-
+    // verwijderen. De suffix maakt het collision-vrij genoeg voor MRU-
+    // gebruik. Geen crypto.randomUUID() omdat dat in oudere Safari geen
+    // garantie is en we hier geen security-bond met de id willen leggen.
+    const suffix = Math.random().toString(36).slice(2, 8);
+    list.unshift({ id: `m-${ts}-${suffix}`, name, kcal, protein, ts });
+  }
+  // Resort by ts desc, then evict de overflow.
+  const sorted = list.sort((a, b) => b.ts - a.ts).slice(0, SAVED_MEALS_MAX);
+  persistSavedMeals(sorted);
+  return sorted;
+}
+
+/**
+ * Bump een bestaande saved-meal naar de top (touch-MRU). Wordt gebruikt
+ * wanneer de gebruiker een suggestie aantikt — zo blijven veelgebruikte
+ * maaltijden vooraan staan zonder dubbel-opslaan.
+ */
+export function touchSavedMeal(id) {
+  const list = loadSavedMeals();
+  const idx = list.findIndex((m) => m.id === id);
+  if (idx === -1) return list;
+  list[idx] = { ...list[idx], ts: Date.now() };
+  const sorted = list.sort((a, b) => b.ts - a.ts);
+  persistSavedMeals(sorted);
+  return sorted;
+}
+
+/** Verwijder één saved-meal. */
+export function removeSavedMeal(id) {
+  const list = loadSavedMeals();
+  const next = list.filter((m) => m.id !== id);
+  if (next.length === list.length) return list;
+  persistSavedMeals(next);
+  return next;
 }
 
 /* ------------------------------------------------------------------ */

@@ -1263,6 +1263,9 @@ const STRINGS = {
     'food.log.item':     'Maaltijd',
     'food.log.namePh':   'Naam (bijv. havermout)',
     'food.log.ofTarget': 'van {n} {unit}',
+    'food.log.saved.title':      'Snel opnieuw toevoegen',
+    'food.log.saved.addAria':    '{name} toevoegen aan vandaag',
+    'food.log.saved.forgetAria': '{name} verwijderen uit suggesties',
 
     /* crash */
     'crash.title':       'Aura is even uit balans',
@@ -1808,6 +1811,9 @@ const STRINGS = {
     'food.log.item':     'Meal',
     'food.log.namePh':   'Name (e.g. oatmeal)',
     'food.log.ofTarget': 'of {n} {unit}',
+    'food.log.saved.title':      'Quick add',
+    'food.log.saved.addAria':    'Add {name} to today',
+    'food.log.saved.forgetAria': 'Remove {name} from suggestions',
 
     'crash.title':       "Aura is a bit off balance",
     'crash.body':        "Something went wrong while drawing the screen. Your data is safe — everything is still on your device. Try reloading Aura.",

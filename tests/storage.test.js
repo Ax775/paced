@@ -28,6 +28,10 @@ const {
   updateLog,
   loadRecentLogs,
   logHasData,
+  loadSavedMeals,
+  addSavedMeal,
+  touchSavedMeal,
+  removeSavedMeal,
 } = await import('../src/lib/storage.js');
 
 beforeEach(() => {
@@ -313,5 +317,110 @@ describe('loadLog — type-safe parsing (security audit regressions)', () => {
     const loaded = loadLog(date);
     expect(loaded.meals).toHaveLength(50);
     expect(loaded.symptomen).toHaveLength(20);
+  });
+});
+
+/* ──────────────────────  Saved meals (MRU)  ──────────────────────── */
+
+describe('saved meals — quick-add list', () => {
+  it('returns an empty list when nothing was saved', () => {
+    expect(loadSavedMeals()).toEqual([]);
+  });
+
+  it('persists an added meal and exposes it on next load', () => {
+    addSavedMeal({ name: '2 eieren met kwark', kcal: 500, protein: 25 });
+    const list = loadSavedMeals();
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({
+      name: '2 eieren met kwark',
+      kcal: 500,
+      protein: 25,
+    });
+    expect(list[0].id).toMatch(/^m-/);
+    expect(list[0].ts).toBeGreaterThan(0);
+  });
+
+  it('dedupes by case-insensitive name (no growth on re-save)', () => {
+    addSavedMeal({ name: 'Havermout',  kcal: 350, protein: 12 });
+    addSavedMeal({ name: 'havermout',  kcal: 380, protein: 14 });
+    const list = loadSavedMeals();
+    expect(list).toHaveLength(1);
+    // De laatst-opgeslagen waarden winnen.
+    expect(list[0].kcal).toBe(380);
+    expect(list[0].protein).toBe(14);
+  });
+
+  it('sorts most-recent-first regardless of insertion order', async () => {
+    addSavedMeal({ name: 'A', kcal: 100, protein: 5 });
+    // Forceer een nieuwe ms-tik zodat ts monotonisch is.
+    await new Promise((r) => setTimeout(r, 2));
+    addSavedMeal({ name: 'B', kcal: 100, protein: 5 });
+    await new Promise((r) => setTimeout(r, 2));
+    addSavedMeal({ name: 'C', kcal: 100, protein: 5 });
+    expect(loadSavedMeals().map((m) => m.name)).toEqual(['C', 'B', 'A']);
+  });
+
+  it('touchSavedMeal bumps an entry to the top', async () => {
+    addSavedMeal({ name: 'A', kcal: 100, protein: 5 });
+    await new Promise((r) => setTimeout(r, 2));
+    addSavedMeal({ name: 'B', kcal: 100, protein: 5 });
+    await new Promise((r) => setTimeout(r, 2));
+    const aId = loadSavedMeals().find((m) => m.name === 'A').id;
+    touchSavedMeal(aId);
+    expect(loadSavedMeals()[0].name).toBe('A');
+  });
+
+  it('removeSavedMeal drops a single entry', () => {
+    addSavedMeal({ name: 'A', kcal: 100, protein: 5 });
+    addSavedMeal({ name: 'B', kcal: 100, protein: 5 });
+    const id = loadSavedMeals().find((m) => m.name === 'A').id;
+    removeSavedMeal(id);
+    expect(loadSavedMeals().map((m) => m.name)).toEqual(['B']);
+  });
+
+  it('rejects empty names and zero-macro entries', () => {
+    addSavedMeal({ name: '',   kcal: 500, protein: 25 });
+    addSavedMeal({ name: 'X',  kcal: 0,   protein: 0  });
+    expect(loadSavedMeals()).toEqual([]);
+  });
+
+  it('clamps out-of-range macro values defensively', () => {
+    addSavedMeal({ name: 'Hot',  kcal: 99999, protein: 9999 });
+    const [m] = loadSavedMeals();
+    expect(m.kcal).toBe(9999);
+    expect(m.protein).toBe(999);
+  });
+
+  it('truncates very long names to 80 chars', () => {
+    const longName = 'a'.repeat(500);
+    addSavedMeal({ name: longName, kcal: 100, protein: 5 });
+    expect(loadSavedMeals()[0].name.length).toBe(80);
+  });
+
+  it('caps the list at SAVED_MEALS_MAX (24) via LRU eviction', async () => {
+    for (let i = 0; i < 30; i++) {
+      addSavedMeal({ name: `meal-${i}`, kcal: 100 + i, protein: 5 });
+      await new Promise((r) => setTimeout(r, 1));
+    }
+    const list = loadSavedMeals();
+    expect(list).toHaveLength(24);
+    // De laatst-toegevoegde moet vooraan staan; de eerste (oudste) eruit.
+    expect(list[0].name).toBe('meal-29');
+    expect(list.find((m) => m.name === 'meal-0')).toBeUndefined();
+  });
+
+  it('survives corrupted JSON in storage (returns empty)', () => {
+    globalThis.localStorage.setItem('aura.savedMeals', '{not json[');
+    expect(loadSavedMeals()).toEqual([]);
+  });
+
+  it('filters out non-object entries silently', () => {
+    globalThis.localStorage.setItem(
+      'aura.savedMeals',
+      JSON.stringify([null, 'x', { name: 'OK', kcal: 100, protein: 5, ts: 1 }]),
+    );
+    const list = loadSavedMeals();
+    expect(list).toHaveLength(1);
+    expect(list[0].name).toBe('OK');
   });
 });
