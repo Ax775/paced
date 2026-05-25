@@ -37,6 +37,14 @@ import {
   generateAppleHealthXml, appleHealthFilename,
   generateFullJsonExport, fullJsonExportFilename,
 } from './lib/export.js';
+import PartnerSettings from './PartnerSettings.jsx';
+import PartnerView from './PartnerView.jsx';
+import {
+  isConfigured as partnerConfigured,
+  getPartnerSnapshot,
+  acceptInvite as acceptPartnerInvite,
+  pushSnapshot as pushPartnerSnapshot,
+} from './supabasePartner.js';
 
 /* ------------------------------------------------------------------ */
 /*  Small presentational primitives                                    */
@@ -2771,6 +2779,14 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         </button>
       </Card>
 
+      {/* Partner koppeling */}
+      <Card className="mb-5 anim-fade-up">
+        <PartnerSettings
+          currentPhase={getCycleState(profile).phase}
+          cycleDay={getCycleState(profile).cycleDay}
+        />
+      </Card>
+
       {/* Legal */}
       <button
         type="button"
@@ -3462,13 +3478,14 @@ function UndoToast({ visible, dismissing, onUndo }) {
 /*  Bottom navigation                                                  */
 /* ------------------------------------------------------------------ */
 
-function BottomNav({ active, onSelect }) {
+function BottomNav({ active, onSelect, showPartnerTab = false }) {
   const { t } = useT();
   const tabs = [
     { id: 'home',      labelKey: 'nav.home',     icon: Flower2   },
     { id: 'voeding',   labelKey: 'nav.voeding',  icon: Salad     },
     { id: 'logboek',   labelKey: 'nav.logboek',  icon: BookOpen  },
     { id: 'stats',     labelKey: 'nav.stats',    icon: BarChart2 },
+    ...(showPartnerTab ? [{ id: 'partner', labelKey: null, label: 'Partner', icon: Heart }] : []),
     { id: 'settings',  labelKey: 'nav.settings', icon: Settings  },
   ];
   return (
@@ -3476,9 +3493,9 @@ function BottomNav({ active, onSelect }) {
       aria-label={t('nav.aria')}
       className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex pb-safe"
     >
-      {tabs.map(({ id, labelKey, icon: Icon }) => {
+      {tabs.map(({ id, labelKey, label: staticLabel, icon: Icon }) => {
         const on = active === id;
-        const label = t(labelKey);
+        const label = labelKey ? t(labelKey) : staticLabel;
         return (
           <button
             key={id}
@@ -5468,6 +5485,11 @@ function App() {
   // typen voordat de actie uitvoert. Voorkomt accidentele dataverlies
   // door één klik op de gevarenzone-knop.
   const [resetConfirmText, setResetConfirmText] = useState('');
+  const [isPartner, setIsPartner] = useState(false);
+  const [pendingInvite] = useState(() =>
+    new URLSearchParams(window.location.search).get('invite') || null
+  );
+  const [showInviteModal, setShowInviteModal] = useState(!!pendingInvite);
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('aura.theme') || 'auto'; }
     catch { return 'auto'; }
@@ -5508,6 +5530,15 @@ function App() {
     });
     return () => setStorageErrorHandler(null);
   }, [storageWarned]);
+
+  // Partner: check on mount if user is a partner viewer.
+  useEffect(() => {
+    if (!partnerConfigured()) return;
+    (async () => {
+      const { data } = await getPartnerSnapshot();
+      if (data) setIsPartner(true);
+    })();
+  }, []);
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -5673,10 +5704,51 @@ function App() {
         {tab === 'legal' && (
           <LegalView onBack={() => setTab('settings')} />
         )}
+        {tab === 'partner' && <PartnerView />}
       </main>
-      <BottomNav active={tab} onSelect={setTab} />
+      <BottomNav active={tab} onSelect={setTab} showPartnerTab={isPartner} />
       <PWAInstallBanner />
       <ReminderBanner profile={profile} />
+      {showInviteModal && pendingInvite && (
+        <div
+          className="fixed inset-0 z-[65] flex items-center justify-center px-5 bg-ink-700/40 backdrop-blur-sm"
+          onClick={() => setShowInviteModal(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up"
+            role="dialog"
+            aria-label="Partneruitnodiging"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-2xl mb-3 text-center">🔗</div>
+            <h2 className="font-display text-[22px] text-ink-700 mb-2 text-center">Uitnodiging ontvangen</h2>
+            <p className="text-sm text-ink-500 leading-relaxed mb-6 text-center">
+              Je partner heeft je uitgenodigd om haar cyclus te volgen.
+              Log in om te koppelen.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowInviteModal(false)}
+                className="flex-1 min-h-[44px] py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 active:scale-[0.98] transition"
+              >
+                Later
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { error } = await acceptPartnerInvite(pendingInvite);
+                  if (!error) { setIsPartner(true); setTab('partner'); }
+                  setShowInviteModal(false);
+                }}
+                className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
+              >
+                Koppelen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
