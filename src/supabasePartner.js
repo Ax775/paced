@@ -34,12 +34,12 @@ export async function getCurrentUser() {
   } catch { return null; }
 }
 
-export async function signInWithMagicLink(email) {
+export async function signInWithMagicLink(email, redirectTo) {
   const sb = await getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
   return sb.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.origin },
+    options: { emailRedirectTo: redirectTo || window.location.origin },
   });
 }
 
