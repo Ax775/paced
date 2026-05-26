@@ -41,6 +41,9 @@ import PartnerSettings from './PartnerSettings.jsx';
 import PartnerView from './PartnerView.jsx';
 import {
   isConfigured as partnerConfigured,
+  getCurrentUser as getPartnerUser,
+  signInWithMagicLink as partnerSignIn,
+  getMyLink as getMyPartnerLink,
   getPartnerSnapshot,
   acceptInvite as acceptPartnerInvite,
   pushSnapshot as pushPartnerSnapshot,
@@ -5490,6 +5493,13 @@ function App() {
     new URLSearchParams(window.location.search).get('invite') || null
   );
   const [showInviteModal, setShowInviteModal] = useState(!!pendingInvite);
+  // Invite-modal authentication state — checked on mount so we know whether
+  // to show a direct "Koppelen" button or first prompt for magic-link login.
+  const [inviteAuthChecked, setInviteAuthChecked] = useState(false);
+  const [inviteIsAuthed,    setInviteIsAuthed]    = useState(false);
+  const [inviteEmail,       setInviteEmail]       = useState('');
+  const [inviteEmailSent,   setInviteEmailSent]   = useState(false);
+  const [inviteStatus,      setInviteStatus]      = useState('');
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('aura.theme') || 'auto'; }
     catch { return 'auto'; }
@@ -5532,13 +5542,37 @@ function App() {
   }, [storageWarned]);
 
   // Partner: check on mount if user is a partner viewer.
+  // Also pre-checks auth state for the invite modal so we know whether to
+  // show a direct "Koppelen" button or first prompt for magic-link login.
   useEffect(() => {
     if (!partnerConfigured()) return;
     (async () => {
+      const u = await getPartnerUser();
+      setInviteIsAuthed(!!u);
+      setInviteAuthChecked(true);
       const { data } = await getPartnerSnapshot();
       if (data) setIsPartner(true);
     })();
   }, []);
+
+  // Partner: push a fresh snapshot when the owner's cycle phase changes,
+  // so the partner-viewer always sees up-to-date data. Skipped silently
+  // when Supabase isn't configured, the user isn't logged in, or the user
+  // doesn't have an active partner-link (i.e. they're not an owner).
+  const _ownerCycle = partnerConfigured() ? getCycleState(profile) : null;
+  const _ownerPhase = _ownerCycle?.phase ?? null;
+  const _ownerDay   = _ownerCycle?.cycleDay ?? null;
+  useEffect(() => {
+    if (!partnerConfigured()) return;
+    if (!_ownerPhase) return;
+    (async () => {
+      const u = await getPartnerUser();
+      if (!u) return;
+      const { data: link } = await getMyPartnerLink();
+      if (!link?.active) return;
+      await pushPartnerSnapshot(_ownerPhase, _ownerDay, link.share_level);
+    })();
+  }, [_ownerPhase, _ownerDay]);
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -5722,30 +5756,117 @@ function App() {
           >
             <div className="text-2xl mb-3 text-center">🔗</div>
             <h2 className="font-display text-[22px] text-ink-700 mb-2 text-center">Uitnodiging ontvangen</h2>
-            <p className="text-sm text-ink-500 leading-relaxed mb-6 text-center">
-              Je partner heeft je uitgenodigd om haar cyclus te volgen.
-              Log in om te koppelen.
-            </p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowInviteModal(false)}
-                className="flex-1 min-h-[44px] py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 active:scale-[0.98] transition"
-              >
-                Later
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  const { error } = await acceptPartnerInvite(pendingInvite);
-                  if (!error) { setIsPartner(true); setTab('partner'); }
-                  setShowInviteModal(false);
-                }}
-                className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
-              >
-                Koppelen
-              </button>
-            </div>
+
+            {/* Auth-check loading */}
+            {!inviteAuthChecked && (
+              <p className="text-sm text-ink-400 text-center py-4">Controleren…</p>
+            )}
+
+            {/* Magic-link sent */}
+            {inviteAuthChecked && inviteEmailSent && (
+              <>
+                <div className="text-2xl text-center mb-2">📬</div>
+                <p className="text-sm text-ink-500 leading-relaxed mb-5 text-center">
+                  We stuurden een inloglink naar <span className="font-medium">{inviteEmail}</span>.
+                  Open hem op dit apparaat — de koppeling gebeurt automatisch.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="w-full min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
+                >
+                  Begrepen
+                </button>
+              </>
+            )}
+
+            {/* Already logged in — direct accept */}
+            {inviteAuthChecked && !inviteEmailSent && inviteIsAuthed && (
+              <>
+                <p className="text-sm text-ink-500 leading-relaxed mb-6 text-center">
+                  Je partner heeft je uitgenodigd om haar cyclus te volgen.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowInviteModal(false)}
+                    className="flex-1 min-h-[44px] py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 active:scale-[0.98] transition"
+                  >
+                    Later
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setInviteStatus('Koppelen…');
+                      const { error } = await acceptPartnerInvite(pendingInvite);
+                      if (!error) { setIsPartner(true); setTab('partner'); }
+                      else { setInviteStatus('Kon niet koppelen. Probeer opnieuw.'); return; }
+                      setShowInviteModal(false);
+                    }}
+                    className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
+                  >
+                    Koppelen
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* Not logged in — magic-link login (preserves invite code through redirect) */}
+            {inviteAuthChecked && !inviteEmailSent && !inviteIsAuthed && (
+              <>
+                <p className="text-sm text-ink-500 leading-relaxed mb-4 text-center">
+                  Je partner heeft je uitgenodigd om haar cyclus te volgen.
+                  Log in met je email om te koppelen.
+                </p>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!inviteEmail.trim()) return;
+                    setInviteStatus('Bezig…');
+                    // Preserve the invite code through the magic-link redirect
+                    // so the modal re-opens with the code after auth completes.
+                    const redirectTo = `${window.location.origin}/?invite=${encodeURIComponent(pendingInvite)}`;
+                    const { error } = await partnerSignIn(inviteEmail.trim(), redirectTo);
+                    if (error && error !== 'not_configured') {
+                      setInviteStatus('Er ging iets mis. Probeer opnieuw.');
+                    } else {
+                      setInviteEmailSent(true);
+                      setInviteStatus('');
+                    }
+                  }}
+                >
+                  <input
+                    type="email"
+                    required
+                    placeholder="jouw@email.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-2.5 text-sm
+                               text-ink-700 placeholder-ink-400 focus:outline-none focus:border-sage-300
+                               focus:ring-2 focus:ring-sage-200 transition mb-3"
+                  />
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowInviteModal(false)}
+                      className="flex-1 min-h-[44px] py-3 rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-sm font-medium hover:bg-cream-200 active:scale-[0.98] transition"
+                    >
+                      Later
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
+                    >
+                      Stuur link
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {inviteStatus && (
+              <p className="text-xs text-ink-400 mt-3 text-center">{inviteStatus}</p>
+            )}
           </div>
         </div>
       )}
