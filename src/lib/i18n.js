@@ -1038,7 +1038,7 @@ const STRINGS = {
     'legal.title':         'Privacy & disclaimer',
 
     'legal.controller.title': 'Verwerkingsverantwoordelijke',
-    'legal.controller.body':  'Aura wordt aangeboden door [VUL_IN: naam of entiteit van de uitgever]. Voor privacy-vragen of een verzoek over je rechten: [VUL_IN: contact e-mail]. Op grond van AVG art. 37 is geen Functionaris Gegevensbescherming (DPO) aangewezen — de verwerking is geen kernactiviteit op grote schaal van bijzondere gegevens (alle data blijft lokaal op jouw apparaat en wordt niet door ons centraal samengevoegd).',
+    'legal.controller.body':  'Aura wordt aangeboden door Xaven BV (KvK 42060488), gevestigd in Nederland. Voor privacy-vragen of een verzoek over je rechten: info@xaven.io. Op grond van AVG art. 37 is geen Functionaris Gegevensbescherming (DPO) aangewezen — de verwerking is geen kernactiviteit op grote schaal van bijzondere gegevens (alle data blijft lokaal op jouw apparaat en wordt niet door ons centraal samengevoegd).',
     'legal.controller.complaint': 'Niet tevreden over hoe wij omgaan met je privacy? Je hebt het recht een klacht in te dienen bij de Autoriteit Persoonsgegevens via autoriteitpersoonsgegevens.nl.',
 
     'legal.basis.title':   'Rechtsgrondslag (AVG art. 6 + 9)',
@@ -1479,7 +1479,7 @@ const STRINGS = {
     'legal.title':         'Privacy & disclaimer',
 
     'legal.controller.title': 'Data controller',
-    'legal.controller.body':  'Aura is published by [TO FILL: name or legal entity of the publisher]. For privacy questions or a request about your rights: [TO FILL: contact email]. No Data Protection Officer (DPO) has been appointed under GDPR art. 37 — the processing is not a core activity at large scale of special-category data (all data stays on your device and is not centrally aggregated by us).',
+    'legal.controller.body':  'Aura is published by Xaven BV (Dutch Chamber of Commerce reg. no. 42060488), established in the Netherlands. For privacy questions or a request about your rights: info@xaven.io. No Data Protection Officer (DPO) has been appointed under GDPR art. 37 — the processing is not a core activity at large scale of special-category data (all data stays on your device and is not centrally aggregated by us).',
     'legal.controller.complaint': 'Unhappy with how we handle your privacy? You have the right to lodge a complaint with the Dutch Data Protection Authority (Autoriteit Persoonsgegevens) via autoriteitpersoonsgegevens.nl, or your national equivalent.',
 
     'legal.basis.title':   'Legal basis (GDPR art. 6 + 9)',

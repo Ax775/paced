@@ -2,7 +2,7 @@
 
 **Stand:** 12 mei 2026 · v1.4
 **Verwerker:** Aura PWA (offline-first webapplicatie)
-**Verantwoordelijke:** `[VUL_IN: naam of entiteit van de uitgever]`
+**Verantwoordelijke:** Xaven BV, KvK 42060488, gevestigd in Nederland · privacy: info@xaven.io
 **Doel van dit document:** Voldoen aan AVG art. 35 — vastlegging van de
 risico-analyse rond de verwerking van bijzondere-categorie data
 (gezondheid). "Light" omdat het residual risk laag is dankzij de
@@ -50,7 +50,7 @@ De residual risk is laag genoeg dat formele AP-consultatie (art. 36)
   timestamp) — geen Aura-userdata.
 
 ### Door wie
-- Verwerkingsverantwoordelijke: `[VUL_IN]`
+- Verwerkingsverantwoordelijke: Xaven BV (KvK 42060488)
 - Verwerker (alleen voor app-distributie): Cloudflare Inc. /
   Cloudflare Germany GmbH
 - Geen sub-verwerkers voor user-data zelf (data verlaat het apparaat niet)
