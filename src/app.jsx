@@ -5574,6 +5574,17 @@ function App() {
     })();
   }, [_ownerPhase, _ownerDay]);
 
+  // Escape-key dismissal for the invite modal — matches the pattern used by
+  // the other modals in this file (SectionInfoModal, phase-info modal).
+  // Without this, keyboard-only users can dismiss the modal only by
+  // tab-hunting to the small "Later" button.
+  useEffect(() => {
+    if (!showInviteModal) return;
+    const onKey = (e) => { if (e.key === 'Escape') setShowInviteModal(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showInviteModal]);
+
   useEffect(() => {
     const onStorage = (e) => {
       if (!e.key) return; // localStorage.clear() in another tab
@@ -5751,15 +5762,16 @@ function App() {
           <div
             className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up"
             role="dialog"
-            aria-label="Partneruitnodiging"
+            aria-modal="true"
+            aria-labelledby="partner-invite-modal-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-2xl mb-3 text-center">🔗</div>
-            <h2 className="font-display text-[22px] text-ink-700 mb-2 text-center">Uitnodiging ontvangen</h2>
+            <div className="text-2xl mb-3 text-center" aria-hidden="true">🔗</div>
+            <h2 id="partner-invite-modal-title" className="font-display text-[22px] text-ink-700 mb-2 text-center">Uitnodiging ontvangen</h2>
 
             {/* Auth-check loading */}
             {!inviteAuthChecked && (
-              <p className="text-sm text-ink-400 text-center py-4">Controleren…</p>
+              <p role="status" aria-live="polite" className="text-sm text-ink-500 text-center py-4">Controleren…</p>
             )}
 
             {/* Magic-link sent */}
@@ -5773,7 +5785,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setShowInviteModal(false)}
-                  className="w-full min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
+                  className="w-full min-h-[44px] py-3 rounded-xl bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 transition active:scale-[0.98]"
                 >
                   Begrepen
                 </button>
@@ -5799,11 +5811,29 @@ function App() {
                     onClick={async () => {
                       setInviteStatus('Koppelen…');
                       const { error } = await acceptPartnerInvite(pendingInvite);
-                      if (!error) { setIsPartner(true); setTab('partner'); }
-                      else { setInviteStatus('Kon niet koppelen. Probeer opnieuw.'); return; }
-                      setShowInviteModal(false);
+                      // Map specific error codes to user-friendly Dutch messages.
+                      // The RPC distinguishes invalid/used/self-invite so the
+                      // user knows exactly why and what to do next.
+                      if (!error) {
+                        setIsPartner(true);
+                        setTab('partner');
+                        // Clean the invite param so a refresh doesn't re-open
+                        // the modal forever.
+                        try { window.history.replaceState(null, '', window.location.pathname); } catch {}
+                        setShowInviteModal(false);
+                      } else if (error === 'invite_invalid') {
+                        setInviteStatus('Deze uitnodigingslink is niet meer geldig. Vraag je partner om een nieuwe link te sturen.');
+                      } else if (error === 'invite_already_used') {
+                        setInviteStatus('Deze uitnodiging is al gebruikt. Vraag je partner om een nieuwe link.');
+                      } else if (error === 'self_invite') {
+                        setInviteStatus('Dit is je eigen uitnodigingslink. Stuur hem naar je partner.');
+                      } else if (error === 'not_authenticated') {
+                        setInviteStatus('Sessie verlopen. Sluit en open de link opnieuw.');
+                      } else {
+                        setInviteStatus('Kon niet koppelen. Controleer je verbinding en probeer opnieuw.');
+                      }
                     }}
-                    className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
+                    className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 transition active:scale-[0.98]"
                   >
                     Koppelen
                   </button>
@@ -5855,7 +5885,7 @@ function App() {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
+                      className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 transition active:scale-[0.98]"
                     >
                       Stuur link
                     </button>
@@ -5865,7 +5895,13 @@ function App() {
             )}
 
             {inviteStatus && (
-              <p className="text-xs text-ink-400 mt-3 text-center">{inviteStatus}</p>
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-xs text-ink-500 mt-3 text-center"
+              >
+                {inviteStatus}
+              </p>
             )}
           </div>
         </div>

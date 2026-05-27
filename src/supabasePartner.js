@@ -7,16 +7,23 @@
  *
  * If not set, all async functions return { data: null, error: 'not_configured' }
  * and the app continues working without any partner features.
+ *
+ * Implementation note: @supabase/supabase-js is statically imported and
+ * bundled by esbuild. Previously we did a runtime `await import()` from
+ * esm.sh which (a) failed under the production CSP (`script-src 'self'`
+ * + `connect-src 'self'`) and (b) added 1–2s cold-start latency on
+ * mobile. Bundling adds ~35KB to dist/app.js but the feature actually
+ * works now.
  */
+import { createClient } from '@supabase/supabase-js';
 
 let _supabase = null;
 
-async function getSupabase() {
+function getSupabase() {
   if (_supabase) return _supabase;
   const url = window.AURA_SUPABASE_URL;
   const key = window.AURA_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
-  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
   _supabase = createClient(url, key);
   return _supabase;
 }
@@ -90,16 +97,38 @@ export async function deleteMyLink() {
     .eq('owner_user_id', user.id);
 }
 
+// Invite acceptance goes through the accept_partner_invite SECURITY DEFINER
+// RPC (see migration 0002). The RPC performs the lookup + bind atomically
+// server-side so the client never needs SELECT access to other users' rows.
+// Returns one of: 'invite_invalid' | 'invite_already_used' | 'self_invite' |
+// 'not_authenticated' | 'not_configured' | null (success).
 export async function acceptInvite(code) {
-  const sb = await getSupabase();
+  const sb = getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return { data: null, error: 'not_authenticated' };
-  return sb.from('partner_links')
-    .update({ partner_user_id: user.id, accepted_at: new Date().toISOString() })
-    .eq('invite_code', code)
-    .eq('active', true)
-    .is('partner_user_id', null);
+
+  // Normalize: invite codes are uppercase base36 server-side. Trim handles
+  // trailing whitespace from copy-paste; case-insensitive entry handles
+  // users who type the code by hand.
+  const normalized = (code || '').trim().toUpperCase();
+  if (!normalized) return { data: null, error: 'invite_invalid' };
+
+  const { data, error } = await sb.rpc('accept_partner_invite', { code: normalized });
+
+  if (error) {
+    // Map Postgres exception messages to stable client codes the UI can
+    // branch on. The RPC raises with the literal strings below.
+    const msg = error.message || '';
+    if (msg.includes('invite_not_found'))       return { data: null, error: 'invite_invalid' };
+    if (msg.includes('invite_already_accepted')) return { data: null, error: 'invite_already_used' };
+    if (msg.includes('self_invite'))             return { data: null, error: 'self_invite' };
+    if (msg.includes('not_authenticated'))       return { data: null, error: 'not_authenticated' };
+    return { data: null, error: 'unknown' };
+  }
+
+  // RPC returns an array (return type is "table") — take the first row.
+  return { data: data?.[0] ?? null, error: null };
 }
 
 export async function getPartnerSnapshot() {
