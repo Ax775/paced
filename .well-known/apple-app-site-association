@@ -1,0 +1,23 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["__APPLE_TEAM_ID__.io.xaven.aurahealth"],
+        "components": [
+          {
+            "/": "/",
+            "?": { "invite": "?*" },
+            "comment": "Partner invite links (e.g. /?invite=ABC123) open the installed app instead of Safari."
+          },
+          {
+            "/": "/",
+            "comment": "Root path also opens the installed app when tapped from another app (e.g. shared link in Messages)."
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["__APPLE_TEAM_ID__.io.xaven.aurahealth"]
+  }
+}

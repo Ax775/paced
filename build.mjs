@@ -112,6 +112,11 @@ copyFileSync('sw.js',                `${distDir}/sw.js`);
 copyFileSync('_headers',             `${distDir}/_headers`);
 copyFileSync('robots.txt',           `${distDir}/robots.txt`);
 cpSync('assets', `${distDir}/assets`, { recursive: true });
+// .well-known/ contains the apple-app-site-association manifest for iOS
+// Universal Links. Must be served from the domain root (not /assets/).
+if (existsSync('.well-known')) {
+  cpSync('.well-known', `${distDir}/.well-known`, { recursive: true });
+}
 
 console.log('─'.repeat(48));
 console.log('✓ Build complete → dist/');

@@ -31,6 +31,14 @@
   Cache-Control: public, max-age=3600
   Content-Type: application/manifest+json; charset=utf-8
 
+# iOS Universal Links manifest. Must be JSON, no .json extension, served
+# over HTTPS at the domain root. Apple fetches this when the app is
+# installed and uses it to determine which URLs open the app vs the browser.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
+  X-Content-Type-Options: nosniff
+
 # App source — short cache because users may pull updates frequently.
 # The SW also uses network-first for these so a stale browser cache won't
 # stick around long.
