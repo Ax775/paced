@@ -27,6 +27,12 @@ const SHARE_LEVELS = [
   { id: 'phase+day',  label: 'Fase + dag',        hint: 'Fase én dag van de cyclus zichtbaar.' },
 ];
 
+// localStorage key tracking the AVG-style consent for the partner-share
+// feature. Required by AVG art. 9(2)(a): explicit informed consent before
+// any special-category data leaves the device. Persisted so returning
+// users aren't re-prompted.
+const CONSENT_KEY = 'aura.partner.consent.v1';
+
 export default function PartnerSettings({ currentPhase, cycleDay }) {
   const [loading,    setLoading]    = useState(true);
   const [user,       setUser]       = useState(null);
@@ -36,6 +42,9 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
   const [shareLevel, setShareLevel] = useState('phase');
   const [copied,     setCopied]     = useState(false);
   const [status,     setStatus]     = useState('');
+  const [consentGiven, setConsentGiven] = useState(() => {
+    try { return localStorage.getItem(CONSENT_KEY) === '1'; } catch { return false; }
+  });
 
   const configured = isConfigured();
 
@@ -131,30 +140,75 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
     <div className="p-6">
       <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-4">Partner</div>
 
-      {/* Not logged in */}
-      {!user && !emailSent && (
-        <form onSubmit={handleMagicLink}>
-          <p className="text-sm text-ink-500 leading-relaxed mb-4">
-            Log in met een magic link om je partner toegang te geven tot je fasenoverzicht.
+      {/* Not logged in, consent not yet given — show AVG-explainer first. */}
+      {!user && !emailSent && !consentGiven && (
+        <div>
+          <p className="text-sm text-ink-600 leading-relaxed mb-4">
+            Met deze functie kan je partner je <strong>huidige cyclus-fase</strong> volgen.
+            Lees eerst wat er precies gedeeld wordt:
           </p>
+          <ul className="text-sm text-ink-600 leading-relaxed space-y-2 mb-5 pl-1">
+            <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Alleen je huidige fase (en optioneel cyclus-dag). <strong>Geen</strong> symptomen, voeding, notities of andere logs.</span></li>
+            <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Opgeslagen op Supabase (EU-region) met row-level security — alleen jij en je gekoppelde partner kunnen het lezen.</span></li>
+            <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Stopt direct zodra je op &ldquo;Ontkoppelen&rdquo; klikt — geen historische data blijft over.</span></li>
+            <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Volledig optioneel. De rest van Aura blijft 100% op je eigen apparaat.</span></li>
+          </ul>
+          <p className="text-[11px] text-ink-500 leading-relaxed mb-5">
+            Volgens AVG art. 9 lid 2 sub a heb je expliciete toestemming nodig om gezondheidsgegevens te delen.
+            Door op &ldquo;Akkoord, log in&rdquo; te klikken geef je die toestemming — je kan hem later intrekken via &ldquo;Ontkoppelen&rdquo;.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              try { localStorage.setItem(CONSENT_KEY, '1'); } catch { /* private mode */ }
+              setConsentGiven(true);
+            }}
+            className="w-full rounded-xl bg-sage-600 text-cream-50 py-3 text-sm font-medium
+                       hover:bg-sage-700 active:scale-[0.98] transition"
+          >
+            Akkoord, log in
+          </button>
+        </div>
+      )}
+
+      {/* Not logged in, consent given — show magic-link form. */}
+      {!user && !emailSent && consentGiven && (
+        <form onSubmit={handleMagicLink}>
+          <p className="text-sm text-ink-600 leading-relaxed mb-4">
+            Log in met een magic link op je email-adres. Je partner krijgt zelf ook een eigen account
+            wanneer hij/zij de uitnodigingslink opent.
+          </p>
+          <label htmlFor="partner-magic-email" className="sr-only">Email-adres</label>
           <input
+            id="partner-magic-email"
             type="email"
             required
+            inputMode="email"
+            autoComplete="email"
+            autoCapitalize="off"
+            spellCheck="false"
             placeholder="jouw@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-2.5 text-sm
-                       text-ink-700 placeholder-ink-400 focus:outline-none focus:border-sage-300
+                       text-ink-700 placeholder-ink-500 focus:outline-none focus:border-sage-400
                        focus:ring-2 focus:ring-sage-200 transition mb-3"
           />
           <button
             type="submit"
-            className="w-full rounded-xl bg-sage-500 text-cream-50 py-3 text-sm font-medium
-                       hover:bg-sage-600 active:scale-[0.98] transition"
+            className="w-full rounded-xl bg-sage-600 text-cream-50 py-3 text-sm font-medium
+                       hover:bg-sage-700 active:scale-[0.98] transition"
           >
             Stuur magic link
           </button>
-          {status && <p className="text-xs text-ink-400 mt-2 text-center">{status}</p>}
+          <button
+            type="button"
+            onClick={() => setConsentGiven(false)}
+            className="w-full mt-2 text-xs text-ink-500 underline hover:text-ink-700 transition"
+          >
+            Terug naar uitleg
+          </button>
+          {status && <p role="status" aria-live="polite" className="text-xs text-ink-500 mt-2 text-center">{status}</p>}
         </form>
       )}
 

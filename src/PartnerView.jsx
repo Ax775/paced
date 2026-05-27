@@ -11,31 +11,37 @@ import { RefreshCw } from 'lucide-react';
 import { getPartnerSnapshot } from './supabasePartner.js';
 
 // Phase → { emoji, label, tip }
+//
+// Tip copy is framed from her perspective ("ze heeft mogelijk minder energie")
+// rather than instructions to the partner ("geef haar ruimte", "wees lief").
+// The original copy was flagged in the UX audit for treating PMS as a problem
+// the man manages — which lands poorly in a women's-health app, especially
+// in Dutch press coverage. Information > prescription.
 const PHASE_INFO = {
   menstrual: {
     emoji: '❤️',
     label: 'Rustweek',
-    tip:   'Verwennerij gewenst — warmte, rust en aandacht.',
+    tip:   'Ze heeft mogelijk minder energie deze dagen. Warmte en een rustige sfeer kunnen fijn zijn.',
   },
   follicular: {
     emoji: '🌱',
     label: 'Energieke periode',
-    tip:   'Goed moment voor een avondje uit of nieuwe plannen.',
+    tip:   'Energie en focus zijn vaak hoger nu. Goed moment voor samen iets actiefs of nieuws plannen.',
   },
   ovulatory: {
     emoji: '✨',
     label: 'Topvorm week',
-    tip:   'Ze zit in haar kracht — plan iets leuks samen.',
+    tip:   'Vaak de meest energieke fase van haar cyclus. Een leuke avond samen kan extra goed vallen.',
   },
   luteal: {
     emoji: '🍂',
     label: 'Rustige periode',
-    tip:   'Geef haar wat extra ruimte en rustmomenten.',
+    tip:   'Energie kan langzaam afnemen richting de menstruatie. Een rustige avond samen werkt vaak goed.',
   },
   luteal_late: {
     emoji: '🌙',
     label: 'Gevoelige periode',
-    tip:   'Extra lief zijn vandaag gaat een lange weg.',
+    tip:   'Stemming kan wisselen in de dagen vóór de menstruatie. Geduld en kleine attenties helpen vaak.',
   },
 };
 
