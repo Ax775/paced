@@ -1,4 +1,4 @@
--- Aura — Secure partner-invite acceptance flow
+-- Paced — Secure partner-invite acceptance flow
 -- =============================================
 --
 -- Migration 0001 shipped an `invite_lookup` policy with a fatal flaw:

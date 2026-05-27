@@ -9,7 +9,7 @@ zonder opnieuw te hoeven scopen.
 
 ## Waarom apart, niet in deze launch-PR
 
-De prod-hardening branch (`origin/claude/aura-prod-hardening`) bevat
+De prod-hardening branch (`origin/claude/paced-prod-hardening`) bevat
 een werkende implementatie, maar is fundamenteel andere code:
 
 - Vite + Playwright + axe (i.p.v. esbuild + Vitest)
@@ -17,7 +17,7 @@ een werkende implementatie, maar is fundamenteel andere code:
 - `src/main.jsx` + `src/UnlockGate.jsx` split (wij hebben single
   `src/app.jsx`)
 
-`git diff --stat origin/main origin/claude/aura-prod-hardening -- src/`
+`git diff --stat origin/main origin/claude/paced-prod-hardening -- src/`
 laat zien: 2987 nieuwe regels, 5503 weggeknipt. Het is geen merge —
 het is een rewrite. Direct mergen werkt niet; cherry-picken vereist
 hand-port met zorg op:

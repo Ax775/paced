@@ -1,5 +1,5 @@
 /**
- * Aura production build.
+ * Paced production build.
  *
  *   src/  +  index.html (dev)  →  dist/  (prod)
  *
@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, rmSync, e
 
 const distDir = 'dist';
 
-console.log('🔨 Aura build');
+console.log('🔨 Paced build');
 console.log('─'.repeat(48));
 
 // ── 0. Clean dist ─────────────────────────────────────────────────────────
@@ -112,6 +112,11 @@ copyFileSync('sw.js',                `${distDir}/sw.js`);
 copyFileSync('_headers',             `${distDir}/_headers`);
 copyFileSync('robots.txt',           `${distDir}/robots.txt`);
 cpSync('assets', `${distDir}/assets`, { recursive: true });
+// .well-known/ contains the apple-app-site-association manifest for iOS
+// Universal Links. Must be served from the domain root (not /assets/).
+if (existsSync('.well-known')) {
+  cpSync('.well-known', `${distDir}/.well-known`, { recursive: true });
+}
 
 console.log('─'.repeat(48));
 console.log('✓ Build complete → dist/');

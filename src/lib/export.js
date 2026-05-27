@@ -1,5 +1,5 @@
 /**
- * Aura — CSV export ("voor arts")
+ * Paced — CSV export ("voor arts")
  * --------------------------------
  * Pure transform: dagelijkse logs → CSV-string die een gebruiker veilig
  * met een arts kan delen. Géén DOM, géén netwerk — de browser-laag
@@ -115,13 +115,13 @@ export function generateCsvExport(entries) {
   return rows.join('\n');
 }
 
-/** Suggest a filename like `aura-export-2026-05-03.csv`. */
+/** Suggest a filename like `paced-export-2026-05-03.csv`. */
 export function csvExportFilename(today = new Date()) {
   const d = today instanceof Date ? today : new Date(today);
   const y  = d.getFullYear();
   const m  = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  return `aura-export-${y}-${m}-${dd}.csv`;
+  return `paced-export-${y}-${m}-${dd}.csv`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -129,7 +129,7 @@ export function csvExportFilename(today = new Date()) {
 /* ------------------------------------------------------------------ */
 
 /**
- * Pakt het volledige Aura-data-pakketje (profiel + alle gelogde dagen)
+ * Pakt het volledige Paced-data-pakketje (profiel + alle gelogde dagen)
  * in één machine-leesbaar JSON-blob. Voor AVG art. 20 ("recht op
  * data-portabiliteit") is een gestructureerd, gangbaar en machine-
  * leesbaar formaat vereist — JSON met expliciete schema-versie voldoet.
@@ -155,14 +155,14 @@ export function generateFullJsonExport(profile, logEntries, opts = {}) {
   }
 
   const payload = {
-    aura: {
+    paced: {
       schemaVersion,
       exportedAt: today.toISOString(),
-      format: 'aura-full-export-v1',
+      format: 'paced-full-export-v1',
       // Helder waar dit bestand voor is, voor een onbekende lezer of
       // toekomstige importeur — onderdeel van AVG art. 20 "begrijpelijk".
       readme: [
-        'Dit is een volledige export van je Aura-data (AVG art. 20).',
+        'Dit is een volledige export van je Paced-data (AVG art. 20).',
         'Profile bevat je persoonlijke instellingen; logs bevat één entry per kalenderdag (yyyy-mm-dd).',
         'Alle data verliet je apparaat alleen op jouw initiatief.',
       ].join('\n'),
@@ -174,13 +174,13 @@ export function generateFullJsonExport(profile, logEntries, opts = {}) {
   return JSON.stringify(payload, null, 2);
 }
 
-/** Suggest a filename like `aura-full-export-2026-05-12.json`. */
+/** Suggest a filename like `paced-full-export-2026-05-12.json`. */
 export function fullJsonExportFilename(today = new Date()) {
   const d = today instanceof Date ? today : new Date(today);
   const y  = d.getFullYear();
   const m  = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  return `aura-full-export-${y}-${m}-${dd}.json`;
+  return `paced-full-export-${y}-${m}-${dd}.json`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -254,13 +254,13 @@ export function generateAppleHealthXml(entries, opts = {}) {
     const nextDateStr = addDaysToISODate(dateStr, 1);
 
     if (log.calories > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.calories)}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryEnergyConsumed" sourceName="Paced" unit="kcal" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.calories)}"/>`);
     }
     if (log.protein > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Aura" unit="g" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.protein)}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryProtein" sourceName="Paced" unit="g" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.protein)}"/>`);
     }
     if (log.hydration > 0) {
-      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Aura" unit="mL" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.hydration * 250)}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierDietaryWater" sourceName="Paced" unit="mL" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T00:00:00" endDate="${dateStr}T23:59:59" value="${xmlAttr(log.hydration * 250)}"/>`);
     }
     if (log.sleep > 0) {
       // Slaap-venster: start om 22:00 van `dateStr`, eindig na
@@ -274,7 +274,7 @@ export function generateAppleHealthXml(entries, opts = {}) {
       const totalEnd = startMinutes + sleepMinutes;          // 22:00 + N min
       const endDay   = totalEnd >= 24 * 60 ? nextDateStr : dateStr;
       const endHHMM  = minutesToHHMM(totalEnd % (24 * 60));
-      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Aura" unit="count" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T22:00:00" endDate="${endDay}T${endHHMM}:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
+      records.push(`    <Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Paced" unit="count" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T22:00:00" endDate="${endDay}T${endHHMM}:00" value="HKCategoryValueSleepAnalysisAsleep"/>`);
     }
     if (log.movement > 0) {
       // ActiveEnergyBurned: start 08:00, eind = start + N min.
@@ -288,7 +288,7 @@ export function generateAppleHealthXml(entries, opts = {}) {
       const endDay   = totalEnd >= 24 * 60 ? nextDateStr : dateStr;
       const endHHMM  = minutesToHHMM(totalEnd % (24 * 60));
       const est = Math.round(movMinutes * 5);
-      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Aura" unit="kcal" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T08:00:00" endDate="${endDay}T${endHHMM}:00" value="${xmlAttr(est)}"/>`);
+      records.push(`    <Record type="HKQuantityTypeIdentifierActiveEnergyBurned" sourceName="Paced" unit="kcal" creationDate="${xmlAttr(creationISO)}" startDate="${dateStr}T08:00:00" endDate="${endDay}T${endHHMM}:00" value="${xmlAttr(est)}"/>`);
     }
   }
 
@@ -305,11 +305,11 @@ ${records.join('\n')}
 </HealthData>`;
 }
 
-/** Suggest a filename like `aura-health-export-2026-05-03.xml`. */
+/** Suggest a filename like `paced-health-export-2026-05-03.xml`. */
 export function appleHealthFilename(today = new Date()) {
   const d = today instanceof Date ? today : new Date(today);
   const y  = d.getFullYear();
   const m  = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  return `aura-health-export-${y}-${m}-${dd}.xml`;
+  return `paced-health-export-${y}-${m}-${dd}.xml`;
 }

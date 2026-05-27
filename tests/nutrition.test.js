@@ -151,7 +151,7 @@ describe('NUTRIENT_FOCUS', () => {
     }
   });
 
-  it('keeps the "avoid" list intentionally empty (Aura never shames)', () => {
+  it('keeps the "avoid" list intentionally empty (Paced never shames)', () => {
     for (const phase of Object.values(PHASES)) {
       expect(NUTRIENT_FOCUS[phase].avoid).toEqual([]);
     }

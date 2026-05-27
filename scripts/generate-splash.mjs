@@ -1,5 +1,5 @@
 /**
- * Aura — generate iOS apple-touch-startup-image PNGs.
+ * Paced — generate iOS apple-touch-startup-image PNGs.
  *
  * iOS 16+ leidt de PWA-splash af van `manifest.background_color` plus
  * het maskable icon, maar 13–15 (en sommige third-party browsers) tonen

@@ -1,8 +1,8 @@
 /**
- * Aura — i18n
+ * Paced — i18n
  * -----------
  * Centrale Nederlands/Engels dictionary + helpers. Alle UI-strings van
- * Aura komen hier doorheen via de `useT()` hook of de pure `t(locale,
+ * Paced komen hier doorheen via de `useT()` hook of de pure `t(locale,
  * key)` helper. Lib-bestanden (cycle.js, nutrition.js, insights.js)
  * blijven hun eigen NL labels exporteren voor backwards-compat met de
  * tests; de UI gebruikt deze module om de juiste taal te kiezen.
@@ -14,7 +14,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 /*  Locale detection + persistence                                     */
 /* ------------------------------------------------------------------ */
 
-const LOCALE_KEY = 'aura.locale';
+const LOCALE_KEY = 'paced.locale';
 
 export const SUPPORTED_LOCALES = ['nl', 'en'];
 
@@ -746,7 +746,7 @@ const STRINGS = {
     'cycle.next.label': 'Volgende periode',
     'cycle.recent.title': 'Recente cycli',
     'cycle.recent.avg': 'gem. {n} dagen',
-    'cycle.recent.foot': 'Cycluslengte varieert van nature — Aura gebruikt jouw ritme, niet een standaard van 28.',
+    'cycle.recent.foot': 'Cycluslengte varieert van nature — Paced gebruikt jouw ritme, niet een standaard van 28.',
     'cycle.recent.barAria': '{len} dagen cyclus gestart op {date}',
     'cycle.next.daysFmt': '{month} {day} · over {n} dagen',
 
@@ -829,11 +829,11 @@ const STRINGS = {
     'ovulation.felt.hint':     'Krampje, glijmige afscheiding, libido-piek',
     'ovulation.fromTemp.label': 'Afgelezen van temperatuur',
     'ovulation.fromTemp.hint': 'Aanhoudende stijging van ~0.2°C',
-    'ovulation.autoNote':      '🌿 Aura herkent een temperatuurstijging rond {date}.',
+    'ovulation.autoNote':      '🌿 Paced herkent een temperatuurstijging rond {date}.',
 
     /* bleeding details */
     'bleeding.title':    'Bloedingdetails',
-    'bleeding.intro':    'Hoe kleiner de details die je opvolgt, hoe scherper het patroon dat Aura over de maanden ziet.',
+    'bleeding.intro':    'Hoe kleiner de details die je opvolgt, hoe scherper het patroon dat Paced over de maanden ziet.',
 
     /* sport tracker */
     'sport.title':     'Sport vandaag',
@@ -910,7 +910,7 @@ const STRINGS = {
     'breakfast.refresh':   'Andere opties',
 
     /* PWA install */
-    'pwa.title':     'Aura aan beginscherm toevoegen',
+    'pwa.title':     'Paced aan beginscherm toevoegen',
     'pwa.subtitle':  'Werkt offline, voelt als een app.',
     'pwa.install':   'Installeer',
     'pwa.dismiss':   'Installatie-prompt sluiten',
@@ -921,13 +921,13 @@ const STRINGS = {
     'reminder.dismiss':  'Herinnering sluiten',
 
     /* onboarding */
-    'onb.intro.title':       'Hoi, ik ben Aura.',
+    'onb.intro.title':       'Hoi, ik ben Paced.',
     'onb.intro.subtitle':    'Jouw rustige gids voor cyclus-bewuste voeding, energie en welzijn.',
     'onb.intro.nameLabel':   'Hoe heet je?',
     'onb.intro.namePh':      'Jouw naam (optioneel)',
     'onb.intro.cta.named':   'Fijn je te ontmoeten, {name} ✓',
     'onb.intro.cta.empty':   'Laten we beginnen',
-    'onb.intro.privacy':     'Aura bewaart alles uitsluitend lokaal op je apparaat — geen accounts, geen tracking.',
+    'onb.intro.privacy':     'Paced bewaart alles uitsluitend lokaal op je apparaat — geen accounts, geen tracking.',
     'onb.intro.privacyMore': 'Volledige privacyverklaring & medische disclaimer vind je in Instellingen.',
 
     'onb.cycle.title.named':  '{name}, vertel over je cyclus.',
@@ -951,7 +951,7 @@ const STRINGS = {
     'onb.body.activity':    'Activiteitsniveau',
 
     'onb.welcome.title.named': 'Welkom, {name}!',
-    'onb.welcome.title.empty': 'Welkom bij Aura!',
+    'onb.welcome.title.empty': 'Welkom bij Paced!',
     'onb.welcome.intro':       'Dit vind je in de app:',
     'onb.welcome.nav.home':    'Volg voeding, slaap en symptomen',
     'onb.welcome.nav.voeding': 'Recepten afgestemd op je fase',
@@ -1005,7 +1005,7 @@ const STRINGS = {
     'settings.validate.age':     'Leeftijd moet tussen 12 en 80 jaar liggen',
     'settings.validate.weight':  'Gewicht moet tussen 30 en 250 kg liggen',
     'settings.validate.height':  'Lengte moet tussen 120 en 220 cm liggen',
-    'settings.version':          'Aura · v1.3',
+    'settings.version':          'Paced · v1.3',
 
     /* reset confirm */
     'reset.title':   'Alle gegevens wissen?',
@@ -1017,13 +1017,13 @@ const STRINGS = {
 
     /* consent gate */
     'consent.title':       'Toestemming voor je gezondheidsgegevens',
-    'consent.intro':       'Aura verwerkt cyclus-, voedings- en welzijnsgegevens — onder de AVG (art. 9) een bijzondere categorie waarvoor we expliciet je toestemming nodig hebben.',
+    'consent.intro':       'Paced verwerkt cyclus-, voedings- en welzijnsgegevens — onder de AVG (art. 9) een bijzondere categorie waarvoor we expliciet je toestemming nodig hebben.',
     'consent.li1':         '✓ Alle data blijft uitsluitend op jouw apparaat — geen account, geen server, geen tracking',
-    'consent.li2':         '✓ Aura is geen medisch hulpmiddel — voor diagnose of behandeling raadpleeg je een arts',
+    'consent.li2':         '✓ Paced is geen medisch hulpmiddel — voor diagnose of behandeling raadpleeg je een arts',
     'consent.li3':         '✓ Je kunt je toestemming op elk moment intrekken door je gegevens te wissen via Instellingen',
-    'consent.checkbox':    'Ik ben 16 jaar of ouder en geef toestemming voor het verwerken van mijn gezondheidsgegevens op dit apparaat door Aura.',
+    'consent.checkbox':    'Ik ben 16 jaar of ouder en geef toestemming voor het verwerken van mijn gezondheidsgegevens op dit apparaat door Paced.',
     'consent.legal.link':  'Lees de volledige privacy- en disclaimer-tekst',
-    'consent.continue':    'Doorgaan naar Aura',
+    'consent.continue':    'Doorgaan naar Paced',
     'consent.continue.disabled': 'Vink eerst toestemming aan',
     'consent.withdraw.banner': 'Je toestemming voor health-data verwerking is op {date} gegeven (versie {version}).',
 
@@ -1032,25 +1032,25 @@ const STRINGS = {
     'settings.export.json.aria':  'Exporteer alle data als JSON-bestand',
 
     /* notif explainer */
-    'settings.notif.explainer':  'Aura herinnert je in de avond als je nog niets gelogd hebt. Notificaties draaien volledig lokaal — er wordt geen push-server gebruikt, niets verlaat je apparaat.',
+    'settings.notif.explainer':  'Paced herinnert je in de avond als je nog niets gelogd hebt. Notificaties draaien volledig lokaal — er wordt geen push-server gebruikt, niets verlaat je apparaat.',
 
     /* legal */
     'legal.title':         'Privacy & disclaimer',
 
     'legal.controller.title': 'Verwerkingsverantwoordelijke',
-    'legal.controller.body':  'Aura wordt aangeboden door [VUL_IN: naam of entiteit van de uitgever]. Voor privacy-vragen of een verzoek over je rechten: [VUL_IN: contact e-mail]. Op grond van AVG art. 37 is geen Functionaris Gegevensbescherming (DPO) aangewezen — de verwerking is geen kernactiviteit op grote schaal van bijzondere gegevens (alle data blijft lokaal op jouw apparaat en wordt niet door ons centraal samengevoegd).',
+    'legal.controller.body':  'Paced wordt aangeboden door Xaven BV (KvK 42060488), gevestigd in Nederland. Voor privacy-vragen of een verzoek over je rechten: info@xaven.io. Op grond van AVG art. 37 is geen Functionaris Gegevensbescherming (DPO) aangewezen — de verwerking is geen kernactiviteit op grote schaal van bijzondere gegevens (alle data blijft lokaal op jouw apparaat en wordt niet door ons centraal samengevoegd).',
     'legal.controller.complaint': 'Niet tevreden over hoe wij omgaan met je privacy? Je hebt het recht een klacht in te dienen bij de Autoriteit Persoonsgegevens via autoriteitpersoonsgegevens.nl.',
 
     'legal.basis.title':   'Rechtsgrondslag (AVG art. 6 + 9)',
-    'legal.basis.body':    'Aura verwerkt cyclus-, voedings- en welzijnsgegevens. Onder AVG art. 9 zijn gezondheidsgegevens een bijzondere categorie waarvoor uitdrukkelijke toestemming nodig is (art. 9 lid 2 sub a). Die toestemming geef je bewust bij de eerste start van de app. Je kunt deze toestemming op elk moment intrekken door je gegevens te wissen via Instellingen → Alle gegevens wissen — dan stopt elke verdere verwerking.',
+    'legal.basis.body':    'Paced verwerkt cyclus-, voedings- en welzijnsgegevens. Onder AVG art. 9 zijn gezondheidsgegevens een bijzondere categorie waarvoor uitdrukkelijke toestemming nodig is (art. 9 lid 2 sub a). Die toestemming geef je bewust bij de eerste start van de app. Je kunt deze toestemming op elk moment intrekken door je gegevens te wissen via Instellingen → Alle gegevens wissen — dan stopt elke verdere verwerking.',
 
     'legal.med.title':     'Medische disclaimer',
-    'legal.med.p1':        'Aura is een hulpmiddel voor zelfreflectie en bewustwording — geen medisch hulpmiddel in de zin van de EU Medical Device Regulation (2017/745). De app stelt geen diagnose, geeft geen behandeling, en vervangt geen consult bij een (huis)arts, gynaecoloog, voedingsdeskundige of andere zorgverlener.',
+    'legal.med.p1':        'Paced is een hulpmiddel voor zelfreflectie en bewustwording — geen medisch hulpmiddel in de zin van de EU Medical Device Regulation (2017/745). De app stelt geen diagnose, geeft geen behandeling, en vervangt geen consult bij een (huis)arts, gynaecoloog, voedingsdeskundige of andere zorgverlener.',
     'legal.med.p2':        'Berekeningen voor cyclus, vruchtbaar venster, calorieën en eiwitten zijn schattingen op basis van algemene formules. Ze kunnen afwijken van jouw persoonlijke situatie en zijn niet bedoeld als diagnose of behandeling. De kalendermethode is statistisch ~75–80% effectief; gebruik betrouwbare anticonceptie als zwangerschap een gezondheidsrisico zou vormen.',
     'legal.med.p3':        'Maak je je zorgen over je gezondheid, je menstruatiecyclus, je voeding of je welzijn? Neem dan altijd contact op met een gekwalificeerde zorgverlener.',
 
     'legal.store.title':   'Wat slaan we op',
-    'legal.store.intro':   'Alle gegevens die je in Aura invoert blijven uitsluitend op dit apparaat, opgeslagen in de lokale opslag van je browser. Per veld het doel:',
+    'legal.store.intro':   'Alle gegevens die je in Paced invoert blijven uitsluitend op dit apparaat, opgeslagen in de lokale opslag van je browser. Per veld het doel:',
     'legal.store.li1':     'Profiel (naam, leeftijd, gewicht, lengte, activiteitsniveau) — om je dashboard en je dagelijkse doelen te personaliseren',
     'legal.store.li2':     'Cyclus (lengte, duur menstruatie, datums) — om je huidige fase en voorspellingen te tonen',
     'legal.store.li3':     'Dagelijks logboek (voeding, water, slaap, beweging, symptomen, notities) — om patroon-inzichten over tijd te tonen',
@@ -1058,7 +1058,7 @@ const STRINGS = {
     'legal.store.foot':    'Er wordt geen data naar servers gestuurd. Wij zien je gegevens niet, niemand anders ook.',
 
     'legal.retention.title': 'Bewaartermijn',
-    'legal.retention.body':  'Je gegevens blijven bewaard zolang jij Aura gebruikt en je profiel niet wist. Er is geen automatische verwijdering — jij beslist. We adviseren om minimaal eens per jaar te kijken of je nog alle gelogde data nodig hebt en wat ouder is te exporteren of te wissen. Volledig wissen kan op elk moment via Instellingen → Alle gegevens wissen.',
+    'legal.retention.body':  'Je gegevens blijven bewaard zolang jij Paced gebruikt en je profiel niet wist. Er is geen automatische verwijdering — jij beslist. We adviseren om minimaal eens per jaar te kijken of je nog alle gelogde data nodig hebt en wat ouder is te exporteren of te wissen. Volledig wissen kan op elk moment via Instellingen → Alle gegevens wissen.',
 
     'legal.dont.title':    'Wat we niet doen',
     'legal.dont.li1':      '✗ Geen accounts, geen inlog, geen wachtwoorden',
@@ -1069,16 +1069,16 @@ const STRINGS = {
     'legal.dont.li6':      '✗ Geen synchronisatie tussen apparaten (data blijft op dit apparaat)',
 
     'legal.hosting.title': 'Hosting & infrastructuur',
-    'legal.hosting.body':  'Aura wordt gehost op Cloudflare Pages (Cloudflare Inc., met EU-vestiging Cloudflare Germany GmbH). Cloudflare verwerkt voor ons als verwerker beperkte technische verbindingsgegevens (IP-adres, User-Agent, request-tijdstip) om de website te kunnen serveren en beschermen tegen aanvallen. Deze verwerking is gebaseerd op een verwerkersovereenkomst (Cloudflare DPA) en, waar van toepassing, op het EU-US Data Privacy Framework. Cloudflare-edges kunnen wereldwijd staan; de routering kiest doorgaans een EU-locatie. Aura zelf bewaart geen serverlogs en heeft geen toegang tot je IP-adres.',
+    'legal.hosting.body':  'Paced wordt gehost op Cloudflare Pages (Cloudflare Inc., met EU-vestiging Cloudflare Germany GmbH). Cloudflare verwerkt voor ons als verwerker beperkte technische verbindingsgegevens (IP-adres, User-Agent, request-tijdstip) om de website te kunnen serveren en beschermen tegen aanvallen. Deze verwerking is gebaseerd op een verwerkersovereenkomst (Cloudflare DPA) en, waar van toepassing, op het EU-US Data Privacy Framework. Cloudflare-edges kunnen wereldwijd staan; de routering kiest doorgaans een EU-locatie. Paced zelf bewaart geen serverlogs en heeft geen toegang tot je IP-adres.',
 
     'legal.ext.title':     'Externe diensten in de app',
-    'legal.ext.body':      "De productieversie van Aura laadt geen externe scripts, lettertypes of CDN's tijdens gebruik. Alle code, stijlen en lettertypes worden samen met de app meegestuurd en vanuit dezelfde host geserveerd. Tijdens het bezoeken van Aura wordt dus alleen verbinding gemaakt met de Aura-host zelf — niet met Google, Facebook of andere derde partijen.",
+    'legal.ext.body':      "De productieversie van Paced laadt geen externe scripts, lettertypes of CDN's tijdens gebruik. Alle code, stijlen en lettertypes worden samen met de app meegestuurd en vanuit dezelfde host geserveerd. Tijdens het bezoeken van Paced wordt dus alleen verbinding gemaakt met de Paced-host zelf — niet met Google, Facebook of andere derde partijen.",
 
     'legal.cookies.title': 'Cookies & opslag',
-    'legal.cookies.body':  'Aura plaatst geen cookies. We gebruiken uitsluitend de lokale opslag van je browser (localStorage) en alleen voor strikt-functionele doeleinden die nodig zijn om de app te laten werken (je profiel, je logs, je voorkeuren). Op grond van art. 11.7a lid 3(b) Telecommunicatiewet is hiervoor geen aparte toestemming vereist. Voor de verwerking van je gezondheidsgegevens binnen die opslag vragen we wel afzonderlijk toestemming (AVG art. 9) bij de eerste start.',
+    'legal.cookies.body':  'Paced plaatst geen cookies. We gebruiken uitsluitend de lokale opslag van je browser (localStorage) en alleen voor strikt-functionele doeleinden die nodig zijn om de app te laten werken (je profiel, je logs, je voorkeuren). Op grond van art. 11.7a lid 3(b) Telecommunicatiewet is hiervoor geen aparte toestemming vereist. Voor de verwerking van je gezondheidsgegevens binnen die opslag vragen we wel afzonderlijk toestemming (AVG art. 9) bij de eerste start.',
 
     'legal.export.title':  'Wat gebeurt er bij export',
-    'legal.export.body':   'Je kunt je gegevens exporteren via Instellingen — CSV (laatste 90 dagen, voor je arts), Apple Health (XML, importeerbaar in iOS), of volledige JSON. Een export verlaat je apparaat alleen op jouw initiatief. Zodra je een export deelt, beheert de ontvangende app of persoon de gegevens; Aura kan na export niet meer terugzien of beïnvloeden wat ermee gebeurt.',
+    'legal.export.body':   'Je kunt je gegevens exporteren via Instellingen — CSV (laatste 90 dagen, voor je arts), Apple Health (XML, importeerbaar in iOS), of volledige JSON. Een export verlaat je apparaat alleen op jouw initiatief. Zodra je een export deelt, beheert de ontvangende app of persoon de gegevens; Paced kan na export niet meer terugzien of beïnvloeden wat ermee gebeurt.',
 
     'legal.rights.title':  'Jouw rechten (AVG / GDPR)',
     'legal.rights.intro':  'Onder de Europese privacywet heb je recht op inzage, correctie, verwijdering en data-portabiliteit. Omdat alle data alleen op dit apparaat staat, heb je dit volledig zelf in handen:',
@@ -1087,7 +1087,7 @@ const STRINGS = {
     'legal.rights.li3':    'Verwijdering: Instellingen → Alle gegevens wissen — verwijdert profiel, logs en voorkeuren in één keer',
     'legal.rights.li4':    'Intrekking toestemming: dezelfde wis-actie trekt automatisch je toestemming voor health-data verwerking in',
 
-    'legal.foot':          'Aura · v1.4 · laatst bijgewerkt 12 mei 2026',
+    'legal.foot':          'Paced · v1.4 · laatst bijgewerkt 12 mei 2026',
 
     /* logboek */
     'log.subtitle':       'Jouw dagboek',
@@ -1152,13 +1152,13 @@ const STRINGS = {
     'food.log.ofTarget': 'van {n} {unit}',
 
     /* crash */
-    'crash.title':       'Aura is even uit balans',
-    'crash.body':        'Er ging iets mis bij het tekenen van het scherm. Je gegevens zijn veilig — alles staat nog steeds lokaal op je apparaat. Probeer Aura opnieuw te laden.',
+    'crash.title':       'Paced is even uit balans',
+    'crash.body':        'Er ging iets mis bij het tekenen van het scherm. Je gegevens zijn veilig — alles staat nog steeds lokaal op je apparaat. Probeer Paced opnieuw te laden.',
     'crash.show':        'Toon foutgegevens',
     'crash.hide':        'Verberg foutgegevens',
     'crash.copy':        'Kopieer foutgegevens',
     'crash.copied':      'Gekopieerd ✓',
-    'crash.privacyNote': 'Aura stuurt nooit automatisch foutgegevens. Alleen als jij ze zelf kopieert en deelt.',
+    'crash.privacyNote': 'Paced stuurt nooit automatisch foutgegevens. Alleen als jij ze zelf kopieert en deelt.',
 
     /* undo */
     'undo.label': 'Ongedaan maken',
@@ -1211,7 +1211,7 @@ const STRINGS = {
     'cycle.next.label': 'Next period',
     'cycle.recent.title': 'Recent cycles',
     'cycle.recent.avg': 'avg. {n} days',
-    'cycle.recent.foot': 'Cycle length naturally varies — Aura uses your rhythm, not a default of 28.',
+    'cycle.recent.foot': 'Cycle length naturally varies — Paced uses your rhythm, not a default of 28.',
     'cycle.recent.barAria': '{len}-day cycle starting on {date}',
     'cycle.next.daysFmt': '{month} {day} · in {n} days',
 
@@ -1284,10 +1284,10 @@ const STRINGS = {
     'ovulation.felt.hint':     'Twinge, slippery discharge, libido peak',
     'ovulation.fromTemp.label': 'Read from temperature',
     'ovulation.fromTemp.hint': 'Sustained rise of ~0.2°C',
-    'ovulation.autoNote':      '🌿 Aura detects a temperature rise around {date}.',
+    'ovulation.autoNote':      '🌿 Paced detects a temperature rise around {date}.',
 
     'bleeding.title':    'Bleeding details',
-    'bleeding.intro':    'The smaller the details you track, the sharper the pattern Aura sees over the months.',
+    'bleeding.intro':    'The smaller the details you track, the sharper the pattern Paced sees over the months.',
 
     'sport.title':     'Sport today',
     'sport.logged':    'Logged',
@@ -1354,7 +1354,7 @@ const STRINGS = {
     'breakfast.title':     'Quick breakfast ideas',
     'breakfast.refresh':   'Other options',
 
-    'pwa.title':     'Add Aura to home screen',
+    'pwa.title':     'Add Paced to home screen',
     'pwa.subtitle':  'Works offline, feels like an app.',
     'pwa.install':   'Install',
     'pwa.dismiss':   'Close install prompt',
@@ -1363,13 +1363,13 @@ const STRINGS = {
     'reminder.subtitle': "You haven't tracked anything today yet.",
     'reminder.dismiss':  'Close reminder',
 
-    'onb.intro.title':       "Hi, I'm Aura.",
+    'onb.intro.title':       "Hi, I'm Paced.",
     'onb.intro.subtitle':    'Your calm guide for cycle-aware nutrition, energy and wellbeing.',
     'onb.intro.nameLabel':   "What's your name?",
     'onb.intro.namePh':      'Your name (optional)',
     'onb.intro.cta.named':   'Nice to meet you, {name} ✓',
     'onb.intro.cta.empty':   "Let's begin",
-    'onb.intro.privacy':     'Aura keeps everything strictly on your device — no accounts, no tracking.',
+    'onb.intro.privacy':     'Paced keeps everything strictly on your device — no accounts, no tracking.',
     'onb.intro.privacyMore': 'The full privacy statement & medical disclaimer are in Settings.',
 
     'onb.cycle.title.named':  '{name}, tell me about your cycle.',
@@ -1393,7 +1393,7 @@ const STRINGS = {
     'onb.body.activity':    'Activity level',
 
     'onb.welcome.title.named': 'Welcome, {name}!',
-    'onb.welcome.title.empty': 'Welcome to Aura!',
+    'onb.welcome.title.empty': 'Welcome to Paced!',
     'onb.welcome.intro':       "Here's what you'll find in the app:",
     'onb.welcome.nav.home':    'Track food, sleep and symptoms',
     'onb.welcome.nav.voeding': 'Recipes tuned to your phase',
@@ -1446,7 +1446,7 @@ const STRINGS = {
     'settings.validate.age':     'Age must be between 12 and 80',
     'settings.validate.weight':  'Weight must be between 30 and 250 kg',
     'settings.validate.height':  'Height must be between 120 and 220 cm',
-    'settings.version':          'Aura · v1.3',
+    'settings.version':          'Paced · v1.3',
 
     'reset.title':   'Reset profile?',
     'reset.body':    'Are you sure? All profile data will be erased. Daily logs will be kept.',
@@ -1459,13 +1459,13 @@ const STRINGS = {
 
     /* consent gate */
     'consent.title':       'Consent for your health data',
-    'consent.intro':       'Aura processes cycle, nutrition and wellbeing data — under GDPR (art. 9) a special category that requires your explicit consent.',
+    'consent.intro':       'Paced processes cycle, nutrition and wellbeing data — under GDPR (art. 9) a special category that requires your explicit consent.',
     'consent.li1':         '✓ All data stays strictly on your device — no account, no server, no tracking',
-    'consent.li2':         '✓ Aura is not a medical device — for diagnosis or treatment, see a doctor',
+    'consent.li2':         '✓ Paced is not a medical device — for diagnosis or treatment, see a doctor',
     'consent.li3':         '✓ You can withdraw consent any time by erasing your data via Settings',
-    'consent.checkbox':    'I am 16 years or older and consent to the processing of my health data on this device by Aura.',
+    'consent.checkbox':    'I am 16 years or older and consent to the processing of my health data on this device by Paced.',
     'consent.legal.link':  'Read the full privacy & disclaimer',
-    'consent.continue':    'Continue to Aura',
+    'consent.continue':    'Continue to Paced',
     'consent.continue.disabled': 'Please tick consent first',
     'consent.withdraw.banner': 'Consent for health-data processing given on {date} (version {version}).',
 
@@ -1474,24 +1474,24 @@ const STRINGS = {
     'settings.export.json.aria':  'Export all data as JSON file',
 
     /* notif explainer */
-    'settings.notif.explainer':  'Aura reminds you in the evening if you haven\'t logged yet. Notifications run fully locally — no push server is used, nothing leaves your device.',
+    'settings.notif.explainer':  'Paced reminds you in the evening if you haven\'t logged yet. Notifications run fully locally — no push server is used, nothing leaves your device.',
 
     'legal.title':         'Privacy & disclaimer',
 
     'legal.controller.title': 'Data controller',
-    'legal.controller.body':  'Aura is published by [TO FILL: name or legal entity of the publisher]. For privacy questions or a request about your rights: [TO FILL: contact email]. No Data Protection Officer (DPO) has been appointed under GDPR art. 37 — the processing is not a core activity at large scale of special-category data (all data stays on your device and is not centrally aggregated by us).',
+    'legal.controller.body':  'Paced is published by Xaven BV (Dutch Chamber of Commerce reg. no. 42060488), established in the Netherlands. For privacy questions or a request about your rights: info@xaven.io. No Data Protection Officer (DPO) has been appointed under GDPR art. 37 — the processing is not a core activity at large scale of special-category data (all data stays on your device and is not centrally aggregated by us).',
     'legal.controller.complaint': 'Unhappy with how we handle your privacy? You have the right to lodge a complaint with the Dutch Data Protection Authority (Autoriteit Persoonsgegevens) via autoriteitpersoonsgegevens.nl, or your national equivalent.',
 
     'legal.basis.title':   'Legal basis (GDPR art. 6 + 9)',
-    'legal.basis.body':    'Aura processes cycle, nutrition and wellbeing data. Under GDPR art. 9, health data is a special category requiring explicit consent (art. 9(2)(a)). You give that consent deliberately on first launch. You can withdraw consent at any time by erasing your data via Settings → Erase all data — all further processing then stops.',
+    'legal.basis.body':    'Paced processes cycle, nutrition and wellbeing data. Under GDPR art. 9, health data is a special category requiring explicit consent (art. 9(2)(a)). You give that consent deliberately on first launch. You can withdraw consent at any time by erasing your data via Settings → Erase all data — all further processing then stops.',
 
     'legal.med.title':     'Medical disclaimer',
-    'legal.med.p1':        'Aura is a tool for self-reflection and awareness — not a medical device under the EU Medical Device Regulation (2017/745). The app does not diagnose, treat, or replace a consultation with a GP, gynaecologist, dietitian or other healthcare provider.',
+    'legal.med.p1':        'Paced is a tool for self-reflection and awareness — not a medical device under the EU Medical Device Regulation (2017/745). The app does not diagnose, treat, or replace a consultation with a GP, gynaecologist, dietitian or other healthcare provider.',
     'legal.med.p2':        'Calculations for cycle, fertile window, calories and protein are estimates based on general formulas. They may differ from your personal situation and are not intended as diagnosis or treatment. The calendar method is statistically ~75–80% effective; use reliable contraception if pregnancy would pose a health risk.',
     'legal.med.p3':        "If you're worried about your health, your menstrual cycle, your nutrition or your wellbeing, please contact a qualified healthcare provider.",
 
     'legal.store.title':   'What we store',
-    'legal.store.intro':   "All data you enter into Aura stays strictly on this device, stored in your browser's local storage. Purpose per field:",
+    'legal.store.intro':   "All data you enter into Paced stays strictly on this device, stored in your browser's local storage. Purpose per field:",
     'legal.store.li1':     'Profile (name, age, weight, height, activity level) — to personalize your dashboard and daily goals',
     'legal.store.li2':     'Cycle (length, period duration, dates) — to show your current phase and predictions',
     'legal.store.li3':     'Daily journal (food, water, sleep, movement, symptoms, notes) — to show pattern insights over time',
@@ -1499,7 +1499,7 @@ const STRINGS = {
     'legal.store.foot':    'No data is sent to any server. We do not see your data, and neither does anyone else.',
 
     'legal.retention.title': 'Retention period',
-    'legal.retention.body':  'Your data is kept as long as you use Aura and do not erase your profile. There is no automatic deletion — you decide. We recommend reviewing at least once a year whether you still need all logged data, and exporting or erasing older entries. Full erasure is always available via Settings → Erase all data.',
+    'legal.retention.body':  'Your data is kept as long as you use Paced and do not erase your profile. There is no automatic deletion — you decide. We recommend reviewing at least once a year whether you still need all logged data, and exporting or erasing older entries. Full erasure is always available via Settings → Erase all data.',
 
     'legal.dont.title':    "What we don't do",
     'legal.dont.li1':      '✗ No accounts, no logins, no passwords',
@@ -1510,16 +1510,16 @@ const STRINGS = {
     'legal.dont.li6':      '✗ No syncing across devices (data stays on this device)',
 
     'legal.hosting.title': 'Hosting & infrastructure',
-    'legal.hosting.body':  'Aura is hosted on Cloudflare Pages (Cloudflare Inc., with EU entity Cloudflare Germany GmbH). Cloudflare processes — as our processor — limited technical connection data (IP address, User-Agent, request timestamp) needed to serve the website and protect against attacks. This is based on the Cloudflare DPA and, where applicable, the EU-US Data Privacy Framework. Cloudflare edges are global; routing usually picks an EU location. Aura itself keeps no server logs and has no access to your IP address.',
+    'legal.hosting.body':  'Paced is hosted on Cloudflare Pages (Cloudflare Inc., with EU entity Cloudflare Germany GmbH). Cloudflare processes — as our processor — limited technical connection data (IP address, User-Agent, request timestamp) needed to serve the website and protect against attacks. This is based on the Cloudflare DPA and, where applicable, the EU-US Data Privacy Framework. Cloudflare edges are global; routing usually picks an EU location. Paced itself keeps no server logs and has no access to your IP address.',
 
     'legal.ext.title':     'External services in the app',
-    'legal.ext.body':      'The production version of Aura loads no external scripts, fonts or CDNs while you use it. All code, styles and fonts are bundled with the app and served from the same host. While visiting Aura, only Aura\'s own host is contacted — not Google, Facebook or any third party.',
+    'legal.ext.body':      'The production version of Paced loads no external scripts, fonts or CDNs while you use it. All code, styles and fonts are bundled with the app and served from the same host. While visiting Paced, only Paced\'s own host is contacted — not Google, Facebook or any third party.',
 
     'legal.cookies.title': 'Cookies & storage',
-    'legal.cookies.body':  'Aura places no cookies. We only use your browser\'s local storage and only for strictly-functional purposes needed to make the app work (your profile, your logs, your preferences). Under art. 11.7a(3)(b) of the Dutch Telecommunications Act (and EU ePrivacy Directive equivalents) this requires no separate consent banner. For the processing of your health data within that storage we do ask explicit consent (GDPR art. 9) on first launch.',
+    'legal.cookies.body':  'Paced places no cookies. We only use your browser\'s local storage and only for strictly-functional purposes needed to make the app work (your profile, your logs, your preferences). Under art. 11.7a(3)(b) of the Dutch Telecommunications Act (and EU ePrivacy Directive equivalents) this requires no separate consent banner. For the processing of your health data within that storage we do ask explicit consent (GDPR art. 9) on first launch.',
 
     'legal.export.title':  'What happens on export',
-    'legal.export.body':   'You can export your data via Settings — CSV (last 90 days, for your doctor), Apple Health (XML, importable in iOS), or full JSON. An export leaves your device only on your initiative. Once you share an export, the receiving app or person controls the data; Aura cannot see or influence what happens to it afterwards.',
+    'legal.export.body':   'You can export your data via Settings — CSV (last 90 days, for your doctor), Apple Health (XML, importable in iOS), or full JSON. An export leaves your device only on your initiative. Once you share an export, the receiving app or person controls the data; Paced cannot see or influence what happens to it afterwards.',
 
     'legal.rights.title':  'Your rights (GDPR)',
     'legal.rights.intro':  'Under EU privacy law you have the right to access, correct, erase and port your data. Because all data lives only on this device, you have full control:',
@@ -1528,7 +1528,7 @@ const STRINGS = {
     'legal.rights.li3':    'Erasure: Settings → Erase all data — removes profile, logs and preferences in one action',
     'legal.rights.li4':    'Withdrawal of consent: the same erasure action automatically withdraws your consent for health-data processing',
 
-    'legal.foot':          'Aura · v1.4 · last updated 12 May 2026',
+    'legal.foot':          'Paced · v1.4 · last updated 12 May 2026',
 
     'log.subtitle':       'Your journal',
     'log.title':          'Journal',
@@ -1588,13 +1588,13 @@ const STRINGS = {
     'food.log.namePh':   'Name (e.g. oatmeal)',
     'food.log.ofTarget': 'of {n} {unit}',
 
-    'crash.title':       "Aura is a bit off balance",
-    'crash.body':        "Something went wrong while drawing the screen. Your data is safe — everything is still on your device. Try reloading Aura.",
+    'crash.title':       "Paced is a bit off balance",
+    'crash.body':        "Something went wrong while drawing the screen. Your data is safe — everything is still on your device. Try reloading Paced.",
     'crash.show':        'Show error details',
     'crash.hide':        'Hide error details',
     'crash.copy':        'Copy error details',
     'crash.copied':      'Copied ✓',
-    'crash.privacyNote': 'Aura never automatically sends error data. Only if you copy and share it yourself.',
+    'crash.privacyNote': 'Paced never automatically sends error data. Only if you copy and share it yourself.',
 
     'undo.label': 'Undo',
     'undo.aria':  'Undo last change',

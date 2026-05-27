@@ -1,0 +1,43 @@
+<!--
+  Paced — iOS App Store master icon.
+  1024×1024, full-bleed (NO rounded corners — Apple rounds them itself
+  when rendering on the home screen). Solid background, no alpha.
+
+  Same Quiet Luxury design language as the previous brand: cream radial
+  background with a sage→terracotta dashed ring that suggests cycle
+  progression — but now anchored by an italic 'p' instead of the old
+  'a' to match the new wordmark.
+
+  Source of truth for: App Store master (1024), all iOS asset-catalog
+  sizes (generated via @capacitor/assets from icon-only.png).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#F5F1E8"/>
+      <stop offset="100%" stop-color="#E2E9DC"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#87A074"/>
+      <stop offset="100%" stop-color="#C78264"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full-bleed background — Apple masks to its own rounded square. -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+
+  <!-- Sage→terracotta dashed ring representing the cyclus / pace flow. -->
+  <circle cx="512" cy="512" r="300" fill="none"
+          stroke="url(#ring)" stroke-width="36"
+          stroke-linecap="round"
+          stroke-dasharray="1440 440"/>
+
+  <!-- Paler inner circle for visual breathing room around the glyph. -->
+  <circle cx="512" cy="512" r="156" fill="#FBF9F3"/>
+
+  <!-- Italic 'p' wordmark anchor. Slightly raised baseline so the
+       descender sits balanced inside the inner circle. -->
+  <text x="512" y="568" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="192" font-style="italic" fill="#556B47">p</text>
+</svg>

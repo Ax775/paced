@@ -1,5 +1,5 @@
 /**
- * Aura — Daily Insights
+ * Paced — Daily Insights
  * ---------------------
  * Deterministic "tip of the day" generator. We pick from a curated pool
  * per phase using a date-seeded index so:

@@ -1,5 +1,5 @@
 /**
- * Aura — pre-merge / pre-deploy preflight check.
+ * Paced — pre-merge / pre-deploy preflight check.
  *
  * Eén commando dat valideert dat een PR klaar is om te mergen:
  *   1. vitest (alle tests groen)
@@ -63,7 +63,7 @@ function runSync(cmd, args, opts = {}) {
 
 async function main() {
   const start = Date.now();
-  console.log('🛫  Aura preflight');
+  console.log('🛫  Paced preflight');
 
   // ── 1. Tests ──────────────────────────────────────────────────────────
   step('1/4 · Vitest');
@@ -151,7 +151,7 @@ async function runLighthouse() {
     srv.listen(PORT, '127.0.0.1', () => resolveStart(srv));
   });
 
-  const out = join(tmpdir(), 'aura-preflight-' + Date.now() + '.json');
+  const out = join(tmpdir(), 'paced-preflight-' + Date.now() + '.json');
   const runOnce = () => new Promise((resolveRun, rejectRun) => {
     const child = spawn('npx', [
       '-y', 'lighthouse@13',

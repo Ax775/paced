@@ -1,4 +1,4 @@
-# Aura
+# Paced
 
 Persoonlijke gezondheids- en cyclus-tracker voor vrouwen — als PWA.
 Cyclus-bewuste voeding, energie en welzijn, met een rustige UI die
@@ -6,7 +6,7 @@ volledig in **light** en **dark** mode werkt.
 
 Alle data blijft op het apparaat van de gebruiker (`localStorage`). Geen
 accounts, geen tracking, geen analytics, geen externe runtime
-afhankelijkheden — productie verbindt met exact één host: die van Aura
+afhankelijkheden — productie verbindt met exact één host: die van Paced
 zelf.
 
 ---
@@ -138,7 +138,7 @@ release in productie staat.
 |------|-----|
 | HTTPS werkt | Open `https://<jouw-domain>/` — geen mixed-content warnings |
 | CSP blokkeert geen eigen assets | DevTools → Console → geen "blocked by CSP" warnings |
-| Service worker registreert | DevTools → Application → Service Workers → `aura-shell-v<N>` is "activated" |
+| Service worker registreert | DevTools → Application → Service Workers → `paced-shell-v<N>` is "activated" |
 | Manifest valideert | DevTools → Application → Manifest → "Installable" badge zichtbaar |
 | iOS install werkt | Safari op iPhone → Share → "Zet op beginscherm" → open vanaf icoon → standalone-modus + geen blanke flits dankzij `apple-touch-startup-image` PNGs |
 
@@ -150,7 +150,7 @@ bereikt de gebruiker bij de eerstvolgende page-load — geen forced
 hard-refresh nodig.
 
 **Bij elke release** bump het `CACHE`-versie-getal in `sw.js` (huidig:
-`aura-shell-v7`). Anders krijgen returning users een mix van oude en
+`paced-shell-v7`). Anders krijgen returning users een mix van oude en
 nieuwe chunks.
 
 ---
@@ -186,7 +186,7 @@ nieuwe chunks.
 - **Geen data verlaat het apparaat** — alle profiel- en log-data leeft
   in `localStorage`. Verwijderen kan via Instellingen → Profiel
   resetten of door site-data te wissen in de browser.
-- **Geen medisch hulpmiddel** — Aura is een hulpmiddel voor zelfreflectie
+- **Geen medisch hulpmiddel** — Paced is een hulpmiddel voor zelfreflectie
   en bewustwording, geen vervanging voor medisch advies.
 - Volledige tekst is in-app te lezen onder Instellingen → "Privacy &
   disclaimer".
@@ -218,6 +218,58 @@ verifiëren vóór live**:
   niet duidelijk-foute waarden bevat.
 - Voor Apple Health: importeer in de Health-app op een echt iOS-toestel
   en verifieer dat tenminste één bewegings- of voedings-record landt.
+
+---
+
+## iOS distributie (Capacitor)
+
+Paced draait als PWA op het web én als native iOS-app via Capacitor.
+De iOS-versie deelt 100% van de codebase met de PWA — de Capacitor-
+wrapper is alleen een WKWebView-shell + App Store-distributiekanaal.
+
+### Eenmalige setup (op een Mac met Xcode geïnstalleerd)
+
+```bash
+npm install
+npx cap add ios       # genereert ios/ directory met Xcode-project
+cd ios/App && pod install && cd ../..
+```
+
+### Builden + Xcode openen
+
+```bash
+npm run ios:sync     # bouwt dist/ + kopieert naar ios/App/public/
+npm run ios:open     # opent ios/App/App.xcworkspace in Xcode
+```
+
+In Xcode:
+- Selecteer een iOS-simulator (iPhone 15 of nieuwer) of fysiek device
+- Druk op ▶️ Run
+
+### App-icoon + splash genereren
+
+```bash
+npm run gen:icon     # rasterizes assets/icon-only.svg → assets/icon-only.png + PWA-sizes
+npm run gen:splash   # genereert assets/splash/*.png voor iOS apple-touch-startup-image
+npm run ios:assets   # genereert iOS-asset-catalogus uit icon-only.png (na cap add ios)
+```
+
+### App-configuratie
+
+| Setting | Waarde | Wijzig in |
+|---|---|---|
+| Bundle ID | `io.xaven.paced` | `capacitor.config.json` + Xcode |
+| Display name | `Paced` | `capacitor.config.json` + Xcode |
+| Team ID | _zie Apple Developer Account_ | Xcode → Signing & Capabilities |
+| Min iOS version | 14.0 | `ios/App/App.xcodeproj` Build Settings |
+
+### Universal Links (partner-invite-flow)
+
+Wordt apart geconfigureerd zodra de Apple Team ID bekend is. Vereist:
+- `.well-known/apple-app-site-association` op `https://paced.nl/` (al aanwezig in deze repo, Team ID-placeholder nog te vervangen)
+- Associated Domains entitlement in Xcode
+
+Zonder dit openen `?invite=XXX`-links in Safari ipv de geïnstalleerde app.
 
 ---
 

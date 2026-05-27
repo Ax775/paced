@@ -1,5 +1,5 @@
 /**
- * Aura — local Lighthouse audit
+ * Paced — local Lighthouse audit
  * ------------------------------
  * One-shot mobile audit against the production build in `dist/`.
  *
@@ -72,7 +72,7 @@ function startServer() {
 
 function runLighthouse() {
   return new Promise((resolveRun, rejectRun) => {
-    const out = join(tmpdir(), 'aura-lh-' + Date.now() + '.json');
+    const out = join(tmpdir(), 'paced-lh-' + Date.now() + '.json');
     const args = [
       '-y', 'lighthouse@13',
       `http://localhost:${PORT}/`,

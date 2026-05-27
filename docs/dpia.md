@@ -1,8 +1,8 @@
-# Aura — Light DPIA (Gegevensbeschermings-effectbeoordeling)
+# Paced — Light DPIA (Gegevensbeschermings-effectbeoordeling)
 
 **Stand:** 12 mei 2026 · v1.4
-**Verwerker:** Aura PWA (offline-first webapplicatie)
-**Verantwoordelijke:** `[VUL_IN: naam of entiteit van de uitgever]`
+**Verwerker:** Paced PWA (offline-first webapplicatie)
+**Verantwoordelijke:** Xaven BV, KvK 42060488, gevestigd in Nederland · privacy: info@xaven.io
 **Doel van dit document:** Voldoen aan AVG art. 35 — vastlegging van de
 risico-analyse rond de verwerking van bijzondere-categorie data
 (gezondheid). "Light" omdat het residual risk laag is dankzij de
@@ -12,7 +12,7 @@ audit is niet vereist maar dit document fungeert als bewijslast.
 ## 1 · Wanneer is een DPIA verplicht?
 
 Onder AVG art. 35 lid 3 + de AP-lijst is een DPIA verplicht bij o.a.
-"verwerking van bijzondere persoonsgegevens op grote schaal". Aura
+"verwerking van bijzondere persoonsgegevens op grote schaal". Paced
 **raakt** deze categorie:
 
 - ✓ Bijzondere persoonsgegevens (gezondheid, art. 9)
@@ -47,10 +47,10 @@ De residual risk is laag genoeg dat formele AP-consultatie (art. 36)
 - Op het apparaat van de gebruiker (computer, telefoon, tablet)
 - Hosting van de app-code: Cloudflare Pages (EU + global edges).
   Cloudflare ziet alleen technische verbindingsmetadata (IP, User-Agent,
-  timestamp) — geen Aura-userdata.
+  timestamp) — geen Paced-userdata.
 
 ### Door wie
-- Verwerkingsverantwoordelijke: `[VUL_IN]`
+- Verwerkingsverantwoordelijke: Xaven BV (KvK 42060488)
 - Verwerker (alleen voor app-distributie): Cloudflare Inc. /
   Cloudflare Germany GmbH
 - Geen sub-verwerkers voor user-data zelf (data verlaat het apparaat niet)
@@ -91,7 +91,7 @@ Top-5 risico's, met restrisico na mitigatie:
   in productie. Audit `security-audit-2026-05-12.md` bevestigt zero
   XSS-paden.
 - **Restrisico:** laag — een npm-supply-chain compromise van React
-  zelf zou alle React-apps raken; niet Aura-specifiek.
+  zelf zou alle React-apps raken; niet Paced-specifiek.
 
 ### R4 — MDR-overschrijding door verkeerde communicatie
 - **Kans:** laag (interne discipline). **Impact:** medium (regulatory).
@@ -132,7 +132,7 @@ Communicatief:
 
 ## 6 · Conclusie + monitoring
 
-Aura kan onder bovenstaande maatregelen worden ingezet zonder formele
+Paced kan onder bovenstaande maatregelen worden ingezet zonder formele
 AP-consultatie. Restrisico's zijn medium-laag en gecompenseerd door
 de on-device-only architectuur die de blast-radius van elke breach
 beperkt tot één apparaat.

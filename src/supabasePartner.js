@@ -2,8 +2,8 @@
  * supabasePartner.js — Lazy Supabase client for the partner-linking feature.
  *
  * Keys are set in index.html as:
- *   window.AURA_SUPABASE_URL      = 'https://xxxx.supabase.co';
- *   window.AURA_SUPABASE_ANON_KEY = 'eyJ...';
+ *   window.PACED_SUPABASE_URL      = 'https://xxxx.supabase.co';
+ *   window.PACED_SUPABASE_ANON_KEY = 'eyJ...';
  *
  * If not set, all async functions return { data: null, error: 'not_configured' }
  * and the app continues working without any partner features.
@@ -21,15 +21,15 @@ let _supabase = null;
 
 function getSupabase() {
   if (_supabase) return _supabase;
-  const url = window.AURA_SUPABASE_URL;
-  const key = window.AURA_SUPABASE_ANON_KEY;
+  const url = window.PACED_SUPABASE_URL;
+  const key = window.PACED_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   _supabase = createClient(url, key);
   return _supabase;
 }
 
 export function isConfigured() {
-  return !!(window.AURA_SUPABASE_URL && window.AURA_SUPABASE_ANON_KEY);
+  return !!(window.PACED_SUPABASE_URL && window.PACED_SUPABASE_ANON_KEY);
 }
 
 export async function getCurrentUser() {

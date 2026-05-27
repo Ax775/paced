@@ -1,5 +1,5 @@
 /**
- * Aura — Nutrition Engine
+ * Paced — Nutrition Engine
  * -----------------------
  * BMR / TDEE calculation and cycle-phase-aware macro targets.
  *
@@ -81,7 +81,7 @@ export const NUTRIENT_FOCUS = {
   [PHASES.MENSTRUAL]: {
     headline: 'IJzer & warmte',
     foods:    ['Rode linzen', 'Donkere bladgroenten', 'Rode bieten', 'Grasgevoerd vlees', 'Pompoenpitten'],
-    avoid:    [], // Aura beschaamt nooit — "vermijden" is bewust leeg
+    avoid:    [], // Paced beschaamt nooit — "vermijden" is bewust leeg
     why:      'Het aanvullen van ijzer verloren tijdens de menstruatie ondersteunt stabiele energie en stemming.',
   },
   [PHASES.FOLLICULAR]: {

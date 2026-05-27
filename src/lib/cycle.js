@@ -1,5 +1,5 @@
 /**
- * Aura — Cycle Calculation Engine
+ * Paced — Cycle Calculation Engine
  * ---------------------------------
  * Pure functions only. No DOM, no React, no storage.
  * Everything the UI needs about "where am I in my cycle right now"
