@@ -221,6 +221,62 @@ verifiëren vóór live**:
 
 ---
 
+## iOS distributie (Capacitor)
+
+Aura draait als PWA op het web (`aura-5p3.pages.dev`) én als native iOS-app
+via Capacitor. De iOS-versie deelt 100% van de codebase met de PWA — de
+Capacitor-wrapper is alleen een WKWebView-shell + App Store-distributiekanaal.
+
+### Eenmalige setup (op een Mac met Xcode geïnstalleerd)
+
+```bash
+npm install
+npx cap add ios       # genereert ios/ directory met Xcode-project
+cd ios/App && pod install && cd ../..
+```
+
+### Builden + Xcode openen
+
+```bash
+npm run ios:sync     # bouwt dist/ + kopieert naar ios/App/public/
+npm run ios:open     # opent ios/App/App.xcworkspace in Xcode
+```
+
+In Xcode:
+- Selecteer een iOS-simulator (iPhone 15 of nieuwer) of fysiek device
+- Druk op ▶️ Run
+
+### App-icoon + splash genereren (na master-image)
+
+Plaats een 1024×1024 PNG in `assets/icon-only.png` en een 2732×2732 in
+`assets/splash.png`, daarna:
+
+```bash
+npm run ios:assets
+```
+
+Output landt automatisch in `ios/App/App/Assets.xcassets/`.
+
+### App-configuratie
+
+| Setting | Waarde | Wijzig in |
+|---|---|---|
+| Bundle ID | `io.xaven.aurahealth` | `capacitor.config.json` + Xcode |
+| Display name | `Aura` | `capacitor.config.json` + Xcode |
+| Team ID | _zie Apple Developer Account_ | Xcode → Signing & Capabilities |
+| Min iOS version | 14.0 | `ios/App/App.xcodeproj` Build Settings |
+
+### Universal Links (partner-invite-flow)
+
+Wordt apart toegevoegd in een aparte PR zodra de Apple Team ID bekend
+is. Vereist:
+- `apple-app-site-association` file op `https://aura-5p3.pages.dev/.well-known/`
+- Associated Domains entitlement in Xcode
+
+Zonder dit openen `?invite=XXX`-links in Safari ipv de geïnstalleerde app.
+
+---
+
 ## License
 
 Code: zie `LICENSE` (toe te voegen). Lettertypes (Inter, Fraunces) staan

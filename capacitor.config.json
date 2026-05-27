@@ -1,0 +1,12 @@
+{
+  "appId": "io.xaven.aurahealth",
+  "appName": "Aura",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "automatic",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "server": {
+    "iosScheme": "capacitor"
+  }
+}
