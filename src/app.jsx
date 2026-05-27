@@ -5799,9 +5799,27 @@ function App() {
                     onClick={async () => {
                       setInviteStatus('Koppelen…');
                       const { error } = await acceptPartnerInvite(pendingInvite);
-                      if (!error) { setIsPartner(true); setTab('partner'); }
-                      else { setInviteStatus('Kon niet koppelen. Probeer opnieuw.'); return; }
-                      setShowInviteModal(false);
+                      // Map specific error codes to user-friendly Dutch messages.
+                      // The RPC distinguishes invalid/used/self-invite so the
+                      // user knows exactly why and what to do next.
+                      if (!error) {
+                        setIsPartner(true);
+                        setTab('partner');
+                        // Clean the invite param so a refresh doesn't re-open
+                        // the modal forever.
+                        try { window.history.replaceState(null, '', window.location.pathname); } catch {}
+                        setShowInviteModal(false);
+                      } else if (error === 'invite_invalid') {
+                        setInviteStatus('Deze uitnodigingslink is niet meer geldig. Vraag je partner om een nieuwe link te sturen.');
+                      } else if (error === 'invite_already_used') {
+                        setInviteStatus('Deze uitnodiging is al gebruikt. Vraag je partner om een nieuwe link.');
+                      } else if (error === 'self_invite') {
+                        setInviteStatus('Dit is je eigen uitnodigingslink. Stuur hem naar je partner.');
+                      } else if (error === 'not_authenticated') {
+                        setInviteStatus('Sessie verlopen. Sluit en open de link opnieuw.');
+                      } else {
+                        setInviteStatus('Kon niet koppelen. Controleer je verbinding en probeer opnieuw.');
+                      }
                     }}
                     className="flex-1 min-h-[44px] py-3 rounded-xl bg-sage-500 text-cream-50 text-sm font-medium hover:bg-sage-600 transition active:scale-[0.98]"
                   >
