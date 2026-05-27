@@ -7,16 +7,23 @@
  *
  * If not set, all async functions return { data: null, error: 'not_configured' }
  * and the app continues working without any partner features.
+ *
+ * Implementation note: @supabase/supabase-js is statically imported and
+ * bundled by esbuild. Previously we did a runtime `await import()` from
+ * esm.sh which (a) failed under the production CSP (`script-src 'self'`
+ * + `connect-src 'self'`) and (b) added 1–2s cold-start latency on
+ * mobile. Bundling adds ~35KB to dist/app.js but the feature actually
+ * works now.
  */
+import { createClient } from '@supabase/supabase-js';
 
 let _supabase = null;
 
-async function getSupabase() {
+function getSupabase() {
   if (_supabase) return _supabase;
   const url = window.AURA_SUPABASE_URL;
   const key = window.AURA_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
-  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
   _supabase = createClient(url, key);
   return _supabase;
 }

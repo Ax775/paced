@@ -16,7 +16,12 @@
   # scripts (theme init + SW registration); switching to sha256 hashes is a
   # nice future tightening but those hashes have to be recomputed on every
   # edit, which doesn't pay off for ~350 bytes of static code.
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  #
+  # connect-src allows *.supabase.co (HTTPS REST + WSS realtime) for the
+  # optional partner-linking feature. Without this, the partner feature
+  # is silently dead under CSP. Limited to Supabase's domain so any future
+  # third-party SDK has to be added explicitly.
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
 
 # Shell + service worker — never cache so updates land on next reload.
 /index.html
