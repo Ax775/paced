@@ -45,6 +45,10 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
   const [consentGiven, setConsentGiven] = useState(() => {
     try { return localStorage.getItem(CONSENT_KEY) === '1'; } catch { return false; }
   });
+  // Two-step confirmation for the unlink action. One-tap unlink after a
+  // fight is exactly the kind of relationship signal we don't want the
+  // UI to deliver — the user has to click once more to confirm.
+  const [unlinkConfirm, setUnlinkConfirm] = useState(false);
 
   const configured = isConfigured();
 
@@ -98,6 +102,7 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
     await deleteMyLink();
     setLink(null);
     setStatus('');
+    setUnlinkConfirm(false);
   };
 
   const handleSignOut = async () => {
@@ -313,17 +318,41 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleUnlink}
-                className="w-full flex items-center justify-center gap-2 rounded-xl border
-                           border-terracotta-200 bg-terracotta-100/50 text-terracotta-600
-                           py-2.5 text-sm font-medium hover:bg-terracotta-100
-                           active:scale-[0.98] transition mb-3"
-              >
-                <Unlink className="w-4 h-4" />
-                Ontkoppelen
-              </button>
+              {!unlinkConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setUnlinkConfirm(true)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border
+                             border-terracotta-200 bg-terracotta-100/50 text-terracotta-600
+                             py-2.5 text-sm font-medium hover:bg-terracotta-100
+                             active:scale-[0.98] transition mb-3"
+                >
+                  <Unlink className="w-4 h-4" aria-hidden="true" />
+                  Ontkoppelen
+                </button>
+              ) : (
+                <div className="mb-3">
+                  <p className="text-xs text-ink-600 leading-relaxed mb-2 text-center">
+                    Weet je het zeker? Je partner ziet direct geen fase meer.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setUnlinkConfirm(false)}
+                      className="flex-1 min-h-[44px] rounded-xl border border-cream-200 bg-cream-100 text-ink-600 text-xs font-medium hover:bg-cream-200 active:scale-[0.98] transition"
+                    >
+                      Annuleer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleUnlink}
+                      className="flex-1 min-h-[44px] rounded-xl bg-terracotta-600 text-cream-50 text-xs font-medium hover:opacity-90 active:scale-[0.98] transition"
+                    >
+                      Ja, ontkoppel
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
