@@ -82,9 +82,29 @@ export default function PartnerView() {
 
   useEffect(() => {
     load();
-    // Auto-refresh every 30 minutes
-    const id = setInterval(load, 30 * 60 * 1000);
-    return () => clearInterval(id);
+    // Refresh strategy:
+    //   - Background timer every 30 minutes while the tab is visible.
+    //   - Pause the timer when the page is hidden (background tabs,
+    //     screen locked, app backgrounded on iOS PWA) — saves battery
+    //     and avoids piling up Supabase reads for inactive partners.
+    //   - Force a fresh fetch on visibility-change → visible, so a
+    //     partner who comes back to the tab/app sees current data
+    //     immediately instead of waiting up to 30 minutes.
+    let id = setInterval(load, 30 * 60 * 1000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        load();
+        if (!id) id = setInterval(load, 30 * 60 * 1000);
+      } else if (id) {
+        clearInterval(id);
+        id = null;
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      if (id) clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [load]);
 
   if (loading) {
