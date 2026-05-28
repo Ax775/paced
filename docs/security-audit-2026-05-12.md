@@ -1,8 +1,8 @@
-# Aura — Security + Data Audit (12 mei 2026)
+# Paced — Security + Data Audit (12 mei 2026)
 
 Vier specialisten parallel ingezet — Security Engineer, Database Optimizer,
 Compliance Auditor (AVG + MDR), Code Reviewer — op de productie-build
-zoals die op `https://aura-5p3.pages.dev` draait. Totaal ~80 bevindingen.
+zoals die op `https://paced-5p3.pages.dev` draait. Totaal ~80 bevindingen.
 Dit rapport documenteert wat aangepakt is, wat bewust uitgesteld is, en
 wat structureel werk vereist.
 
@@ -107,7 +107,7 @@ bij eerste fout.
 
 **Bestand:** `src/app.jsx`. Twee tabs open: thema-wissel in tab A
 werkte niet door in tab B. **Fix:** `storage` event listener
-afhandelt nu ook `aura.theme`.
+afhandelt nu ook `paced.theme`.
 
 ### 8. Dashboard-secties miste twee toggles
 
@@ -142,7 +142,7 @@ op input + `maxLength={80}` HTML attribuut.
 
 **Bestand:** `src/app.jsx`. UAVG art. 5 (NL implementatie van AVG art. 8)
 eist voor verwerking van persoonsgegevens van kinderen <16 in een
-informatiemaatschappij-dienst ouderlijke toestemming. Aura verwerkt
+informatiemaatschappij-dienst ouderlijke toestemming. Paced verwerkt
 bijzondere categorie data (gezondheid, art. 9) — daar is het minimum
 nog strenger. Was: HTML `min="14"`, validatie `<12`. Nu: `min="16"`,
 validatie `<16`.
@@ -184,13 +184,13 @@ gecombineerd):
 
 ### F-01 — Expliciete art. 9 AVG toestemming
 
-Aura verwerkt gezondheidsgegevens. Volgens AVG art. 9 lid 2(a) vereist
+Paced verwerkt gezondheidsgegevens. Volgens AVG art. 9 lid 2(a) vereist
 dat **uitdrukkelijke toestemming** ("vrij, specifiek, geïnformeerd,
 ondubbelzinnig"). Huidige onboarding heeft alleen een passieve
 mededeling, geen checkbox. **Vereist:** consent-gate vóór onboarding-
 step 1, met:
 
-- Aparte uitleg dat Aura health data verwerkt onder art. 9(2a)
+- Aparte uitleg dat Paced health data verwerkt onder art. 9(2a)
 - Checkbox "Ik geef toestemming voor de verwerking van mijn
   gezondheidsgegevens op dit apparaat"
 - Profielveld `consent: { givenAt: ISO, version: '1.3' }` opslaan
@@ -200,7 +200,7 @@ Effort: ~4u. Eigen PR.
 
 ### F-02 — Identiteit verwerkingsverantwoordelijke
 
-`legal.*` keys ontbreken **wie** Aura uitbrengt. AVG art. 13 lid 1(a)
+`legal.*` keys ontbreken **wie** Paced uitbrengt. AVG art. 13 lid 1(a)
 eist naam, adres, contact. Geen DPO vereist (art. 37 — niet kernactivi-
 teit op grote schaal), maar dat moet expliciet vermeld worden. Plus
 klachtrecht bij AP (verplicht onder art. 13 lid 2(d)) met link naar
@@ -230,16 +230,16 @@ Effort: 30 min.
 
 ### F-05 — MDR positionering (Medical Device Regulation 2017/745)
 
-Aura `pregnancyIntent: 'avoiding'` toont een vruchtbaar-venster + advies
+Paced `pregnancyIntent: 'avoiding'` toont een vruchtbaar-venster + advies
 ("overweeg bescherming"). Onder MDCG 2019-11 raakt dat de MDR-grens.
-Aura zit aan de veilige kant door explicit "geen medisch hulpmiddel"
+Paced zit aan de veilige kant door explicit "geen medisch hulpmiddel"
 te claimen, maar:
 
 - De avoiding-disclaimer is **versterkt vannacht**: "kalendermethode
   ~75-80% effectief; gebruik betrouwbare anticonceptie als zwangerschap
   een gezondheidsrisico zou vormen". Helpt MDR-positionering.
 - Verdere actie: `docs/mdr-positioning.md` schrijven die documenteert
-  waarom Aura buiten MDR-scope valt (geen diagnose, geen behandeling,
+  waarom Paced buiten MDR-scope valt (geen diagnose, geen behandeling,
   fitness/wellness software-klasse per MDCG-decisiontree §5.4).
 - Marketingmateriaal mag **nooit** zeggen "voorkomt zwangerschap",
   "vervangt anticonceptie", "vruchtbaarheidsmonitor", "geboorte-

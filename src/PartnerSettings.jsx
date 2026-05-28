@@ -1,7 +1,7 @@
 /**
  * PartnerSettings.jsx — Partner-linking UI for the settings screen.
  *
- * Shows in SettingsScreen if window.AURA_SUPABASE_URL is configured.
+ * Shows in SettingsScreen if window.PACED_SUPABASE_URL is configured.
  * Handles: magic-link login, invite creation, link management, share level.
  *
  * Props:
@@ -31,7 +31,7 @@ const SHARE_LEVELS = [
 // feature. Required by AVG art. 9(2)(a): explicit informed consent before
 // any special-category data leaves the device. Persisted so returning
 // users aren't re-prompted.
-const CONSENT_KEY = 'aura.partner.consent.v1';
+const CONSENT_KEY = 'paced.partner.consent.v1';
 
 export default function PartnerSettings({ currentPhase, cycleDay }) {
   const [loading,    setLoading]    = useState(true);
@@ -151,7 +151,7 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
             <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Alleen je huidige fase (en optioneel cyclus-dag). <strong>Geen</strong> symptomen, voeding, notities of andere logs.</span></li>
             <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Opgeslagen op Supabase (EU-region) met row-level security — alleen jij en je gekoppelde partner kunnen het lezen.</span></li>
             <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Stopt direct zodra je op &ldquo;Ontkoppelen&rdquo; klikt — geen historische data blijft over.</span></li>
-            <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Volledig optioneel. De rest van Aura blijft 100% op je eigen apparaat.</span></li>
+            <li className="flex gap-2"><span aria-hidden="true">✓</span><span>Volledig optioneel. De rest van Paced blijft 100% op je eigen apparaat.</span></li>
           </ul>
           <p className="text-[11px] text-ink-500 leading-relaxed mb-5">
             Volgens AVG art. 9 lid 2 sub a heb je expliciete toestemming nodig om gezondheidsgegevens te delen.

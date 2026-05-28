@@ -1,17 +1,17 @@
 /**
- * Aura — LocalStorage persistence
+ * Paced — LocalStorage persistence
  * -------------------------------
  * Thin typed wrapper around localStorage with two namespaces:
  *
- *   aura.profile       — single object, user onboarding data
- *   aura.log.<YYYY-MM-DD> — one object per day (tracker entries)
+ *   paced.profile       — single object, user onboarding data
+ *   paced.log.<YYYY-MM-DD> — one object per day (tracker entries)
  *
  * Keeping each day in its own key makes it trivial to read "today" and
  * to scan back over recent history without parsing one giant blob.
  *
  * --- Privacy posture ---
  * Health data (cycle, symptoms, weight, notes) is stored in plain JSON.
- * This is a deliberate trade-off: Aura is offline-only, has no server,
+ * This is a deliberate trade-off: Paced is offline-only, has no server,
  * no accounts, and no key-management story — adding at-rest encryption
  * would either require a user passphrase (real friction, real lockout
  * risk) or a key kept in the same localStorage origin (security theatre).
@@ -22,10 +22,10 @@
 
 const SCHEMA_VERSION = 1;
 
-const PROFILE_KEY        = 'aura.profile';
-const LOG_PREFIX         = 'aura.log.';
-const CARD_ORDER_KEY     = 'aura.cardOrder';
-const SCHEMA_VERSION_KEY = 'aura_schema_version';
+const PROFILE_KEY        = 'paced.profile';
+const LOG_PREFIX         = 'paced.log.';
+const CARD_ORDER_KEY     = 'paced.cardOrder';
+const SCHEMA_VERSION_KEY = 'paced_schema_version';
 
 /* ------------------------------------------------------------------ */
 /*  Storage error reporting                                            */
@@ -72,14 +72,14 @@ export function saveProfile(profile) {
 }
 
 /**
- * Wis ALLE Aura-data uit localStorage (profiel, logs, kaartvolgorde,
+ * Wis ALLE Paced-data uit localStorage (profiel, logs, kaartvolgorde,
  * thema, dismiss-flags). Een "reset" mag geen sporen achterlaten — een
  * volgende gebruiker op hetzelfde toestel zou anders oude logs zien
  * verschijnen na een nieuwe onboarding.
  */
 export function clearAllData() {
   try {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('aura'));
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('paced'));
     keys.forEach(k => localStorage.removeItem(k));
   } catch (err) { notifyStorageError(err); }
 }

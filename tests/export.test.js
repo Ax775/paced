@@ -65,11 +65,11 @@ describe('generateCsvExport', () => {
 
 describe('csvExportFilename', () => {
   it('produces a date-stamped filename', () => {
-    expect(csvExportFilename(new Date(2026, 4, 3))).toBe('aura-export-2026-05-03.csv');
+    expect(csvExportFilename(new Date(2026, 4, 3))).toBe('paced-export-2026-05-03.csv');
   });
 
   it('zero-pads single-digit months and days', () => {
-    expect(csvExportFilename(new Date(2026, 0, 1))).toBe('aura-export-2026-01-01.csv');
+    expect(csvExportFilename(new Date(2026, 0, 1))).toBe('paced-export-2026-01-01.csv');
   });
 });
 
@@ -179,11 +179,11 @@ describe('generateAppleHealthXml', () => {
 
 describe('appleHealthFilename', () => {
   it('produces a date-stamped filename', () => {
-    expect(appleHealthFilename(new Date(2026, 4, 3))).toBe('aura-health-export-2026-05-03.xml');
+    expect(appleHealthFilename(new Date(2026, 4, 3))).toBe('paced-health-export-2026-05-03.xml');
   });
 
   it('zero-pads single digits', () => {
-    expect(appleHealthFilename(new Date(2026, 0, 9))).toBe('aura-health-export-2026-01-09.xml');
+    expect(appleHealthFilename(new Date(2026, 0, 9))).toBe('paced-health-export-2026-01-09.xml');
   });
 });
 
@@ -381,8 +381,8 @@ describe('generateFullJsonExport', () => {
     ];
     const out = generateFullJsonExport(profile, entries, { today });
     const parsed = JSON.parse(out);
-    expect(parsed.aura.format).toBe('aura-full-export-v1');
-    expect(parsed.aura.exportedAt).toBe('2026-05-12T12:00:00.000Z');
+    expect(parsed.paced.format).toBe('paced-full-export-v1');
+    expect(parsed.paced.exportedAt).toBe('2026-05-12T12:00:00.000Z');
     expect(parsed.profile).toEqual(profile);
     expect(parsed.logs['2026-04-15'].calories).toBe(1700);
     expect(parsed.logs['2026-04-16'].sleep).toBe(7);
@@ -415,30 +415,30 @@ describe('generateFullJsonExport', () => {
 
   it('output is pretty-printed (2-space indent) — leesbaar voor mens', () => {
     const out = generateFullJsonExport({}, [], { today });
-    expect(out).toContain('\n  "aura"');
+    expect(out).toContain('\n  "paced"');
     expect(out).toContain('\n  "profile"');
   });
 
   it('schemaVersion default = 1, accepteert override', () => {
     const a = generateFullJsonExport({}, [], { today });
-    expect(JSON.parse(a).aura.schemaVersion).toBe(1);
+    expect(JSON.parse(a).paced.schemaVersion).toBe(1);
     const b = generateFullJsonExport({}, [], { today, schemaVersion: 2 });
-    expect(JSON.parse(b).aura.schemaVersion).toBe(2);
+    expect(JSON.parse(b).paced.schemaVersion).toBe(2);
   });
 
   it('readme uitlegt formaat voor onbekende lezer (AVG art. 12 transparantie)', () => {
     const out = generateFullJsonExport({}, [], { today });
     const parsed = JSON.parse(out);
-    expect(parsed.aura.readme).toContain('AVG art. 20');
+    expect(parsed.paced.readme).toContain('AVG art. 20');
   });
 });
 
 describe('fullJsonExportFilename', () => {
   it('produces date-stamped filename', () => {
-    expect(fullJsonExportFilename(new Date(2026, 4, 12))).toBe('aura-full-export-2026-05-12.json');
+    expect(fullJsonExportFilename(new Date(2026, 4, 12))).toBe('paced-full-export-2026-05-12.json');
   });
 
   it('zero-pads single-digit months and days', () => {
-    expect(fullJsonExportFilename(new Date(2026, 0, 9))).toBe('aura-full-export-2026-01-09.json');
+    expect(fullJsonExportFilename(new Date(2026, 0, 9))).toBe('paced-full-export-2026-01-09.json');
   });
 });

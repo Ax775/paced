@@ -104,7 +104,7 @@ describe('round-trip persistence of new fields', () => {
     const date = new Date(2026, 4, 5);
     // Simulate a v1 entry: only legacy keys, none of the new ones.
     globalThis.localStorage.setItem(
-      `aura.log.2026-05-05`,
+      `paced.log.2026-05-05`,
       JSON.stringify({ calories: 1800, protein: 80 })
     );
     const loaded = loadLog(date);
@@ -240,7 +240,7 @@ describe('loadLog — type-safe parsing (security audit regressions)', () => {
     // logHasData() onverwacht laat true zeggen op een lege dag.
     const date = new Date(2026, 5, 1);
     globalThis.localStorage.setItem(
-      'aura.log.2026-06-01',
+      'paced.log.2026-06-01',
       JSON.stringify({ gut: 'oops' }),
     );
     const loaded = loadLog(date);
@@ -250,7 +250,7 @@ describe('loadLog — type-safe parsing (security audit regressions)', () => {
   it('rejects array sub-fields (symptoms=["x"])', () => {
     const date = new Date(2026, 5, 2);
     globalThis.localStorage.setItem(
-      'aura.log.2026-06-02',
+      'paced.log.2026-06-02',
       JSON.stringify({ symptoms: ['eraserhead'] }),
     );
     const loaded = loadLog(date);
@@ -261,7 +261,7 @@ describe('loadLog — type-safe parsing (security audit regressions)', () => {
     // Defensive: een gemanipuleerde log mag geen unsafe-key spreaden.
     const date = new Date(2026, 5, 3);
     globalThis.localStorage.setItem(
-      'aura.log.2026-06-03',
+      'paced.log.2026-06-03',
       // bewuste typo: '__proto__' moet als own key in parsed komen
       '{"gut":{"__proto__":{"polluted":1},"probiotics":true}}',
     );
@@ -274,7 +274,7 @@ describe('loadLog — type-safe parsing (security audit regressions)', () => {
   it('coerces invalid numeric fields naar 0', () => {
     const date = new Date(2026, 5, 4);
     globalThis.localStorage.setItem(
-      'aura.log.2026-06-04',
+      'paced.log.2026-06-04',
       JSON.stringify({
         calories: '<script>alert(1)</script>',
         protein:  NaN,
@@ -295,7 +295,7 @@ describe('loadLog — type-safe parsing (security audit regressions)', () => {
     const date = new Date(2026, 5, 5);
     const longNote = 'x'.repeat(5000);
     globalThis.localStorage.setItem(
-      'aura.log.2026-06-05',
+      'paced.log.2026-06-05',
       JSON.stringify({ note: longNote }),
     );
     expect(loadLog(date).note).toHaveLength(280);
@@ -304,7 +304,7 @@ describe('loadLog — type-safe parsing (security audit regressions)', () => {
   it('cap meals-array op 50 entries en symptomen-array op 20', () => {
     const date = new Date(2026, 5, 6);
     globalThis.localStorage.setItem(
-      'aura.log.2026-06-06',
+      'paced.log.2026-06-06',
       JSON.stringify({
         meals: Array.from({ length: 200 }, (_, i) => ({ name: `m${i}` })),
         symptomen: Array.from({ length: 50 }, (_, i) => `s${i}`),

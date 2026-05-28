@@ -1,7 +1,7 @@
 {
-  "id": "/aura/",
-  "name": "Aura — Vrouwelijke Gezondheid",
-  "short_name": "Aura",
+  "id": "/paced/",
+  "name": "Paced — Vrouwelijke Gezondheid",
+  "short_name": "Paced",
   "description": "Persoonlijke gezondheids- en cyclus-tracker voor vrouwen",
   "start_url": "./",
   "scope": "./",

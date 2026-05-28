@@ -1,0 +1,12 @@
+{
+  "appId": "io.xaven.paced",
+  "appName": "Paced",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "automatic",
+    "limitsNavigationsToAppBoundDomains": false
+  },
+  "server": {
+    "iosScheme": "capacitor"
+  }
+}

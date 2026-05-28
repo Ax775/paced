@@ -1,5 +1,5 @@
 /**
- * Aura — React app entry
+ * Paced — React app entry
  * ----------------------
  * Onboarding → dashboard with cycle engine, daily tracker, symptom log, and insight.
  * All numbers flow from pure functions in src/lib/*; this file is the calm shell.
@@ -62,7 +62,7 @@ const Card = ({ className = '', style, children }) => (
   </div>
 );
 
-const COLLAPSED_KEY = 'aura_card_collapsed';
+const COLLAPSED_KEY = 'paced_card_collapsed';
 
 function readCollapsedMap() {
   try { return JSON.parse(localStorage.getItem(COLLAPSED_KEY) || '{}') || {}; }
@@ -255,7 +255,7 @@ async function downloadBlob(blob, filename) {
     // AbortError = gebruiker drukte op "Annuleren" in het share-sheet.
     // Geen probleem, ook geen fallback nodig — ze wilden het niet.
     if (err?.name === 'AbortError') return;
-    console.warn('[Aura] share-sheet faalde, val terug op <a download>', err);
+    console.warn('[Paced] share-sheet faalde, val terug op <a download>', err);
   }
 
   // 2. Standaard <a download>. Body-append vereist op iOS, sommige
@@ -277,7 +277,7 @@ async function downloadBlob(blob, filename) {
     }, 0);
     return;
   } catch (err) {
-    console.warn('[Aura] <a download> faalde, val terug op nieuw tabblad', err);
+    console.warn('[Paced] <a download> faalde, val terug op nieuw tabblad', err);
   }
 
   // 3. Laatste redmiddel: open in nieuw tabblad. Gebruiker kan
@@ -287,7 +287,7 @@ async function downloadBlob(blob, filename) {
     window.open(url, '_blank', 'noopener');
     // Geen revoke — de nieuwe tab heeft 'm nog nodig.
   } catch (err) {
-    console.error('[Aura] export volledig mislukt — geen download-mechanisme beschikbaar', err);
+    console.error('[Paced] export volledig mislukt — geen download-mechanisme beschikbaar', err);
   }
 }
 
@@ -376,8 +376,8 @@ function exportFullJson(profile) {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith('aura.log.')) {
-        const iso = key.slice('aura.log.'.length);
+      if (key && key.startsWith('paced.log.')) {
+        const iso = key.slice('paced.log.'.length);
         if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
           // Gebruik loadLog zodat we via de gevalideerde pipeline
           // gaan (type-safe, prototype-pollution guard, length-caps).
@@ -386,7 +386,7 @@ function exportFullJson(profile) {
       }
     }
   } catch (err) {
-    console.error('[Aura] full export: localStorage scan failed', err);
+    console.error('[Paced] full export: localStorage scan failed', err);
   }
   // Sort chronologisch — de blob is daarna voor mensen leesbaar.
   entries.sort((a, b) => a.iso.localeCompare(b.iso));
@@ -1770,7 +1770,7 @@ function PWAInstallBanner() {
 
   useEffect(() => {
     try {
-      if (localStorage.getItem('aura.pwa.dismissed')) return;
+      if (localStorage.getItem('paced.pwa.dismissed')) return;
     } catch { /* storage unavailable — show the prompt anyway */ }
     const handler = (e) => {
       e.preventDefault();
@@ -1790,7 +1790,7 @@ function PWAInstallBanner() {
   };
 
   const handleDismiss = () => {
-    try { localStorage.setItem('aura.pwa.dismissed', '1'); }
+    try { localStorage.setItem('paced.pwa.dismissed', '1'); }
     catch { /* private mode — banner just won't persist its dismissal */ }
     setVisible(false);
   };
@@ -2485,7 +2485,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-2">Cyclus-context</div>
         <p className="text-[12px] text-ink-500 mb-5 leading-relaxed">
-          Optioneel — helpt Aura om relevantere voorspellingen en herinneringen te tonen. Niets wordt gedeeld; alle data blijft op je apparaat.
+          Optioneel — helpt Paced om relevantere voorspellingen en herinneringen te tonen. Niets wordt gedeeld; alle data blijft op je apparaat.
         </p>
 
         <Field>
@@ -3173,7 +3173,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
         <div>
           <div className="flex items-center gap-2">
             <Flower2 className="w-5 h-5 text-sage-500" />
-            <h1 className="font-display text-[26px] leading-tight text-ink-700">Aura</h1>
+            <h1 className="font-display text-[26px] leading-tight text-ink-700">Paced</h1>
           </div>
           {displayName && (
             <div className="text-sm text-ink-500 mt-0.5">{t('dash.greeting', { name: displayName })}</div>
@@ -4534,7 +4534,7 @@ function LateCycleCheckCard({ profile, state, log, onUpdate }) {
       className="mb-5"
     >
       <p className="text-[13px] text-ink-600 leading-relaxed mb-4">
-        Geen reden tot zorg — cycli verschuiven van nature door stress, slaap, reizen en seizoensritme. Een paar vragen helpen Aura om je patroon scherper te leren.
+        Geen reden tot zorg — cycli verschuiven van nature door stress, slaap, reizen en seizoensritme. Een paar vragen helpen Paced om je patroon scherper te leren.
       </p>
 
       <div className="space-y-3">
@@ -4645,7 +4645,7 @@ function YesNoRow({ label, value, onChange }) {
 function TipVanDeDag({ phase, log, goals, targets, name }) {
   const { t, tips: getTips } = useT();
   const todayISO = useMemo(() => isoDate(), []);
-  const dismissKey = `aura.tip.dismissed.${todayISO}`;
+  const dismissKey = `paced.tip.dismissed.${todayISO}`;
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(dismissKey) === '1'; }
     catch { return false; }
@@ -5265,7 +5265,7 @@ function AllChartsView({ profile, onBack }) {
 
 function buildErrorReport(error, errorInfo) {
   const lines = [
-    `Aura crash report — ${new Date().toISOString()}`,
+    `Paced crash report — ${new Date().toISOString()}`,
     `URL:      ${typeof location !== 'undefined' ? location.href : '?'}`,
     `Theme:    ${document?.documentElement?.getAttribute('data-theme') || '?'}`,
     `UA:       ${navigator?.userAgent || '?'}`,
@@ -5298,7 +5298,7 @@ function CrashScreen({ error, errorInfo }) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback for browsers without clipboard API: select the <pre> text.
-      const pre = document.getElementById('aura-crash-report');
+      const pre = document.getElementById('paced-crash-report');
       if (pre) {
         const range = document.createRange();
         range.selectNodeContents(pre);
@@ -5345,7 +5345,7 @@ function CrashScreen({ error, errorInfo }) {
       {showDetails && (
         <div className="w-full mt-2 anim-fade-up">
           <pre
-            id="aura-crash-report"
+            id="paced-crash-report"
             className="text-[10px] leading-relaxed text-ink-500 bg-cream-100 border border-cream-200
                        rounded-xl p-3 max-h-64 overflow-auto whitespace-pre-wrap"
           >
@@ -5381,7 +5381,7 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
     // eslint-disable-next-line no-console
-    console.error('[Aura] render error:', error, errorInfo);
+    console.error('[Paced] render error:', error, errorInfo);
   }
 
   render() {
@@ -5501,13 +5501,13 @@ function App() {
   const [inviteEmailSent,   setInviteEmailSent]   = useState(false);
   const [inviteStatus,      setInviteStatus]      = useState('');
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('aura.theme') || 'auto'; }
+    try { return localStorage.getItem('paced.theme') || 'auto'; }
     catch { return 'auto'; }
   });
 
   const handleThemeChange = useCallback((newTheme) => {
     setTheme(newTheme);
-    try { localStorage.setItem('aura.theme', newTheme); }
+    try { localStorage.setItem('paced.theme', newTheme); }
     catch { /* private mode / quota — theme still applies in-memory */ }
     const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const dark = newTheme === 'dark' || (newTheme === 'auto' && sysDark);
@@ -5522,15 +5522,15 @@ function App() {
   const [storageWarned, setStorageWarned] = useState(false);
   useEffect(() => {
     setStorageErrorHandler((err) => {
-      console.error('[Aura] storage error:', err);
+      console.error('[Paced] storage error:', err);
       if (!storageWarned) {
         setStorageWarned(true);
-        // Lichte browser-alert — Aura heeft geen toast-systeem op
+        // Lichte browser-alert — Paced heeft geen toast-systeem op
         // app-niveau (alleen per-view). Dit is een launch-grade
         // fallback; v1.4 kan een nettere banner toevoegen.
         try {
           window.alert(
-            'Aura kon je laatste wijziging niet opslaan. ' +
+            'Paced kon je laatste wijziging niet opslaan. ' +
             'Controleer of je browser-opslag vol is, of dat je in ' +
             'privé-modus zit (Safari Private Browsing). Je gegevens ' +
             'in deze sessie blijven werken tot je de tab sluit.'
@@ -5588,9 +5588,9 @@ function App() {
   useEffect(() => {
     const onStorage = (e) => {
       if (!e.key) return; // localStorage.clear() in another tab
-      if (e.key === 'aura.profile') setProfile(loadProfile());
-      if (e.key === 'aura.theme') {
-        const nextTheme = localStorage.getItem('aura.theme') || 'auto';
+      if (e.key === 'paced.profile') setProfile(loadProfile());
+      if (e.key === 'paced.theme') {
+        const nextTheme = localStorage.getItem('paced.theme') || 'auto';
         const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const dark = nextTheme === 'dark' || (nextTheme === 'auto' && sysDark);
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
@@ -5601,8 +5601,8 @@ function App() {
     // We don't surface these to the user — most don't break the UI — but
     // they're tagged so anyone copying the console for support can find
     // them quickly. Nothing leaves the device.
-    const onError    = (e) => console.error('[Aura] uncaught:',  e.error || e.message || e);
-    const onRejected = (e) => console.error('[Aura] rejection:', e.reason);
+    const onError    = (e) => console.error('[Paced] uncaught:',  e.error || e.message || e);
+    const onRejected = (e) => console.error('[Paced] rejection:', e.reason);
     window.addEventListener('storage',            onStorage);
     window.addEventListener('error',              onError);
     window.addEventListener('unhandledrejection', onRejected);
