@@ -275,6 +275,6 @@ Zonder dit openen `?invite=XXX`-links in Safari ipv de geïnstalleerde app.
 
 ## License
 
-Code: zie `LICENSE` (toe te voegen). Lettertypes (Inter, Fraunces) staan
+Code: zie `LICENSE` — proprietary, © Xaven BV. Lettertypes (Inter, Fraunces) staan
 onder SIL Open Font License — zie `OFL.txt` in de respectievelijke
 fontsource packages.
