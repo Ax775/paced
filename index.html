@@ -208,6 +208,25 @@
     .anim-streak-pulse { animation: streakPulse 3s ease-in-out infinite; }
     .anim-tab-in       { animation: tabIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
+    /* WCAG 2.3.3 + 2.2.2 — Respect prefers-reduced-motion. Users with
+       vestibular conditions or who simply opt out of motion via OS
+       settings should not see modal-fades, breathing icons, or tab
+       transitions. We zero out the duration on every animation utility
+       instead of just removing the animation, so the keyframes still
+       run for one tick (preserves any final-state styling from `both`). */
+    @media (prefers-reduced-motion: reduce) {
+      .anim-fade-up,
+      .anim-breathe,
+      .anim-pop,
+      .anim-slide-up,
+      .anim-streak-pulse,
+      .anim-tab-in {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+      * { transition-duration: 0.01ms !important; }
+    }
+
     /* Subtle scrollbar */
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-thumb { background: #E2D8BE; border-radius: 999px; }

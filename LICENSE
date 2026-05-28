@@ -1,0 +1,51 @@
+Paced — Proprietary License
+============================
+
+Copyright © 2026 Xaven BV (KvK 42060488)
+All rights reserved.
+
+This software, including its source code, documentation, design assets,
+and any associated materials (the "Software"), is the proprietary work
+of Xaven BV. No license, express or implied, is granted to any party
+to use, copy, modify, distribute, sublicense, or create derivative
+works of the Software, except as expressly authorised in writing by
+Xaven BV.
+
+Permitted uses
+--------------
+- Reading the source code for personal study or evaluation.
+- Filing security disclosures or bug reports via info@xaven.io.
+- Contributions submitted as pull requests, which Xaven BV may at its
+  sole discretion accept under terms agreed at the time of merge.
+
+Prohibited without written permission
+-------------------------------------
+- Redistribution of the Software in source or compiled form.
+- Hosting a public or commercial deployment derived from this code.
+- Removal or alteration of branding, copyright notices, or this
+  licence text.
+- Use of the Paced name, logo, or visual identity for any other
+  product or service.
+
+Third-party components
+----------------------
+The Software bundles or depends on third-party libraries that remain
+under their own respective licences, listed in `package.json` and
+reproduced in `node_modules/<package>/LICENSE` after installation.
+This proprietary licence does not extend to those components.
+
+Bundled fonts
+-------------
+Inter and Fraunces variable fonts are licensed under the SIL Open
+Font License (OFL), see the `@fontsource-variable/*` packages in
+`node_modules/` for the full OFL text and authors.
+
+Trademarks
+----------
+"Paced" and the Paced logo are unregistered trademarks of Xaven BV.
+Pending registration in the Benelux and EU.
+
+Contact
+-------
+Licence enquiries, commercial use, partnerships:
+Xaven BV, Nederland · info@xaven.io
