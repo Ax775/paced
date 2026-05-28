@@ -57,8 +57,18 @@ export async function signOut() {
   _supabase = null;
 }
 
+// Invite codes use cryptographically-strong randomness — Math.random()
+// is predictable (V8's xorshift128+ state is recoverable from a few
+// observed outputs) which matters even with our SECURITY DEFINER RPC
+// because the entropy is the only secret protecting the invite. 12
+// base-36 chars from 64 random bytes yields ~62 bits of entropy.
+// Uppercase to match the migration 0002 invite_code expectations.
 function randomCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  let code = '';
+  for (const b of bytes) code += b.toString(36).padStart(2, '0');
+  return code.slice(0, 12).toUpperCase();
 }
 
 export async function createInvite(shareLevel = 'phase') {
