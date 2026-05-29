@@ -27,8 +27,9 @@ import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import {
   loadProfile, saveProfile, clearProfile, setStorageErrorHandler,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
-  loadRecentLogs,
+  loadRecentLogs, countLoggedDays,
 } from './lib/storage.js';
+import { computeBadges } from './lib/badges.js';
 import {
   LocaleProvider, useT, t as tStatic, detectLocale,
 } from './lib/i18n.js';
@@ -552,6 +553,57 @@ function HydrationRow({ glasses, target, onChange }) {
 /*  Symptom tracker                                                    */
 /* ------------------------------------------------------------------ */
 
+// A single 1–5 wellbeing scale rendered as a draggable slider. value 0 =
+// "not set yet" (parked visually at the neutral middle, muted). Native
+// <input type=range> for keyboard + screen-reader accessibility; the
+// filled-track look comes from a --pct CSS var. Touching an unset slider
+// commits the neutral value (3) so a single tap registers without the
+// center-click friction native range has when the value doesn't change.
+function ScaleSlider({ label, icons, hint, value, onChange, onClear }) {
+  const { t } = useT();
+  const set = value > 0;
+  const display = set ? value : 3;
+  const pct = ((display - 1) / 4) * 100;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm font-medium text-ink-600">{label}</div>
+        {set ? (
+          <button
+            type="button"
+            onClick={onClear}
+            aria-label={t('symptoms.clearAria', { label })}
+            className="flex items-center gap-1.5 text-xs font-semibold text-sage-700 bg-sage-100 hover:bg-sage-200 px-2 py-1 rounded-full transition"
+          >
+            <span aria-hidden="true" className="text-sm leading-none">{icons[value - 1]}</span>
+            {value}/5
+            <X aria-hidden="true" className="w-3 h-3 text-sage-600" />
+          </button>
+        ) : (
+          <div className="text-[10px] text-ink-400/70">{hint}</div>
+        )}
+      </div>
+      <div className="px-1 py-1.5">
+        <input
+          type="range"
+          min="1"
+          max="5"
+          step="1"
+          value={display}
+          data-unset={set ? undefined : 'true'}
+          style={{ '--pct': `${pct}%` }}
+          onPointerDown={() => { if (!set) onChange(3); }}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="paced-slider w-full"
+          aria-label={t('symptoms.sliderAria', { label })}
+          aria-valuetext={set ? t('symptoms.aria', { label, n: value }) : t('symptoms.unset')}
+        />
+      </div>
+    </div>
+  );
+}
+
 function SymptomTracker({ log, onUpdate }) {
   const { t, symptomMeta } = useT();
   const syms = log.symptoms || {};
@@ -572,44 +624,17 @@ function SymptomTracker({ log, onUpdate }) {
       style={{ animationDelay: '80ms' }}
     >
       <div className="space-y-5">
-        {meta.map(({ id, label, icons, hint }) => {
-          const val = syms[id] ?? 0;
-          return (
-            <div key={id}>
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="text-sm font-medium text-ink-600">{label}</div>
-                {val > 0 ? (
-                  <div className="text-xs font-semibold text-sage-600 bg-sage-100 px-2 py-0.5 rounded-full">{val}/5</div>
-                ) : (
-                  <div className="text-[10px] text-ink-400/70">{hint}</div>
-                )}
-              </div>
-              <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5].map((n) => {
-                  const active = val === n;
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() =>
-                        onUpdate({ symptoms: { ...syms, [id]: active ? 0 : n } })
-                      }
-                      className={`flex-1 min-h-[44px] py-3 rounded-xl border transition active:scale-95 text-sm font-medium ${
-                        active
-                          ? 'bg-sage-100 border-sage-300 text-sage-700 shadow-soft'
-                          : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
-                      }`}
-                      aria-label={t('symptoms.aria', { label, n })}
-                      aria-pressed={active}
-                    >
-                      {n}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {meta.map(({ id, label, icons, hint }) => (
+          <ScaleSlider
+            key={id}
+            label={label}
+            icons={icons}
+            hint={hint}
+            value={syms[id] ?? 0}
+            onChange={(n) => onUpdate({ symptoms: { ...syms, [id]: n } })}
+            onClear={() => onUpdate({ symptoms: { ...syms, [id]: 0 } })}
+          />
+        ))}
       </div>
     </CollapsibleCard>
   );
@@ -817,11 +842,22 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
   }, [profile.lastPeriodStart]);
 
   const inMenstrualPhase = state?.phase === PHASES.MENSTRUAL;
+  const awaiting = !!state?.awaitingPeriod;
+  const todayISO = toISODate(new Date());
 
-  const handleLog = () => {
-    const next = logPeriodStart(profile);
+  // Date-picker state for confirming a period start that differs from the
+  // predicted date (the "het begon op een andere dag" path).
+  const [pickDate, setPickDate] = useState(false);
+  const [chosen, setChosen] = useState(todayISO);
+
+  // logPeriodStart(profile, date?) — date undefined ⇒ today. The returned
+  // profile is referentially equal when the log was a no-op (same-bleed
+  // guard), so we only push an update when something actually changed.
+  const handleLog = (date) => {
+    const next = logPeriodStart(profile, date);
     if (next === profile) return;
     onUpdateProfile(next);
+    setPickDate(false);
     if (timerRef.current) clearTimeout(timerRef.current);
     setJustLogged(true);
     timerRef.current = setTimeout(() => setJustLogged(false), 2000);
@@ -830,6 +866,68 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
   const handleUndo = () => {
     onUpdateProfile(unlogPeriodStart(profile));
   };
+
+  // Awaiting confirmation: the predicted next period has arrived/passed but
+  // the user hasn't logged an actual start. The prediction is advisory — we
+  // ask her to confirm the real start rather than assuming she's bleeding.
+  if (awaiting && !loggedToday) {
+    return (
+      <div className="mt-6 w-full flex flex-col items-center gap-3">
+        <div className="text-center px-2">
+          <div className="text-sm font-medium text-ink-600 mb-1">
+            {t('period.awaiting.title')}
+          </div>
+          <div className="text-xs text-ink-500 leading-relaxed">
+            {state.overdueDays === 0
+              ? t('period.awaiting.due')
+              : t('period.awaiting.late', { n: state.overdueDays, label: plural(state.overdueDays, 'common.day') })}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => handleLog()}
+          aria-label={t('period.awaiting.confirmTodayAria')}
+          className="w-full max-w-[260px] px-6 py-3.5 rounded-2xl font-medium text-sm text-cream-50
+                     active:scale-[0.97] transition-transform flex items-center justify-center gap-3"
+          style={{ background: 'linear-gradient(135deg, #C78264 0%, #B06849 100%)' }}
+        >
+          <span aria-hidden="true" className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
+          {t('period.awaiting.confirmToday')}
+        </button>
+        {!pickDate ? (
+          <button
+            type="button"
+            onClick={() => setPickDate(true)}
+            className="text-xs text-ink-500 hover:text-ink-700 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
+          >
+            {t('period.awaiting.otherDay')}
+          </button>
+        ) : (
+          <div className="flex flex-col items-center gap-2 w-full max-w-[260px]">
+            <label htmlFor="period-start-date" className="sr-only">
+              {t('period.awaiting.datePickLabel')}
+            </label>
+            <input
+              id="period-start-date"
+              type="date"
+              max={todayISO}
+              value={chosen}
+              onChange={(e) => setChosen(e.target.value)}
+              className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-2.5 text-sm
+                         text-ink-700 focus:outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-200 transition"
+            />
+            <button
+              type="button"
+              onClick={() => chosen && handleLog(new Date(`${chosen}T00:00:00`))}
+              className="w-full min-h-[44px] rounded-xl bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 active:scale-[0.98] transition"
+            >
+              {t('period.awaiting.confirmDate')}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (loggedToday) {
     return (
@@ -3221,7 +3319,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
           <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
             {getPhaseMeta(state.phase).blurb}
           </p>
-          {state.hasData && (
+          {state.hasData && !state.awaitingPeriod && (
             <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-cream-100 border border-cream-200">
               <span className="text-[11px] text-ink-400">{t('cycle.next.label')}</span>
               <span className="text-[11px] font-medium text-ink-600">
@@ -3883,6 +3981,17 @@ function InsightsView({ profile, onOpenCharts }) {
     return getStreak(loadLog(today), today);
   }, [today]);
 
+  const totalLogged = useMemo(() => countLoggedDays(365, today), [today]);
+
+  // Badges reward consistency. `streak` uses the best run (monotonic, never
+  // lost), `total` the cumulative logged days, `cycles` the tracked periods.
+  const badges = useMemo(() => computeBadges({
+    streak: streakRecord,
+    total:  totalLogged,
+    cycles: cycleHistory.length,
+  }), [streakRecord, totalLogged, cycleHistory.length]);
+  const earnedCount = badges.filter(b => b.earned).length;
+
   const hasSymptomData = Object.values(topByPhase).some(v => v !== null);
 
   return (
@@ -3919,6 +4028,52 @@ function InsightsView({ profile, onOpenCharts }) {
             {t('stats.streak.empty')}
           </p>
         )}
+      </Card>
+
+      {/* Milestones / badges */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '60ms' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">{t('stats.badges')}</div>
+          <div className="text-[11px] font-medium text-sage-600">
+            {t('stats.badges.count', { n: earnedCount, total: badges.length })}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {badges.map((b) => {
+            const pct = Math.round(b.progress * 100);
+            return (
+              <div
+                key={b.id}
+                className={`flex flex-col items-center text-center rounded-2xl border p-3 transition ${
+                  b.earned
+                    ? 'bg-sage-50 border-sage-200'
+                    : 'bg-cream-50 border-cream-200'
+                }`}
+                title={t(`badge.${b.id}.desc`)}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`text-2xl leading-none mb-1.5 ${b.earned ? '' : 'grayscale opacity-40'}`}
+                >
+                  {b.icon}
+                </span>
+                <span className={`text-[11px] font-medium leading-tight ${b.earned ? 'text-ink-700' : 'text-ink-400'}`}>
+                  {t(`badge.${b.id}.title`)}
+                </span>
+                {b.earned ? (
+                  <span className="mt-1 text-[10px] text-sage-600">{t('stats.badges.earned')}</span>
+                ) : (
+                  <span className="mt-1.5 w-full">
+                    <span className="block h-1 rounded-full bg-cream-200 overflow-hidden" aria-hidden="true">
+                      <span className="block h-full bg-sage-300 rounded-full" style={{ width: `${pct}%` }} />
+                    </span>
+                    <span className="block mt-1 text-[10px] text-ink-400">{b.current}/{b.threshold}</span>
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
       {/* Cycle stats */}

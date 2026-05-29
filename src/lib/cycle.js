@@ -345,6 +345,8 @@ export function getCycleState(profile, today = new Date()) {
   const cycleLength = clampCycleLength(profile?.cycleLength ?? 28);
   const start       = profile?.lastPeriodStart;
 
+  const phaseMap = buildPhaseMap(cycleLength);
+
   if (!start) {
     // No period data yet — fall back to a neutral follicular-ish view
     // so the dashboard still renders something calm rather than a warning.
@@ -353,16 +355,55 @@ export function getCycleState(profile, today = new Date()) {
       cycleDay:       null,
       phase:          PHASES.FOLLICULAR,
       phaseMeta:      PHASE_META[PHASES.FOLLICULAR],
-      phaseMap:       buildPhaseMap(cycleLength),
+      phaseMap,
       daysUntilNext:  null,
       progressPct:    0,
       hasData:        false,
+      awaitingPeriod: false,
+      overdueDays:    null,
+      expectedStart:  null,
     };
   }
 
+  // Raw days since the *logged* last period start — deliberately NOT
+  // wrapped. `overdueDays < 0` means we're still inside the expected cycle.
+  const elapsed       = daysBetween(start, today);
+  const overdueDays   = elapsed - cycleLength; // 0 = next period expected today
+  const expectedStart = toISODate(
+    new Date(atMidnight(start).getTime() + cycleLength * MS_PER_DAY)
+  );
+
+  // The prediction is ADVISORY, not leading. Once we reach or pass the
+  // predicted next-period date without the user having logged an actual
+  // start, we must NOT fabricate a fresh menstrual cycle. (That was the
+  // bug: the app announced "day 1 of your period" purely from
+  // lastPeriodStart + cycleLength, even though the user hadn't started
+  // bleeding and her real cycle simply runs longer this month.)
+  //
+  // Instead we hold the closing luteal phase and raise `awaitingPeriod`,
+  // so the UI can ask her to confirm the real start — and once she logs
+  // it, `logPeriodStart` resets `lastPeriodStart` and the menstrual phase
+  // becomes led by reality rather than the average.
+  if (elapsed >= cycleLength) {
+    return {
+      cycleLength,
+      cycleDay:       elapsed + 1, // keep counting honestly (e.g. "dag 30")
+      phase:          PHASES.LUTEAL,
+      phaseMeta:      PHASE_META[PHASES.LUTEAL],
+      phaseMap,
+      daysUntilNext:  0,
+      progressPct:    100,
+      hasData:        true,
+      awaitingPeriod: true,
+      overdueDays,                 // >= 0 here
+      expectedStart,
+    };
+  }
+
+  // Inside the expected cycle — phase is driven by the logged start, which
+  // the user explicitly entered, so this is real data, not a guess.
   const cycleDay = currentCycleDay(start, cycleLength, today);
   const phase    = phaseForCycleDay(cycleDay, cycleLength);
-  const phaseMap = buildPhaseMap(cycleLength);
 
   return {
     cycleLength,
@@ -373,6 +414,9 @@ export function getCycleState(profile, today = new Date()) {
     daysUntilNext: Math.max(0, cycleLength - cycleDay + 1) % cycleLength || cycleLength,
     progressPct:   Math.round((cycleDay / cycleLength) * 100),
     hasData:       true,
+    awaitingPeriod: false,
+    overdueDays,                   // < 0 here
+    expectedStart,
   };
 }
 

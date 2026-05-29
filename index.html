@@ -240,6 +240,47 @@
     }
     input[type="number"] { -moz-appearance: textfield; }
 
+    /* ── Wellbeing scale slider (SymptomTracker) ─────────────────────────
+       Native range styled to the Quiet Luxury palette. The filled portion
+       is driven by the inline --pct CSS var set per value. data-unset mutes
+       the track + thumb until the user has chosen a value. Thumb is 26px to
+       clear the WCAG 2.5.8 (AA) 24px target-size minimum. */
+    .paced-slider {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 8px; border-radius: 999px; cursor: pointer;
+      background: linear-gradient(to right,
+        #6B8559 0%, #6B8559 var(--pct, 50%),
+        #E8E1D0 var(--pct, 50%), #E8E1D0 100%);
+    }
+    .paced-slider[data-unset="true"] { background: #E8E1D0; }
+    .paced-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 26px; height: 26px; border-radius: 50%;
+      background: #556B47; border: 3px solid #FBF9F3;
+      box-shadow: 0 1px 4px rgba(85,107,71,.35); cursor: pointer;
+    }
+    .paced-slider[data-unset="true"]::-webkit-slider-thumb { background: #C6D3BB; }
+    .paced-slider::-moz-range-thumb {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: #556B47; border: 3px solid #FBF9F3;
+      box-shadow: 0 1px 4px rgba(85,107,71,.35); cursor: pointer;
+    }
+    .paced-slider[data-unset="true"]::-moz-range-thumb { background: #C6D3BB; }
+    .paced-slider::-moz-range-track { background: transparent; }
+    .paced-slider:focus-visible { outline: none; }
+    .paced-slider:focus-visible::-webkit-slider-thumb {
+      box-shadow: 0 0 0 4px rgba(168,186,152,.55);
+    }
+    .paced-slider:focus-visible::-moz-range-thumb {
+      box-shadow: 0 0 0 4px rgba(168,186,152,.55);
+    }
+    [data-theme="dark"] .paced-slider {
+      background: linear-gradient(to right,
+        #96B882 0%, #96B882 var(--pct, 50%),
+        #3A352F var(--pct, 50%), #3A352F 100%);
+    }
+    [data-theme="dark"] .paced-slider[data-unset="true"] { background: #3A352F; }
+
     /* ── Dark mode ───────────────────────────────────────────────────── */
     /* The JS init script (below) reads localStorage + prefers-color-scheme
        and sets data-theme="dark"|"light" on <html> before first paint.

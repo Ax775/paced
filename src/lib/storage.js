@@ -353,3 +353,19 @@ export function getStreak(todayLog, today = new Date()) {
   }
   return count;
 }
+
+/**
+ * Total number of days with any logged data within the past `days` window
+ * (default one year), counting back from `today`. Used by the badges /
+ * milestones engine — a cumulative "how many days have I tracked" metric
+ * that, unlike the streak, doesn't reset on a missed day.
+ */
+export function countLoggedDays(days = 365, today = new Date()) {
+  let count = 0;
+  const d = new Date(today);
+  for (let i = 0; i < days; i++) {
+    if (logHasData(loadLog(d))) count++;
+    d.setDate(d.getDate() - 1);
+  }
+  return count;
+}
