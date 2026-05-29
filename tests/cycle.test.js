@@ -727,16 +727,64 @@ describe('getOverdueDays', () => {
     ).toBe(1);
   });
 
-  it('blijft consistent met getCycleState (cycleDay wraps, overdue niet)', () => {
-    // Cruciaal: deze test legt de invariant vast die het component
-    // eerder fout had. cycleDay-wrap mag NIET als late-detector worden
-    // gebruikt — getOverdueDays is de juiste signaal-bron.
+  it('past de cyclus niet langer in een spook-cyclus zodra over tijd', () => {
+    // Vroeger wrapte getCycleState().cycleDay via modulo naar dag 6 en
+    // beweerde de app "menstruatie dag 6" terwijl de gebruiker nog niet
+    // ongesteld was. Nu houdt de state de luteale fase vast en vlagt
+    // `awaitingPeriod` zodat de UI om bevestiging kan vragen.
     const today = new Date(2026, 1, 3); // 33 dagen na 1 jan
     const profile = { lastPeriodStart: '2026-01-01', cycleLength: 28 };
     const state = getCycleState(profile, today);
-    expect(state.cycleDay).toBe(6);                   // wraps via modulo
-    expect(state.cycleDay - state.cycleLength).toBe(-22); // het oude bug-signaal
-    expect(getOverdueDays(profile, today)).toBe(5);   // het juiste signaal
+    expect(state.awaitingPeriod).toBe(true);
+    expect(state.phase).toBe(PHASES.LUTEAL);          // géén spook-menstruatie
+    expect(state.cycleDay).toBe(34);                  // telt eerlijk door
+    expect(state.overdueDays).toBe(5);                // == getOverdueDays
+    expect(getOverdueDays(profile, today)).toBe(5);   // blijft het ruwe signaal
+  });
+});
+
+/* ──────────  getCycleState awaitingPeriod (prediction advisory)  ───────── */
+
+describe('getCycleState — awaitingPeriod', () => {
+  const profile = { lastPeriodStart: '2026-01-01', cycleLength: 28 };
+
+  it('is false binnen de verwachte cyclus', () => {
+    const s = getCycleState(profile, new Date(2026, 0, 15)); // dag 15
+    expect(s.awaitingPeriod).toBe(false);
+    expect(s.overdueDays).toBeLessThan(0);
+    expect(s.expectedStart).toBe('2026-01-29'); // 1 jan + 28 dagen
+  });
+
+  it('blijft false op de laatste dag vóór de verwachte start', () => {
+    const s = getCycleState(profile, new Date(2026, 0, 28)); // dag 28, elapsed 27
+    expect(s.awaitingPeriod).toBe(false);
+    expect(s.overdueDays).toBe(-1);
+  });
+
+  it('wordt true op de verwachte startdag (overdueDays 0)', () => {
+    const s = getCycleState(profile, new Date(2026, 0, 29)); // elapsed 28
+    expect(s.awaitingPeriod).toBe(true);
+    expect(s.overdueDays).toBe(0);
+    expect(s.phase).toBe(PHASES.LUTEAL);
+    expect(s.progressPct).toBe(100);
+    expect(s.daysUntilNext).toBe(0);
+  });
+
+  it('telt overdueDays op naarmate de periode later wordt', () => {
+    const s = getCycleState(profile, new Date(2026, 1, 2)); // elapsed 32
+    expect(s.awaitingPeriod).toBe(true);
+    expect(s.overdueDays).toBe(4);
+    expect(s.cycleDay).toBe(33);
+  });
+
+  it('reset naar dag 1 menstruatie zodra de echte start gelogd is', () => {
+    // Gebruiker bevestigt: periode begon vandaag (5 dagen over tijd).
+    const today = new Date(2026, 1, 2);
+    const confirmed = logPeriodStart(profile, today);
+    const s = getCycleState(confirmed, today);
+    expect(s.awaitingPeriod).toBe(false);
+    expect(s.cycleDay).toBe(1);
+    expect(s.phase).toBe(PHASES.MENSTRUAL);
   });
 });
 

@@ -817,11 +817,22 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
   }, [profile.lastPeriodStart]);
 
   const inMenstrualPhase = state?.phase === PHASES.MENSTRUAL;
+  const awaiting = !!state?.awaitingPeriod;
+  const todayISO = toISODate(new Date());
 
-  const handleLog = () => {
-    const next = logPeriodStart(profile);
+  // Date-picker state for confirming a period start that differs from the
+  // predicted date (the "het begon op een andere dag" path).
+  const [pickDate, setPickDate] = useState(false);
+  const [chosen, setChosen] = useState(todayISO);
+
+  // logPeriodStart(profile, date?) — date undefined ⇒ today. The returned
+  // profile is referentially equal when the log was a no-op (same-bleed
+  // guard), so we only push an update when something actually changed.
+  const handleLog = (date) => {
+    const next = logPeriodStart(profile, date);
     if (next === profile) return;
     onUpdateProfile(next);
+    setPickDate(false);
     if (timerRef.current) clearTimeout(timerRef.current);
     setJustLogged(true);
     timerRef.current = setTimeout(() => setJustLogged(false), 2000);
@@ -830,6 +841,68 @@ function PeriodLogButton({ profile, onUpdateProfile, state }) {
   const handleUndo = () => {
     onUpdateProfile(unlogPeriodStart(profile));
   };
+
+  // Awaiting confirmation: the predicted next period has arrived/passed but
+  // the user hasn't logged an actual start. The prediction is advisory — we
+  // ask her to confirm the real start rather than assuming she's bleeding.
+  if (awaiting && !loggedToday) {
+    return (
+      <div className="mt-6 w-full flex flex-col items-center gap-3">
+        <div className="text-center px-2">
+          <div className="text-sm font-medium text-ink-600 mb-1">
+            {t('period.awaiting.title')}
+          </div>
+          <div className="text-xs text-ink-500 leading-relaxed">
+            {state.overdueDays === 0
+              ? t('period.awaiting.due')
+              : t('period.awaiting.late', { n: state.overdueDays, label: plural(state.overdueDays, 'common.day') })}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => handleLog()}
+          aria-label={t('period.awaiting.confirmTodayAria')}
+          className="w-full max-w-[260px] px-6 py-3.5 rounded-2xl font-medium text-sm text-cream-50
+                     active:scale-[0.97] transition-transform flex items-center justify-center gap-3"
+          style={{ background: 'linear-gradient(135deg, #C78264 0%, #B06849 100%)' }}
+        >
+          <span aria-hidden="true" className="w-2 h-2 rounded-full bg-cream-50/70 shrink-0" />
+          {t('period.awaiting.confirmToday')}
+        </button>
+        {!pickDate ? (
+          <button
+            type="button"
+            onClick={() => setPickDate(true)}
+            className="text-xs text-ink-500 hover:text-ink-700 underline decoration-dotted underline-offset-4 transition px-3 py-2 min-h-[44px] inline-flex items-center"
+          >
+            {t('period.awaiting.otherDay')}
+          </button>
+        ) : (
+          <div className="flex flex-col items-center gap-2 w-full max-w-[260px]">
+            <label htmlFor="period-start-date" className="sr-only">
+              {t('period.awaiting.datePickLabel')}
+            </label>
+            <input
+              id="period-start-date"
+              type="date"
+              max={todayISO}
+              value={chosen}
+              onChange={(e) => setChosen(e.target.value)}
+              className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-2.5 text-sm
+                         text-ink-700 focus:outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-200 transition"
+            />
+            <button
+              type="button"
+              onClick={() => chosen && handleLog(new Date(`${chosen}T00:00:00`))}
+              className="w-full min-h-[44px] rounded-xl bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 active:scale-[0.98] transition"
+            >
+              {t('period.awaiting.confirmDate')}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (loggedToday) {
     return (
@@ -3221,7 +3294,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
           <p className="text-center text-sm text-ink-500 mt-3 leading-relaxed px-4">
             {getPhaseMeta(state.phase).blurb}
           </p>
-          {state.hasData && (
+          {state.hasData && !state.awaitingPeriod && (
             <div className="flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-cream-100 border border-cream-200">
               <span className="text-[11px] text-ink-400">{t('cycle.next.label')}</span>
               <span className="text-[11px] font-medium text-ink-600">
