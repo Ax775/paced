@@ -27,8 +27,9 @@ import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import {
   loadProfile, saveProfile, clearProfile, setStorageErrorHandler,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
-  loadRecentLogs,
+  loadRecentLogs, countLoggedDays,
 } from './lib/storage.js';
+import { computeBadges } from './lib/badges.js';
 import {
   LocaleProvider, useT, t as tStatic, detectLocale,
 } from './lib/i18n.js';
@@ -3980,6 +3981,17 @@ function InsightsView({ profile, onOpenCharts }) {
     return getStreak(loadLog(today), today);
   }, [today]);
 
+  const totalLogged = useMemo(() => countLoggedDays(365, today), [today]);
+
+  // Badges reward consistency. `streak` uses the best run (monotonic, never
+  // lost), `total` the cumulative logged days, `cycles` the tracked periods.
+  const badges = useMemo(() => computeBadges({
+    streak: streakRecord,
+    total:  totalLogged,
+    cycles: cycleHistory.length,
+  }), [streakRecord, totalLogged, cycleHistory.length]);
+  const earnedCount = badges.filter(b => b.earned).length;
+
   const hasSymptomData = Object.values(topByPhase).some(v => v !== null);
 
   return (
@@ -4016,6 +4028,52 @@ function InsightsView({ profile, onOpenCharts }) {
             {t('stats.streak.empty')}
           </p>
         )}
+      </Card>
+
+      {/* Milestones / badges */}
+      <Card className="p-6 mb-5 anim-fade-up" style={{ animationDelay: '60ms' }}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400">{t('stats.badges')}</div>
+          <div className="text-[11px] font-medium text-sage-600">
+            {t('stats.badges.count', { n: earnedCount, total: badges.length })}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {badges.map((b) => {
+            const pct = Math.round(b.progress * 100);
+            return (
+              <div
+                key={b.id}
+                className={`flex flex-col items-center text-center rounded-2xl border p-3 transition ${
+                  b.earned
+                    ? 'bg-sage-50 border-sage-200'
+                    : 'bg-cream-50 border-cream-200'
+                }`}
+                title={t(`badge.${b.id}.desc`)}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`text-2xl leading-none mb-1.5 ${b.earned ? '' : 'grayscale opacity-40'}`}
+                >
+                  {b.icon}
+                </span>
+                <span className={`text-[11px] font-medium leading-tight ${b.earned ? 'text-ink-700' : 'text-ink-400'}`}>
+                  {t(`badge.${b.id}.title`)}
+                </span>
+                {b.earned ? (
+                  <span className="mt-1 text-[10px] text-sage-600">{t('stats.badges.earned')}</span>
+                ) : (
+                  <span className="mt-1.5 w-full">
+                    <span className="block h-1 rounded-full bg-cream-200 overflow-hidden" aria-hidden="true">
+                      <span className="block h-full bg-sage-300 rounded-full" style={{ width: `${pct}%` }} />
+                    </span>
+                    <span className="block mt-1 text-[10px] text-ink-400">{b.current}/{b.threshold}</span>
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </Card>
 
       {/* Cycle stats */}
