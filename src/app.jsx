@@ -552,6 +552,57 @@ function HydrationRow({ glasses, target, onChange }) {
 /*  Symptom tracker                                                    */
 /* ------------------------------------------------------------------ */
 
+// A single 1–5 wellbeing scale rendered as a draggable slider. value 0 =
+// "not set yet" (parked visually at the neutral middle, muted). Native
+// <input type=range> for keyboard + screen-reader accessibility; the
+// filled-track look comes from a --pct CSS var. Touching an unset slider
+// commits the neutral value (3) so a single tap registers without the
+// center-click friction native range has when the value doesn't change.
+function ScaleSlider({ label, icons, hint, value, onChange, onClear }) {
+  const { t } = useT();
+  const set = value > 0;
+  const display = set ? value : 3;
+  const pct = ((display - 1) / 4) * 100;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-sm font-medium text-ink-600">{label}</div>
+        {set ? (
+          <button
+            type="button"
+            onClick={onClear}
+            aria-label={t('symptoms.clearAria', { label })}
+            className="flex items-center gap-1.5 text-xs font-semibold text-sage-700 bg-sage-100 hover:bg-sage-200 px-2 py-1 rounded-full transition"
+          >
+            <span aria-hidden="true" className="text-sm leading-none">{icons[value - 1]}</span>
+            {value}/5
+            <X aria-hidden="true" className="w-3 h-3 text-sage-600" />
+          </button>
+        ) : (
+          <div className="text-[10px] text-ink-400/70">{hint}</div>
+        )}
+      </div>
+      <div className="px-1 py-1.5">
+        <input
+          type="range"
+          min="1"
+          max="5"
+          step="1"
+          value={display}
+          data-unset={set ? undefined : 'true'}
+          style={{ '--pct': `${pct}%` }}
+          onPointerDown={() => { if (!set) onChange(3); }}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="paced-slider w-full"
+          aria-label={t('symptoms.sliderAria', { label })}
+          aria-valuetext={set ? t('symptoms.aria', { label, n: value }) : t('symptoms.unset')}
+        />
+      </div>
+    </div>
+  );
+}
+
 function SymptomTracker({ log, onUpdate }) {
   const { t, symptomMeta } = useT();
   const syms = log.symptoms || {};
@@ -572,44 +623,17 @@ function SymptomTracker({ log, onUpdate }) {
       style={{ animationDelay: '80ms' }}
     >
       <div className="space-y-5">
-        {meta.map(({ id, label, icons, hint }) => {
-          const val = syms[id] ?? 0;
-          return (
-            <div key={id}>
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="text-sm font-medium text-ink-600">{label}</div>
-                {val > 0 ? (
-                  <div className="text-xs font-semibold text-sage-600 bg-sage-100 px-2 py-0.5 rounded-full">{val}/5</div>
-                ) : (
-                  <div className="text-[10px] text-ink-400/70">{hint}</div>
-                )}
-              </div>
-              <div className="flex gap-1.5">
-                {[1, 2, 3, 4, 5].map((n) => {
-                  const active = val === n;
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() =>
-                        onUpdate({ symptoms: { ...syms, [id]: active ? 0 : n } })
-                      }
-                      className={`flex-1 min-h-[44px] py-3 rounded-xl border transition active:scale-95 text-sm font-medium ${
-                        active
-                          ? 'bg-sage-100 border-sage-300 text-sage-700 shadow-soft'
-                          : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
-                      }`}
-                      aria-label={t('symptoms.aria', { label, n })}
-                      aria-pressed={active}
-                    >
-                      {n}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
+        {meta.map(({ id, label, icons, hint }) => (
+          <ScaleSlider
+            key={id}
+            label={label}
+            icons={icons}
+            hint={hint}
+            value={syms[id] ?? 0}
+            onChange={(n) => onUpdate({ symptoms: { ...syms, [id]: n } })}
+            onClear={() => onUpdate({ symptoms: { ...syms, [id]: 0 } })}
+          />
+        ))}
       </div>
     </CollapsibleCard>
   );

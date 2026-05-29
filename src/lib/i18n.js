@@ -818,6 +818,9 @@ const STRINGS = {
     'symptoms.title':  'Hoe voel je je?',
     'symptoms.logged': 'Gelogd',
     'symptoms.aria':   '{label}: {n} van 5',
+    'symptoms.sliderAria': '{label}: sleep van 1 tot 5',
+    'symptoms.unset':  'nog niet ingevuld',
+    'symptoms.clearAria': 'Wis {label}',
 
     /* basal temperature */
     'temp.title':       'Basaaltemperatuur',
@@ -1283,6 +1286,9 @@ const STRINGS = {
     'symptoms.title':  'How are you feeling?',
     'symptoms.logged': 'Logged',
     'symptoms.aria':   '{label}: {n} of 5',
+    'symptoms.sliderAria': '{label}: drag from 1 to 5',
+    'symptoms.unset':  'not set yet',
+    'symptoms.clearAria': 'Clear {label}',
 
     'temp.title':       'Basal temperature',
     'temp.input.aria':  'Basal temperature in degrees Celsius',
