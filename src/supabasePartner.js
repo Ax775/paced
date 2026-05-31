@@ -19,7 +19,9 @@ import { createClient } from '@supabase/supabase-js';
 
 let _supabase = null;
 
-function getSupabase() {
+// Exported so sibling modules (e.g. supabaseSubscription.js) share one
+// client instance + auth session rather than spinning up their own.
+export function getSupabase() {
   if (_supabase) return _supabase;
   const url = window.PACED_SUPABASE_URL;
   const key = window.PACED_SUPABASE_ANON_KEY;
