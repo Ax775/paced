@@ -1,0 +1,29 @@
+# REFERENCE ONLY — proposed .github/workflows/deploy-functions.yml.
+# Copy into .github/workflows/ when adopted.
+#
+# Cloudflare Pages deploys the static frontend; it does NOT touch Supabase
+# edge functions. This workflow is the one place they get deployed, gated on
+# changes under supabase/functions/. Requires the SUPABASE_ACCESS_TOKEN repo
+# secret. The function env (STRIPE_*, SUPABASE_SERVICE_ROLE_KEY) stays set in
+# the Supabase dashboard, never here.
+
+name: deploy-functions
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/functions/**']
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - name: Deploy functions
+        run: |
+          supabase functions deploy create-checkout-session --project-ref tyvideihbfjfmdzdkyks
+          supabase functions deploy create-billing-portal    --project-ref tyvideihbfjfmdzdkyks
+          # stripe-webhook stays --no-verify-jwt: Stripe signs the event instead of an end-user JWT.
+          supabase functions deploy stripe-webhook --no-verify-jwt --project-ref tyvideihbfjfmdzdkyks

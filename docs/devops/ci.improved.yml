@@ -1,0 +1,78 @@
+# REFERENCE ONLY — proposed replacement for .github/workflows/ci.yml.
+# Do NOT treat this as live; copy into .github/workflows/ when adopted.
+#
+# Division of labour: GitHub Actions GATES quality (lint/test/build/Lighthouse/
+# lockfile). Cloudflare Pages does the actual PUBLISH from its own Git
+# integration and spins up a per-branch preview URL for every PR — do not
+# duplicate deploys here. Edge functions are the one thing Cloudflare does NOT
+# touch; see deploy-functions.yml.
+
+name: CI
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - name: Pin npm to 11.x
+        run: npm install -g npm@11
+
+      # Lockfile-drift guard: npm ci already fails on drift, but make the
+      # cause explicit before it dumps a confusing diff.
+      - name: Verify lockfile in sync
+        run: |
+          npm ci --dry-run >/dev/null 2>&1 || {
+            echo "::error::package-lock.json out of sync — run 'npm install' and commit it"; exit 1; }
+
+      - run: npm ci
+      - run: npm test                       # vitest run — fails the gate
+      - run: npm run build
+
+      - name: Verify build output
+        run: |
+          # Keep the existing artefact + CDN checks from the live ci.yml:
+          test -f dist/index.html
+          test -f dist/app.js
+          test -f dist/styles.css
+          test -f dist/sw.js
+          # Assert no external CDN refs leaked into the built HTML.
+          ! grep -Eq 'cdn\.|unpkg|esm\.sh|babel|importmap' dist/index.html
+
+      # SW cache-version reminder: warn if app code changed but the cache name
+      # in sw.js (paced-shell-vN) did not bump. Advisory, never blocks.
+      - name: SW cache-version check
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1
+          if git diff --quiet origin/${{ github.base_ref }} -- sw.js src/; then exit 0; fi
+          if git diff origin/${{ github.base_ref }} -- sw.js | grep -q "paced-shell-v"; then
+            echo "✓ SW cache version bumped"
+          else
+            echo "::warning file=sw.js::App code changed — bump the paced-shell-vN cache name in sw.js so clients update"
+          fi
+
+  lighthouse:
+    name: Lighthouse budget
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm install -g npm@11 && npm ci
+      - run: npm run audit            # build.mjs + scripts/audit-lighthouse.mjs; non-zero exit fails gate
+    # Make `lighthouse` a REQUIRED check in branch protection only once the
+    # budget in scripts/audit-lighthouse.mjs is stable; keep advisory until then.

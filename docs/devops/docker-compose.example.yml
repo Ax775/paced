@@ -1,0 +1,12 @@
+# OPTIONAL / ALTERNATIVE PATH — local prod-like preview only.
+# `docker compose -f docker-compose.example.yml up --build` -> http://localhost:8080
+# Verify headers with: curl -I localhost:8080
+# (Requires Dockerfile.example + nginx.conf.example in the same dir / build context.)
+
+services:
+  web:
+    build:
+      context: ../..              # repo root, so build.mjs + src/ are in scope
+      dockerfile: docs/devops/Dockerfile.example
+    ports: ["8080:8080"]
+    restart: unless-stopped
