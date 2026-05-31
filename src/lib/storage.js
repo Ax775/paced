@@ -26,6 +26,8 @@ const PROFILE_KEY        = 'paced.profile';
 const LOG_PREFIX         = 'paced.log.';
 const CARD_ORDER_KEY     = 'paced.cardOrder';
 const SCHEMA_VERSION_KEY = 'paced_schema_version';
+const TRIAL_KEY          = 'paced.trial';        // { startedAt: ISO }
+const SUBSCRIPTION_KEY   = 'paced.subscription'; // cached server entitlement
 
 /* ------------------------------------------------------------------ */
 /*  Storage error reporting                                            */
@@ -368,4 +370,54 @@ export function countLoggedDays(days = 365, today = new Date()) {
     d.setDate(d.getDate() - 1);
   }
   return count;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Subscription / trial persistence                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Read the local trial record `{ startedAt: ISO }`, or null if the trial
+ * has never been started on this device.
+ */
+export function loadTrial() {
+  try {
+    const raw = localStorage.getItem(TRIAL_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed.startedAt === 'string' ? parsed : null;
+  } catch { return null; }
+}
+
+/**
+ * Ensure the 60-day trial clock has started. Stamps `startedAt` on first
+ * call and returns the (existing or freshly created) trial record. Called
+ * once on app boot. Best-effort — a storage failure just means the trial
+ * is treated as "starts now" by the entitlement resolver.
+ */
+export function ensureTrialStarted(now = new Date()) {
+  const existing = loadTrial();
+  if (existing) return existing;
+  const trial = { startedAt: now.toISOString() };
+  try { localStorage.setItem(TRIAL_KEY, JSON.stringify(trial)); } catch { /* ignore */ }
+  return trial;
+}
+
+/**
+ * Cached copy of the server-authoritative subscription record. Used for a
+ * synchronous entitlement read on boot; refreshed asynchronously from
+ * Supabase when the user is logged in. Returns null if absent.
+ */
+export function loadCachedSubscription() {
+  try {
+    const raw = localStorage.getItem(SUBSCRIPTION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+export function saveCachedSubscription(sub) {
+  try {
+    if (sub) localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(sub));
+    else localStorage.removeItem(SUBSCRIPTION_KEY);
+  } catch { /* ignore */ }
 }

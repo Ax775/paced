@@ -12,6 +12,7 @@ import {
   Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
   BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
   Thermometer, Info, Heart, Dumbbell, Plus, RefreshCw, Calendar, Briefcase,
+  Lock,
 } from 'lucide-react';
 
 import {
@@ -28,8 +29,11 @@ import {
   loadProfile, saveProfile, clearProfile, setStorageErrorHandler,
   loadLog, saveLog, isoDate, emptyLog, logHasData, getStreak,
   loadRecentLogs, countLoggedDays,
+  ensureTrialStarted, loadCachedSubscription, saveCachedSubscription,
 } from './lib/storage.js';
 import { computeBadges } from './lib/badges.js';
+import { resolveEntitlement, canUseFeature } from './lib/entitlement.js';
+import { fetchSubscription, startCheckout, openBillingPortal } from './supabaseSubscription.js';
 import {
   LocaleProvider, useT, t as tStatic, detectLocale,
 } from './lib/i18n.js';
@@ -2828,7 +2832,16 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         {saved ? <><Check className="w-4 h-4" /> {t('settings.save')} ✓</> : t('settings.save')}
       </button>
 
-      {/* Export */}
+      {/* Subscription status */}
+      <SubscriptionCard />
+
+      {/* Export — premium */}
+      <PremiumGate
+        feature="export"
+        variant="inline"
+        title={t('premium.locked.export.title')}
+        body={t('premium.locked.export.body')}
+      >
       <Card className="p-6 mb-5 anim-fade-up">
         <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('settings.export')}</div>
         <div className="space-y-2">
@@ -2862,6 +2875,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
           </button>
         </div>
       </Card>
+      </PremiumGate>
 
       {/* Danger zone */}
       <Card className="p-6 anim-fade-up">
@@ -2880,13 +2894,20 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
         </button>
       </Card>
 
-      {/* Partner koppeling */}
-      <Card className="mb-5 anim-fade-up">
-        <PartnerSettings
-          currentPhase={getCycleState(profile).phase}
-          cycleDay={getCycleState(profile).cycleDay}
-        />
-      </Card>
+      {/* Partner koppeling — premium */}
+      <PremiumGate
+        feature="partner"
+        variant="inline"
+        title={t('premium.locked.partner.title')}
+        body={t('premium.locked.partner.body')}
+      >
+        <Card className="mb-5 anim-fade-up">
+          <PartnerSettings
+            currentPhase={getCycleState(profile).phase}
+            cycleDay={getCycleState(profile).cycleDay}
+          />
+        </Card>
+      </PremiumGate>
 
       {/* Legal */}
       <button
@@ -3296,6 +3317,9 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
           </button>
         </div>
       </header>
+
+      {/* Trial countdown / upgrade nudge — hidden for active subscribers */}
+      <TrialBanner />
 
       {/* Day summary — compact above-the-fold progress */}
       <DaySummaryStrip
@@ -3792,6 +3816,7 @@ function capitalize(s) {
 
 function LogboekView({ profile, onGoHome }) {
   const { t, formatDate } = useT();
+  const { isPremium, openUpgrade } = useEntitlement();
   const today = useMemo(() => new Date(), []);
   const currentMonthStart = useMemo(
     () => new Date(today.getFullYear(), today.getMonth(), 1),
@@ -3850,12 +3875,14 @@ function LogboekView({ profile, onGoHome }) {
         </div>
         <button
           type="button"
-          onClick={() => exportCSV(profile)}
+          onClick={() => isPremium ? exportCSV(profile) : openUpgrade()}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cream-100 border border-cream-200
                      text-ink-500 text-xs hover:bg-cream-200 hover:text-ink-700 active:scale-95 transition min-h-[44px]"
           aria-label={t('log.export.aria')}
         >
-          <Download aria-hidden="true" className="w-4 h-4" />
+          {isPremium
+            ? <Download aria-hidden="true" className="w-4 h-4" />
+            : <Lock aria-hidden="true" className="w-4 h-4" />}
           {t('log.export')}
         </button>
       </header>
@@ -5627,6 +5654,361 @@ function ConsentGate({ onAccept, onOpenLegal }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Subscription / entitlement                                         */
+/* ------------------------------------------------------------------ */
+
+const EntitlementContext = React.createContext(null);
+
+// Default keeps everything unlocked if the provider is somehow absent — a
+// bug should never wrongly lock a paying/trialing user out of her data.
+const DEFAULT_ENTITLEMENT = {
+  isPremium: true, status: 'trial', source: 'trial', trialDaysLeft: TRIAL_DAYS_FALLBACK(),
+  refresh: () => {}, openUpgrade: () => {},
+};
+function TRIAL_DAYS_FALLBACK() { return 60; }
+
+function useEntitlement() {
+  return React.useContext(EntitlementContext) || DEFAULT_ENTITLEMENT;
+}
+
+function EntitlementProvider({ children }) {
+  // Trial clock starts on first ever boot; resolves synchronously.
+  const [trial] = useState(() => ensureTrialStarted());
+  const [subscription, setSubscription] = useState(() => loadCachedSubscription());
+  const [now] = useState(() => new Date()); // fixed for the session — fine
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Pull the server-authoritative subscription when logged in, cache it.
+  const refresh = useCallback(async () => {
+    const { data, error } = await fetchSubscription();
+    if (error) return;            // not configured / not logged in → keep cache
+    setSubscription(data);        // may be null (no row) — that's valid
+    saveCachedSubscription(data);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    // Returning from Stripe Checkout: refresh now and again shortly after,
+    // since the webhook that writes the row can lag a second or two. Then
+    // strip the query param so a refresh doesn't re-trigger.
+    let t2;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('checkout') === 'done') {
+        t2 = setTimeout(refresh, 3000);
+        const url = window.location.pathname;
+        window.history.replaceState(null, '', url);
+      }
+    } catch { /* ignore */ }
+    return () => { if (t2) clearTimeout(t2); };
+  }, [refresh]);
+
+  const entitlement = useMemo(
+    () => resolveEntitlement({ trialStartedAt: trial?.startedAt, subscription, now }),
+    [trial, subscription, now],
+  );
+
+  const value = useMemo(
+    () => ({ ...entitlement, refresh, openUpgrade: () => setUpgradeOpen(true) }),
+    [entitlement, refresh],
+  );
+
+  return (
+    <EntitlementContext.Provider value={value}>
+      {children}
+      {upgradeOpen && (
+        <UpgradeModal
+          entitlement={entitlement}
+          onClose={() => setUpgradeOpen(false)}
+          onSubscribed={refresh}
+        />
+      )}
+    </EntitlementContext.Provider>
+  );
+}
+
+/**
+ * Locked-feature placeholder shown in place of a premium feature once the
+ * trial has ended. `variant="full"` fills a tab; `variant="inline"` is a
+ * card for a settings section.
+ */
+function PremiumLocked({ title, body, variant = 'inline' }) {
+  const { t } = useT();
+  const { openUpgrade } = useEntitlement();
+  const inner = (
+    <div className="flex flex-col items-center text-center">
+      <div className="w-12 h-12 rounded-full bg-sage-100 border border-sage-200 flex items-center justify-center mb-3">
+        <Lock aria-hidden="true" className="w-5 h-5 text-sage-600" />
+      </div>
+      <div className="font-display text-lg text-ink-700 mb-1">{title}</div>
+      <p className="text-sm text-ink-500 leading-relaxed max-w-xs mb-4">{body}</p>
+      <button
+        type="button"
+        onClick={openUpgrade}
+        className="px-5 py-2.5 rounded-xl bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 active:scale-[0.98] transition"
+      >
+        {t('premium.unlock')}
+      </button>
+    </div>
+  );
+  if (variant === 'full') {
+    return <div className="min-h-dvh flex items-center justify-center px-6 max-w-md mx-auto">{inner}</div>;
+  }
+  return <Card className="p-6 mb-5">{inner}</Card>;
+}
+
+/** Renders children when entitled to `feature`, else a locked placeholder. */
+function PremiumGate({ feature, title, body, variant = 'inline', children }) {
+  const ent = useEntitlement();
+  if (canUseFeature(feature, ent)) return children;
+  return <PremiumLocked title={title} body={body} variant={variant} />;
+}
+
+/**
+ * Slim banner shown on the dashboard: counts down the free trial, and once
+ * expired invites the user to subscribe. Hidden entirely for active
+ * subscribers.
+ */
+function TrialBanner() {
+  const { t } = useT();
+  const { status, trialDaysLeft, openUpgrade } = useEntitlement();
+  if (status === 'active') return null;
+
+  const expired = status === 'expired';
+  const urgent = !expired && trialDaysLeft <= 7;
+
+  return (
+    <button
+      type="button"
+      onClick={openUpgrade}
+      className={`w-full mb-5 px-4 py-3 rounded-2xl border text-left flex items-center justify-between gap-3 transition active:scale-[0.99] ${
+        expired
+          ? 'bg-terracotta-100/60 border-terracotta-200 hover:bg-terracotta-100'
+          : urgent
+            ? 'bg-sage-100 border-sage-300 hover:bg-sage-200'
+            : 'bg-cream-100 border-cream-200 hover:border-sage-200'
+      }`}
+    >
+      <div className="flex items-center gap-2.5 min-w-0">
+        <Sparkles aria-hidden="true" className={`w-4 h-4 shrink-0 ${expired ? 'text-terracotta-600' : 'text-sage-600'}`} />
+        <span className="text-sm text-ink-700 truncate">
+          {expired
+            ? t('premium.banner.expired')
+            : t('premium.banner.trial', { n: trialDaysLeft })}
+        </span>
+      </div>
+      <span className={`text-xs font-medium shrink-0 ${expired ? 'text-terracotta-700' : 'text-sage-700'}`}>
+        {t('premium.banner.cta')}
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Subscription status card for the Settings screen — shows the current plan
+ * and the right action: manage (active subscribers, via Stripe portal) or
+ * upgrade (trial / expired).
+ */
+function SubscriptionCard() {
+  const { t } = useT();
+  const { status, trialDaysLeft, openUpgrade } = useEntitlement();
+  const [busy, setBusy] = useState(false);
+
+  const manage = async () => {
+    setBusy(true);
+    const { error } = await openBillingPortal();
+    if (error) setBusy(false); // otherwise the browser redirects away
+  };
+
+  const active = status === 'active';
+  const label = active
+    ? t('premium.status.active')
+    : status === 'trial'
+      ? t('premium.status.trial', { n: trialDaysLeft })
+      : t('premium.status.free');
+
+  return (
+    <Card className="p-6 mb-5 anim-fade-up">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-ink-400 mb-3">{t('premium.status.title')}</div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sparkles aria-hidden="true" className={`w-4 h-4 shrink-0 ${active ? 'text-sage-600' : 'text-ink-400'}`} />
+          <span className="text-sm text-ink-700 truncate">{label}</span>
+        </div>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={active ? manage : openUpgrade}
+          className="shrink-0 px-4 py-2 rounded-xl bg-sage-600 text-cream-50 text-xs font-medium hover:bg-sage-700 active:scale-[0.98] transition disabled:opacity-60"
+        >
+          {active ? t('premium.status.manage') : t('premium.banner.cta')}
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Upgrade modal: explains the €3/mo plan, then either prompts magic-link
+ * login (reusing the partner auth) or, when logged in, kicks off Stripe
+ * Checkout. The 60-day local trial is honoured via Stripe trial_period_days.
+ */
+function UpgradeModal({ entitlement, onClose, onSubscribed }) {
+  const { t } = useT();
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [email, setEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!partnerConfigured()) { setAuthChecked(true); return; }
+    (async () => {
+      const u = await getPartnerUser();
+      setIsAuthed(!!u);
+      setAuthChecked(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const handleSubscribe = async () => {
+    setBusy(true);
+    setStatus(t('premium.modal.redirecting'));
+    const { error } = await startCheckout({ trialDaysLeft: entitlement.trialDaysLeft });
+    if (error) {
+      setBusy(false);
+      setStatus(
+        error === 'not_configured' ? t('premium.modal.notConfigured')
+        : t('premium.modal.error'),
+      );
+    }
+    // On success the browser redirects to Stripe — nothing more to do.
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setStatus(t('premium.modal.sending'));
+    const redirectTo = `${window.location.origin}/?tab=settings`;
+    const { error } = await partnerSignIn(email.trim(), redirectTo);
+    if (error && error !== 'not_configured') setStatus(t('premium.modal.error'));
+    else { setEmailSent(true); setStatus(''); }
+  };
+
+  const FEATURES = [t('premium.feat.insights'), t('premium.feat.partner'), t('premium.feat.export')];
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center px-5 bg-ink-700/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm bg-cream-50 rounded-2xl shadow-glow p-6 anim-fade-up max-h-[90dvh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="upgrade-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-2xl mb-2 text-center" aria-hidden="true">✨</div>
+        <h2 id="upgrade-modal-title" className="font-display text-[22px] text-ink-700 mb-1 text-center">
+          {t('premium.modal.title')}
+        </h2>
+        <p className="text-sm text-ink-500 leading-relaxed mb-4 text-center">
+          {entitlement.status === 'trial'
+            ? t('premium.modal.trialSub', { n: entitlement.trialDaysLeft })
+            : t('premium.modal.sub')}
+        </p>
+
+        <ul className="space-y-2 mb-5">
+          {FEATURES.map((f) => (
+            <li key={f} className="flex items-start gap-2 text-sm text-ink-600">
+              <Check aria-hidden="true" className="w-4 h-4 text-sage-600 mt-0.5 shrink-0" />
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="text-center mb-5">
+          <span className="font-display text-[28px] text-ink-700">{t('premium.price')}</span>
+          <span className="text-sm text-ink-400"> {t('premium.priceUnit')}</span>
+        </div>
+
+        {!authChecked && (
+          <p className="text-sm text-ink-500 text-center py-2">{t('common.soon')}</p>
+        )}
+
+        {/* Logged in → subscribe directly */}
+        {authChecked && isAuthed && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleSubscribe}
+            className="w-full min-h-[44px] py-3 rounded-xl bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 transition active:scale-[0.98] disabled:opacity-60"
+          >
+            {t('premium.modal.subscribe')}
+          </button>
+        )}
+
+        {/* Not logged in, magic-link sent */}
+        {authChecked && !isAuthed && emailSent && (
+          <div className="text-center">
+            <div className="text-2xl mb-2" aria-hidden="true">📬</div>
+            <p className="text-sm text-ink-500 leading-relaxed">{t('premium.modal.checkInbox', { email })}</p>
+          </div>
+        )}
+
+        {/* Not logged in → magic-link form first */}
+        {authChecked && !isAuthed && !emailSent && (
+          <form onSubmit={handleLogin}>
+            <p className="text-xs text-ink-500 leading-relaxed mb-3 text-center">{t('premium.modal.loginFirst')}</p>
+            <label htmlFor="upgrade-email" className="sr-only">{t('premium.modal.emailLabel')}</label>
+            <input
+              id="upgrade-email"
+              type="email"
+              required
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="off"
+              spellCheck="false"
+              placeholder="jouw@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-2.5 text-sm text-ink-700 placeholder-ink-500 focus:outline-none focus:border-sage-400 focus:ring-2 focus:ring-sage-200 transition mb-3"
+            />
+            <button
+              type="submit"
+              className="w-full min-h-[44px] py-3 rounded-xl bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 transition active:scale-[0.98]"
+            >
+              {t('premium.modal.loginCta')}
+            </button>
+          </form>
+        )}
+
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-full mt-3 text-xs text-ink-500 hover:text-ink-700 underline decoration-dotted underline-offset-4 transition py-2 min-h-[44px]"
+        >
+          {t('premium.modal.later')}
+        </button>
+
+        {status && <p role="status" aria-live="polite" className="text-xs text-ink-400 mt-2 text-center">{status}</p>}
+
+        <p className="text-[10px] text-ink-400/70 leading-relaxed mt-4 text-center">
+          {t('premium.modal.legal')}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Root                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -5888,7 +6270,16 @@ function App() {
         {tab === 'logboek' && (
           <LogboekView profile={profile} onGoHome={() => setTab('home')} />
         )}
-        {tab === 'stats' && <InsightsView profile={profile} onOpenCharts={() => setTab('charts')} />}
+        {tab === 'stats' && (
+          <PremiumGate
+            feature="insights"
+            variant="full"
+            title={t('premium.locked.insights.title')}
+            body={t('premium.locked.insights.body')}
+          >
+            <InsightsView profile={profile} onOpenCharts={() => setTab('charts')} />
+          </PremiumGate>
+        )}
         {tab === 'charts' && <AllChartsView profile={profile} onBack={() => setTab('stats')} />}
         {tab === 'settings' && (
           <SettingsScreen
@@ -6068,7 +6459,9 @@ function App() {
 createRoot(document.getElementById('root')).render(
   <ErrorBoundary>
     <LocaleProvider>
-      <App />
+      <EntitlementProvider>
+        <App />
+      </EntitlementProvider>
     </LocaleProvider>
   </ErrorBoundary>
 );
