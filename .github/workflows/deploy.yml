@@ -1,8 +1,8 @@
-name: Deploy to GitHub Pages
+name: Build & Deploy to GitHub Pages
 
 on:
   push:
-    branches: [gh-pages]
+    branches: [gh-pages-local]
   workflow_dispatch:
 
 permissions:
@@ -15,16 +15,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          ref: gh-pages
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify theme classes survived purge
+        run: |
+          for cls in from-orange-600 to-amber-500 bg-blue-500 text-green-400 border-red-500; do
+            grep -q "$cls" dist/assets/*.css || { echo "::error::Missing theme class $cls in build output"; exit 1; }
+          done
+          echo "All theme classes present."
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -32,8 +46,15 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: dist
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

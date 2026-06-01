@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Inter', system-ui, sans-serif; background: #0a0f1e; margin: 0; }
+@media (min-width: 640px) { body { background: radial-gradient(circle at top, #131c33 0%, #060912 60%); } }
+
+@keyframes slideUp { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@keyframes popIn   { 0% { transform: scale(0.75); opacity: 0 } 65% { transform: scale(1.06) } 100% { transform: scale(1); opacity: 1 } }
+@keyframes toastSlide { from { transform: translateX(-50%) translateY(16px); opacity: 0 } to { transform: translateX(-50%) translateY(0); opacity: 1 } }
+@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
+.tab-fade { animation: fadeSlideIn 0.18s cubic-bezier(0.22, 1, 0.36, 1) both }
+.anim-slide-up { animation: slideUp 0.32s cubic-bezier(0.22, 1, 0.36, 1) }
+.anim-pop-in   { animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) }
+.anim-toast    { animation: toastSlide 0.28s cubic-bezier(0.22, 1, 0.36, 1) }
+.pulse-dot     { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="number"]::-webkit-inner-spin-button { filter: invert(0.6); cursor: pointer; }
+.card-claimed { background: linear-gradient(135deg, rgba(34,197,94,0.10) 0%, rgba(16,185,129,0.05) 100%); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+input:focus, textarea:focus { border-color: #f97316 !important; box-shadow: 0 0 0 3px rgba(249,115,22,0.18); }
