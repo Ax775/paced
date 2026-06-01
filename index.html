@@ -39,7 +39,8 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body { font-family: 'Inter', system-ui, sans-serif; background: #020617; margin: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #0a0f1e; margin: 0; }
+    @media (min-width: 640px) { body { background: radial-gradient(circle at top, #131c33 0%, #060912 60%); } }
     @keyframes slideUp { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
     @keyframes popIn   { 0% { transform: scale(0.75); opacity: 0 } 65% { transform: scale(1.06) } 100% { transform: scale(1); opacity: 1 } }
     @keyframes toastSlide { from { transform: translateX(-50%) translateY(16px); opacity: 0 } to { transform: translateX(-50%) translateY(0); opacity: 1 } }
@@ -55,6 +56,7 @@
     .card-claimed { background: linear-gradient(135deg, rgba(34,197,94,0.10) 0%, rgba(16,185,129,0.05) 100%); }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    input:focus, textarea:focus { border-color: #f97316 !important; box-shadow: 0 0 0 3px rgba(249,115,22,0.18); }
   </style>
 </head>
 <body>
@@ -332,7 +334,7 @@
           <input ref={ref} type="text" placeholder="Je naam…" value={name} maxLength={30}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && name.trim() && onConfirm(name.trim())}
-            className={`mt-4 mb-4 w-full rounded-2xl border border-slate-600 bg-slate-700/80 px-4 py-3.5 text-white outline-none focus:border-${theme}-500 focus:ring-2 focus:${c.ring}`} />
+            className={`mt-4 mb-4 w-full rounded-2xl border border-slate-600 bg-slate-700/80 px-4 py-3.5 text-white outline-none focus:ring-2`} />
           <div className="flex gap-3">
             <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600 active:scale-95 transition-all">Annuleer</button>
             <button onClick={() => name.trim() && onConfirm(name.trim())} disabled={!name.trim()}
@@ -387,7 +389,7 @@
           <h3 className="text-white font-bold text-lg mb-3">{title}</h3>
           {players.length > 4 && (
             <input type="text" placeholder="Zoek…" value={filter} onChange={(e) => setFilter(e.target.value)}
-              className={`mb-3 w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+              className={`mb-3 w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none`} />
           )}
           {players.length === 0 && (
             <p className="py-6 text-center text-sm text-slate-500">Nog geen spelers in selectie. Voeg eerst spelers toe.</p>
@@ -651,7 +653,7 @@
               <div className="space-y-3">
                 <div>
                   <span className="block mb-1.5 text-sm text-slate-400">Teamnaam</span>
-                  <div className={`flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3 focus-within:ring-2 focus-within:${c.ring}`}>
+                  <div className={`flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3`}>
                     <Shirt size={15} className={c.text + ' shrink-0'} />
                     <input type="text" placeholder="bv. FC De Vrienden" value={name} onChange={(e) => setName(e.target.value)}
                       className="flex-1 bg-transparent text-white outline-none placeholder-slate-500" />
@@ -693,10 +695,10 @@
               <div className="grid grid-cols-[1fr_64px_44px] gap-2">
                 <input type="text" placeholder="Naam" value={pName} onChange={(e) => setPName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addPlayer()}
-                  className={`rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none placeholder-slate-500 focus:border-${color}-500`} />
+                  className={`rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none placeholder-slate-500`} />
                 <input type="text" inputMode="numeric" placeholder="#" value={pNum} onChange={(e) => setPNum(e.target.value.replace(/\D/g, '').slice(0, 2))}
                   onKeyDown={(e) => e.key === 'Enter' && addPlayer()}
-                  className={`rounded-xl border border-slate-600 bg-slate-700 px-2 py-2.5 text-sm text-white outline-none placeholder-slate-500 text-center focus:border-${color}-500`} />
+                  className={`rounded-xl border border-slate-600 bg-slate-700 px-2 py-2.5 text-sm text-white outline-none placeholder-slate-500 text-center`} />
                 <button onClick={addPlayer} className={`flex items-center justify-center rounded-xl ${c.solid} text-white hover:opacity-90 active:scale-95 transition-all`}>
                   <Plus size={18} />
                 </button>
@@ -704,12 +706,19 @@
               <p className="mt-2 text-xs text-slate-600">Tip: rugnummer is optioneel</p>
             </div>
 
-            <button onClick={create} disabled={!name.trim() || players.length === 0}
-              className={`w-full rounded-2xl py-4 text-lg font-black transition-all ${name.trim() && players.length > 0
-                ? `bg-gradient-to-r ${c.bg} text-white shadow-xl active:scale-95`
-                : 'cursor-not-allowed bg-slate-800 text-slate-600'}`}>
-              ⚡ Maak team aan
-            </button>
+            <div className="pt-1">
+              <button onClick={create} disabled={!name.trim() || players.length === 0}
+                className={`w-full rounded-2xl py-4 text-lg font-black transition-all ${name.trim() && players.length > 0
+                  ? `bg-gradient-to-r ${c.bg} text-white shadow-xl shadow-black/30 active:scale-95`
+                  : 'cursor-not-allowed bg-slate-800 text-slate-500 border border-slate-700'}`}>
+                ⚡ Maak team aan
+              </button>
+              {(!name.trim() || players.length === 0) && (
+                <p className="mt-2 text-center text-xs text-slate-500">
+                  {!name.trim() ? 'Vul een teamnaam in' : 'Voeg minstens 1 speler toe'} om verder te gaan
+                </p>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -1106,10 +1115,10 @@
               <div className="mt-3 grid grid-cols-[1fr_64px_44px] gap-2">
                 <input type="text" placeholder="Nieuwe speler" value={pName} onChange={(e) => setPName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && add()}
-                  className={`rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none placeholder-slate-500 focus:border-${theme}-500`} />
+                  className={`rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none placeholder-slate-500`} />
                 <input type="text" inputMode="numeric" placeholder="#" value={pNum} onChange={(e) => setPNum(e.target.value.replace(/\D/g, '').slice(0, 2))}
                   onKeyDown={(e) => e.key === 'Enter' && add()}
-                  className={`rounded-xl border border-slate-600 bg-slate-700 px-2 py-2.5 text-sm text-white outline-none text-center focus:border-${theme}-500`} />
+                  className={`rounded-xl border border-slate-600 bg-slate-700 px-2 py-2.5 text-sm text-white outline-none text-center`} />
                 <button onClick={add} className={`flex items-center justify-center rounded-xl ${c.solid} text-white active:scale-95`}>
                   <Plus size={18} />
                 </button>
@@ -1195,7 +1204,7 @@
               <div className="space-y-3">
                 <div>
                   <span className="block mb-1.5 text-sm text-slate-400">Tegenstander</span>
-                  <div className={`flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3 focus-within:ring-2 focus-within:${c.ring}`}>
+                  <div className={`flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3`}>
                     <Trophy size={15} className={c.text + ' shrink-0'} />
                     <input type="text" placeholder="bv. FC Tegenstand" value={form.opponent} onChange={set('opponent')}
                       className="flex-1 bg-transparent text-white outline-none placeholder-slate-500" />
@@ -1204,14 +1213,14 @@
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <span className="block mb-1.5 text-sm text-slate-400">Datum</span>
-                    <div className={`flex items-center gap-2 rounded-xl bg-slate-700/60 px-3 py-3 focus-within:ring-2 focus-within:${c.ring}`}>
+                    <div className={`flex items-center gap-2 rounded-xl bg-slate-700/60 px-3 py-3`}>
                       <Calendar size={14} className={c.text + ' shrink-0'} />
                       <input type="date" value={form.date} onChange={set('date')} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none" />
                     </div>
                   </div>
                   <div>
                     <span className="block mb-1.5 text-sm text-slate-400">Aanvang</span>
-                    <div className={`flex items-center gap-2 rounded-xl bg-slate-700/60 px-3 py-3 focus-within:ring-2 focus-within:${c.ring}`}>
+                    <div className={`flex items-center gap-2 rounded-xl bg-slate-700/60 px-3 py-3`}>
                       <Clock size={14} className={c.text + ' shrink-0'} />
                       <input type="time" value={form.time} onChange={set('time')} className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none" />
                     </div>
@@ -1219,7 +1228,7 @@
                 </div>
                 <div>
                   <span className="block mb-1.5 text-sm text-slate-400">Locatie</span>
-                  <div className={`flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3 focus-within:ring-2 focus-within:${c.ring}`}>
+                  <div className={`flex items-center gap-3 rounded-xl bg-slate-700/60 px-4 py-3`}>
                     <MapPin size={15} className={c.text + ' shrink-0'} />
                     <input type="text" placeholder="bv. Sportpark Noord, veld 2" value={form.location} onChange={set('location')}
                       className="flex-1 bg-transparent text-white outline-none placeholder-slate-500" />
@@ -1253,7 +1262,7 @@
               <div className="flex gap-2">
                 <input type="text" placeholder="Nieuwe taak…" value={taskInput} onChange={(e) => setTaskInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && taskInput.trim() && (setTasks(t => [...t, taskInput.trim()]), setTaskInput(''))}
-                  className={`flex-1 rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none placeholder-slate-500 focus:border-${team.color}-500`} />
+                  className={`flex-1 rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none placeholder-slate-500`} />
                 <button onClick={() => { if (taskInput.trim()) { setTasks(t => [...t, taskInput.trim()]); setTaskInput(''); } }}
                   className={`flex items-center justify-center rounded-xl ${c.solid} px-4 text-white active:scale-95`}><Plus size={18} /></button>
               </div>
@@ -1924,7 +1933,7 @@
           <div className="mt-3">
             <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Minuut (optioneel)</p>
             <input type="number" inputMode="numeric" placeholder="bv. 23" value={minute} onChange={(e) => setMinute(String(Math.min(120, parseInt(e.target.value.replace(/\D/g, '') || '0'))))}
-              className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none focus:border-${theme}-500`} />
+              className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none`} />
           </div>
 
           <div className="mt-5 flex gap-3">
@@ -1977,7 +1986,7 @@
 
           <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Minuut (optioneel)</p>
           <input type="number" inputMode="numeric" placeholder="bv. 67" value={minute} onChange={(e) => setMinute(String(Math.min(120, parseInt(e.target.value.replace(/\D/g, '') || '0'))))}
-            className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none focus:border-${theme}-500`} />
+            className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none`} />
 
           <div className="mt-5 flex gap-3">
             <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600">Annuleer</button>
@@ -2224,7 +2233,7 @@
 
           <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Toelichting (optioneel)</p>
           <input type="text" placeholder="bv. 5 min te laat" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={60}
-            className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+            className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none`} />
 
           <div className="mt-5 flex gap-3">
             <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600">Annuleer</button>
@@ -2250,12 +2259,12 @@
 
           <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Omschrijving</p>
           <input ref={ref} type="text" placeholder="bv. Mobiel in kleedkamer" value={label} onChange={(e) => setLabel(e.target.value)} maxLength={40}
-            className={`w-full mb-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+            className={`w-full mb-3 rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none`} />
 
           <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Bedrag (€)</p>
           <input type="number" inputMode="decimal" placeholder="bv. 2,50" value={amount}
             onChange={(e) => setAmount(e.target.value.replace(',', '.'))} step="0.50" min="0"
-            className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+            className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm text-white outline-none`} />
 
           <div className="mt-5 flex gap-3">
             <button onClick={onCancel} className="flex-1 rounded-2xl bg-slate-700 py-3.5 text-slate-300 font-semibold hover:bg-slate-600">Annuleer</button>
@@ -2284,24 +2293,24 @@
             <div>
               <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Tegenstander</p>
               <input type="text" value={form.opponent} onChange={set('opponent')} placeholder="bv. FC Tegenstand"
-                className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none text-sm focus:border-${theme}-500`} />
+                className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none text-sm`} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Datum</p>
                 <input type="date" value={form.date} onChange={set('date')}
-                  className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+                  className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none`} />
               </div>
               <div>
                 <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Aanvang</p>
                 <input type="time" value={form.time} onChange={set('time')}
-                  className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none focus:border-${theme}-500`} />
+                  className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-3 py-2.5 text-sm text-white outline-none`} />
               </div>
             </div>
             <div>
               <p className="text-xs font-bold uppercase text-slate-500 mb-1.5">Locatie</p>
               <input type="text" value={form.location} onChange={set('location')} placeholder="bv. Sportpark Noord, veld 2"
-                className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none text-sm focus:border-${theme}-500`} />
+                className={`w-full rounded-xl border border-slate-600 bg-slate-700 px-4 py-2.5 text-white outline-none text-sm`} />
             </div>
           </div>
           <div className="flex gap-3">
@@ -2322,23 +2331,31 @@
       const [refreshKey, setRefreshKey] = useState(0);
       const refresh = () => setRefreshKey(k => k + 1);
 
-      if (route.name === 'home')    return <WelcomeView onCreateTeam={() => go('#new-team')} onOpenTeam={(id) => go(`#team-${id}`)} />;
-      if (route.name === 'newTeam') return <CreateTeamView onCreated={(id) => go(`#team-${id}`)} onBack={() => go('')} />;
-      if (route.name === 'team')     return <TeamDashboard refreshKey={refreshKey} teamId={route.teamId}
-                                              onBack={() => go('')}
-                                              onCreateMatch={() => go(`#team-${route.teamId}/new-match`)}
-                                              onOpenMatch={(id) => go(`#match-${id}`)} />;
-      if (route.name === 'newMatch') {
+      let view;
+      if (route.name === 'newTeam') {
+        view = <CreateTeamView onCreated={(id) => go(`#team-${id}`)} onBack={() => go('')} />;
+      } else if (route.name === 'team') {
+        view = <TeamDashboard refreshKey={refreshKey} teamId={route.teamId}
+                  onBack={() => go('')}
+                  onCreateMatch={() => go(`#team-${route.teamId}/new-match`)}
+                  onOpenMatch={(id) => go(`#match-${id}`)} />;
+      } else if (route.name === 'newMatch') {
         const team = db.getTeam(route.teamId);
         if (!team) { go(''); return null; }
-        return <CreateMatchView team={team} onCreated={(id) => go(`#match-${id}`)} onBack={() => go(`#team-${route.teamId}`)} />;
-      }
-      if (route.name === 'match') {
+        view = <CreateMatchView team={team} onCreated={(id) => go(`#match-${id}`)} onBack={() => go(`#team-${route.teamId}`)} />;
+      } else if (route.name === 'match') {
         const m = db.getMatch(route.matchId);
-        return <MatchView matchId={route.matchId} onTeamUpdated={refresh}
+        view = <MatchView matchId={route.matchId} onTeamUpdated={refresh}
                   onBack={() => go(m?.teamId ? `#team-${m.teamId}` : '')} />;
+      } else {
+        view = <WelcomeView onCreateTeam={() => go('#new-team')} onOpenTeam={(id) => go(`#team-${id}`)} />;
       }
-      return <WelcomeView onCreateTeam={() => go('#new-team')} onOpenTeam={(id) => go(`#team-${id}`)} />;
+
+      return (
+        <div className="mx-auto w-full max-w-md min-h-screen bg-slate-950 shadow-2xl shadow-black/60 sm:my-0">
+          {view}
+        </div>
+      );
     }
 
     createRoot(document.getElementById('root')).render(<App />);
