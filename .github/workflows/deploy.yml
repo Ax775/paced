@@ -45,6 +45,13 @@ jobs:
           done
           echo "All theme classes present."
 
+      - name: Lighthouse budget gate
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

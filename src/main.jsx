@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { createRoot } from 'react-dom/client';
+import { registerSW } from 'virtual:pwa-register';
 import './index.css';
+
+// Service worker: offline support + survives deploy blips. Auto-updates
+// on next deploy. Registered from the bundle so no inline script (CSP-safe).
+registerSW({ immediate: true });
 
 // ── Error reporting (Sentry — opt-in via VITE_SENTRY_DSN) ─────────
 // Code-split: the SDK only loads when a DSN is configured at build time,
