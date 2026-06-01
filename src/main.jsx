@@ -2,6 +2,28 @@ import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 
+// ── Error reporting (Sentry — opt-in via VITE_SENTRY_DSN) ─────────
+// Code-split: the SDK only loads when a DSN is configured at build time,
+// so it costs nothing in bundles without monitoring.
+let _sentry = null;
+if (import.meta.env.VITE_SENTRY_DSN) {
+  import('@sentry/browser')
+    .then((S) => {
+      S.init({
+        dsn: import.meta.env.VITE_SENTRY_DSN,
+        release: import.meta.env.VITE_APP_VERSION || undefined,
+        environment: import.meta.env.MODE,
+        tracesSampleRate: 0.1,
+      });
+      _sentry = S;
+    })
+    .catch(() => {});
+}
+function reportError(error, info) {
+  if (_sentry) _sentry.captureException(error, info ? { extra: info } : undefined);
+  else console.error('[TeamDrive]', error, info || '');
+}
+
 
     // ── INLINE ICONS (geen CDN afhankelijkheid) ──────────────────────
     const _s = (sz, cn) => ({ xmlns:'http://www.w3.org/2000/svg', width:sz, height:sz, viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth:'2', strokeLinecap:'round', strokeLinejoin:'round', className:cn||'' });
@@ -2285,4 +2307,30 @@ import './index.css';
       );
     }
 
-    createRoot(document.getElementById('root')).render(<App />);
+    // ── Error boundary: friendly fallback instead of a white screen,
+    //    and reports the crash to Sentry when configured.
+    class ErrorBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { error: null }; }
+      static getDerivedStateFromError(error) { return { error }; }
+      componentDidCatch(error, info) { reportError(error, { componentStack: info?.componentStack }); }
+      render() {
+        if (this.state.error) {
+          return (
+            <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 p-8 text-center">
+              <div className="mb-4 text-5xl">⚠️</div>
+              <h2 className="text-xl font-bold text-white">Er ging iets mis</h2>
+              <p className="mt-2 max-w-xs text-sm text-slate-400">De app liep tegen een onverwacht probleem aan. Je gegevens staan veilig op dit apparaat.</p>
+              <button onClick={() => window.location.reload()}
+                className="mt-6 rounded-2xl bg-orange-500 px-7 py-3 font-bold text-white active:scale-95 transition-all">
+                App herladen
+              </button>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    createRoot(document.getElementById('root')).render(
+      <ErrorBoundary><App /></ErrorBoundary>
+    );

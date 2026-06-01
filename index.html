@@ -6,6 +6,9 @@
   <title>TeamDrive — App voor amateurvoetbal</title>
   <meta name="description" content="Carpool, opstelling, uitslagen en boete-pot voor jouw amateurvoetbalteam. Geen account nodig." />
 
+  <!-- Content Security Policy (defense-in-depth; meta works on GitHub Pages where HTTP headers can't be set) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.sentry.io; manifest-src 'self'; base-uri 'self'; form-action 'none'; object-src 'none'" />
+
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#f97316" />

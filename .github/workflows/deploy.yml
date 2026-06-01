@@ -32,6 +32,11 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          # Optional: add a VITE_SENTRY_DSN repo secret to enable error
+          # tracking. When unset the Sentry SDK is dead-code-eliminated.
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_VERSION: ${{ github.sha }}
 
       - name: Verify theme classes survived purge
         run: |
