@@ -268,6 +268,7 @@
 
     // Bereken statistieken voor topscorers etc.
     function computeStats(team, matches) {
+      if (!team) return { players: [], team: { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0 } };
       const stats = {};
       (team.players || []).forEach(p => {
         stats[p.id] = { player: p, goals: 0, assists: 0, motm: 0, yellow: 0, red: 0, played: 0 };
@@ -741,6 +742,10 @@
         if (t) setMatches(db.getTeamMatches(t).sort((a, b) => (b.date || '').localeCompare(a.date || '')));
       }, [teamId, refreshKey]);
 
+      const stats = useMemo(() => computeStats(team, matches), [team, matches]);
+      const upcoming = matches.filter(m => !m.result?.played).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const played   = matches.filter(m => m.result?.played).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
       if (!team) return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 p-8 text-center">
           <div className="mb-4 text-5xl">⚽</div>
@@ -749,10 +754,7 @@
         </div>
       );
 
-      const c = COLORS[team.color || 'orange'];
-      const stats = useMemo(() => computeStats(team, matches), [team, matches]);
-      const upcoming = matches.filter(m => !m.result?.played).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-      const played   = matches.filter(m => m.result?.played).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const c = COLORS[team?.color || 'orange'];
 
       const updateTeam = (updater) => {
         const next = updater(team);
