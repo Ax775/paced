@@ -32,6 +32,7 @@ import {
   ensureTrialStarted, loadCachedSubscription, saveCachedSubscription,
 } from './lib/storage.js';
 import { computeBadges } from './lib/badges.js';
+import { initMonitoring, captureError } from './lib/monitoring.js';
 import { resolveEntitlement, canUseFeature } from './lib/entitlement.js';
 import { fetchSubscription, startCheckout, openBillingPortal } from './supabaseSubscription.js';
 import {
@@ -5564,6 +5565,8 @@ class ErrorBoundary extends React.Component {
     this.setState({ errorInfo });
     // eslint-disable-next-line no-console
     console.error('[Paced] render error:', error, errorInfo);
+    // Report to error monitoring (no-op unless a DSN is configured).
+    captureError(error, { componentStack: errorInfo?.componentStack, boundary: true });
   }
 
   render() {
@@ -6455,6 +6458,11 @@ function App() {
     </>
   );
 }
+
+// Boot error monitoring as early as possible (no-op unless PACED_SENTRY_DSN
+// is set). Sentry's global handlers then capture window errors + unhandled
+// rejections automatically; the ErrorBoundary forwards render errors.
+initMonitoring();
 
 createRoot(document.getElementById('root')).render(
   <ErrorBoundary>
