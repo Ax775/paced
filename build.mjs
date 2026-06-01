@@ -57,6 +57,24 @@ await esbuild({
   legalComments: 'none',
 });
 
+// Sentry lives in its OWN bundle (dist/sentry.js) so the ~110 KB-gzip SDK
+// never lands on the first-paint critical path. monitoring.js loads it at
+// runtime via a non-literal dynamic import (so it stays out of app.js) and
+// only when window.PACED_SENTRY_DSN is set. Always emitted so the path is
+// stable; it's just never fetched when monitoring is off.
+console.log('• Bundling sentry chunk → dist/sentry.js');
+await esbuild({
+  entryPoints: ['src/lib/sentry-chunk.js'],
+  bundle:      true,
+  outfile:     `${distDir}/sentry.js`,
+  format:      'esm',
+  platform:    'browser',
+  target:      ['es2020', 'safari14', 'firefox100', 'chrome100'],
+  minify:      true,
+  sourcemap:   wantSourcemap,
+  legalComments: 'none',
+});
+
 // ── 2. Compile Tailwind ──────────────────────────────────────────────────
 console.log('• Compiling Tailwind → dist/styles.css');
 execSync(

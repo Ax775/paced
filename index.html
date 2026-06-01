@@ -436,6 +436,15 @@
     window.PACED_SUPABASE_URL      = 'https://tyvideihbfjfmdzdkyks.supabase.co';
     window.PACED_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dmlkZWloYmZqZm1kemRreWtzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODIwMTQsImV4cCI6MjA5MjU1ODAxNH0.IDNLsrB-WJGfceASMI2kl61oQbPIXtNqTIeXyVaDFaY';
   </script>
+
+  <!-- Error monitoring (optional). Leave DSN empty to keep monitoring OFF.
+       Use an EU-region Sentry or self-hosted GlitchTip project for data
+       residency, and add its ingest host to connect-src in _headers.
+       See docs/devops/monitoring-setup.md. -->
+  <script>
+    window.PACED_SENTRY_DSN = ''; // TODO: 'https://xxxx@oYYY.ingest.de.sentry.io/ZZZ'
+    window.PACED_ENV        = 'production';
+  </script>
 </head>
 <body>
   <div id="root"></div>
