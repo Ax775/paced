@@ -34,16 +34,9 @@
   <script>
     tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter','system-ui','sans-serif'] } } } }
   </script>
-  <script type="importmap">
-  {
-    "imports": {
-      "react":             "https://esm.sh/react@18",
-      "react/jsx-runtime": "https://esm.sh/react@18/jsx-runtime",
-      "react-dom/client":  "https://esm.sh/react-dom@18/client",
-      "lucide-react":      "https://esm.sh/lucide-react"
-    }
-  }
-  </script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/lucide-react/dist/umd/lucide-react.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -80,14 +73,14 @@
       <p style="color:#475569;font-size:13px;font-family:system-ui,sans-serif;margin:0">Laden…</p>
     </div>
   </div>
-  <script type="text/babel" data-type="module" data-presets="react">
-    import { useState, useEffect, useRef, useMemo, memo } from 'react';
-    import { createRoot } from 'react-dom/client';
-    import {
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useRef, useMemo, memo } = React;
+    const { createRoot } = ReactDOM;
+    const {
       Car, MapPin, Calendar, Clock, Trophy, Share2, CheckCircle, Plus, X,
       ChevronRight, Zap, ClipboardList, ArrowLeft, Users, Shirt,
       Star, Trash2, Goal, Settings, TrendingUp, Crown, Pencil
-    } from 'lucide-react';
+    } = LucideReact;
 
     // ════════════════════════════════════════════════════════════════
     // FORMATIES
