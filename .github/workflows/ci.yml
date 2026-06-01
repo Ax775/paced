@@ -2,12 +2,16 @@ name: CI
 
 # Runs on every PR targeting main and on every push to main itself.
 # Validates that:
-#   1. The Vitest suite still passes (catches regressions in cycle/nutrition
-#      pure functions before they reach production).
-#   2. The production build still succeeds (catches index.html template
-#      drift — build.mjs asserts on the exact CDN/babel patterns it
-#      needs to strip, so an accidental edit to index.html that breaks
-#      one of those patterns fails CI loudly).
+#   1. package-lock.json is in sync with package.json (lockfile-drift guard).
+#   2. The Vitest suite still passes (catches regressions in the pure
+#      cycle/nutrition/entitlement/badge functions before production).
+#   3. The production build still succeeds (catches index.html template
+#      drift — build.mjs asserts on the exact CDN/babel patterns it strips).
+#
+# Division of labour: this workflow GATES quality. Cloudflare Pages does the
+# actual publish from its own Git integration (and per-branch PR previews) —
+# we deliberately don't duplicate the deploy here. Supabase edge functions
+# are deployed by deploy-functions.yml.
 
 on:
   pull_request:
@@ -25,7 +29,7 @@ jobs:
   test-and-build:
     name: Test + build
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
 
     steps:
       - name: Checkout
@@ -42,6 +46,16 @@ jobs:
       # regen, breaking vitest@4's Linux runtime; npm@11 keeps them.
       - name: Pin npm to 11.x
         run: npm install -g npm@11
+
+      # Lockfile-drift guard. `npm ci` already fails on drift, but it dumps a
+      # confusing diff; surface the real cause first. This is the exact
+      # footgun that turned two earlier PRs red — deps added to package.json
+      # without re-running `npm install` to update package-lock.json.
+      - name: Verify lockfile in sync
+        run: |
+          npm ci --dry-run >/dev/null 2>&1 || {
+            echo "::error::package-lock.json is out of sync with package.json — run 'npm install' and commit the updated lockfile";
+            exit 1; }
 
       - name: Install dependencies
         run: npm ci
@@ -67,3 +81,41 @@ jobs:
             exit 1
           fi
           echo "✓ All expected build artefacts present, no external CDN refs"
+
+      # Advisory: if app/shell code changed in a PR but the Service Worker
+      # cache name (paced-shell-vN) wasn't bumped, returning users may keep a
+      # stale shell. Warns, never blocks.
+      - name: Service Worker cache-version reminder
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          if git diff --quiet "origin/${{ github.base_ref }}" -- sw.js src/ index.html; then
+            exit 0
+          fi
+          if git diff "origin/${{ github.base_ref }}" -- sw.js | grep -q "paced-shell-v"; then
+            echo "✓ SW cache version bumped"
+          else
+            echo "::warning file=sw.js::App/shell code changed but the paced-shell-vN cache name in sw.js was not bumped — returning users may serve a stale shell."
+          fi
+
+  # Advisory Lighthouse budget — runs only post-merge on main so PRs stay
+  # fast and a flaky perf run never blocks a merge. Promote to a required
+  # check in branch protection once the budget in audit-lighthouse.mjs is
+  # proven stable.
+  lighthouse:
+    name: Lighthouse budget (advisory)
+    if: github.event_name == 'push'
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm install -g npm@11
+      - run: npm ci
+      - name: Lighthouse audit
+        run: npm run audit

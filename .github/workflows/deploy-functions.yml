@@ -1,0 +1,53 @@
+name: deploy-functions
+
+# Cloudflare Pages deploys the static frontend; it does NOT touch Supabase
+# edge functions. This workflow is the one place they get deployed, gated on
+# changes under supabase/functions/. It no-ops cleanly until the
+# SUPABASE_ACCESS_TOKEN repo secret is set, so it never fails noisily before
+# payments are wired up.
+#
+# Function env (STRIPE_*, SUPABASE_SERVICE_ROLE_KEY) stays set in the Supabase
+# dashboard via `supabase secrets set`, never here.
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/functions/**']
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: tyvideihbfjfmdzdkyks
+    steps:
+      - uses: actions/checkout@v4
+
+      # Gracefully skip (green) until the deploy token is configured.
+      - name: Check for deploy token
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::notice::SUPABASE_ACCESS_TOKEN not set — skipping edge-function deploy. Set the repo secret to enable automatic deploys."
+            echo "SKIP=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Setup Supabase CLI
+        if: env.SKIP != '1'
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy edge functions
+        if: env.SKIP != '1'
+        run: |
+          supabase functions deploy create-checkout-session --project-ref "$PROJECT_REF"
+          supabase functions deploy create-billing-portal    --project-ref "$PROJECT_REF"
+          # stripe-webhook stays --no-verify-jwt: Stripe signs the event
+          # itself, so there is no end-user Supabase JWT to verify.
+          supabase functions deploy stripe-webhook --no-verify-jwt --project-ref "$PROJECT_REF"
