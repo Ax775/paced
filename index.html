@@ -239,6 +239,7 @@
       return { hash, go: (h) => { window.location.hash = h; window.scrollTo(0, 0); } };
     }
     function parseRoute(hash) {
+      if (hash === '#new-team') return { name: 'newTeam' };
       if (hash.startsWith('#team-')) {
         const rest = hash.slice(6);
         if (rest.includes('/new-match')) return { name: 'newMatch', teamId: rest.split('/')[0] };
@@ -530,7 +531,7 @@
           </div>
           <div className="px-4 -mt-5 space-y-4">
             <button onClick={onCreateTeam}
-              className="anim-slide-up w-full rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 py-5 text-white font-black text-lg shadow-2xl shadow-orange-500/30 hover:shadow-orange-500/50 active:scale-95 transition-all">
+              className="anim-slide-up w-full rounded-2xl bg-white py-5 text-orange-600 font-black text-lg shadow-2xl shadow-black/30 hover:bg-orange-50 active:scale-95 transition-all">
               ⚡ Nieuw team maken
             </button>
             {recent.length > 0 && (
@@ -2321,8 +2322,8 @@
       const [refreshKey, setRefreshKey] = useState(0);
       const refresh = () => setRefreshKey(k => k + 1);
 
-      if (route.name === 'home')     return <WelcomeView onCreateTeam={() => go('#new-team')} onOpenTeam={(id) => go(`#team-${id}`)} />;
-      if (hash === '#new-team')      return <CreateTeamView onCreated={(id) => go(`#team-${id}`)} onBack={() => go('')} />;
+      if (route.name === 'home')    return <WelcomeView onCreateTeam={() => go('#new-team')} onOpenTeam={(id) => go(`#team-${id}`)} />;
+      if (route.name === 'newTeam') return <CreateTeamView onCreated={(id) => go(`#team-${id}`)} onBack={() => go('')} />;
       if (route.name === 'team')     return <TeamDashboard refreshKey={refreshKey} teamId={route.teamId}
                                               onBack={() => go('')}
                                               onCreateMatch={() => go(`#team-${route.teamId}/new-match`)}
