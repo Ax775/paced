@@ -1,0 +1,14 @@
+# OPTIONAL / ALTERNATIVE PATH — see deployment.yaml.
+# Place a CDN (Cloudflare proxy / Fastly) in front for TLS edge cache + DDoS.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paced-web
+  annotations: { cert-manager.io/cluster-issuer: letsencrypt }
+spec:
+  rules:
+    - host: paced.nl
+      http:
+        paths:
+          - { path: /, pathType: Prefix, backend: { service: { name: paced-web, port: { number: 80 } } } }
+  tls: [{ hosts: [paced.nl], secretName: paced-tls }]

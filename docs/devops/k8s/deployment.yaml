@@ -1,0 +1,24 @@
+# OPTIONAL / ALTERNATIVE PATH — self-host fallback only.
+# Makes sense ONLY behind your OWN CDN (Cloudflare proxy / Fastly) for TLS,
+# edge cache, and DDoS. These pods are a bare regional origin and are NOT a
+# recommended production topology for paced.nl — Cloudflare Pages is.
+# nginx serving static files is nearly free; replicas=2 is for availability,
+# not load. The CDN absorbs real traffic.
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: paced-web }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: paced-web } }
+  template:
+    metadata: { labels: { app: paced-web } }
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/ax775/paced:latest   # built by CI
+          ports: [{ containerPort: 8080 }]
+          readinessProbe: { httpGet: { path: /, port: 8080 }, initialDelaySeconds: 3, periodSeconds: 10 }
+          livenessProbe:  { httpGet: { path: /, port: 8080 }, initialDelaySeconds: 5, periodSeconds: 20 }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
