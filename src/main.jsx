@@ -637,7 +637,7 @@ function reportError(error, info) {
                       {p.number || initials(p.name)}
                     </div>
                     <span className="flex-1 text-white font-medium text-sm truncate">{p.name}</span>
-                    <button onClick={() => removePlayer(p.id)} className="text-slate-500 hover:text-red-400 p-1"><Trash2 size={14} /></button>
+                    <button aria-label="Speler verwijderen" onClick={() => removePlayer(p.id)} className="text-slate-500 hover:text-red-400 p-1"><Trash2 size={14} /></button>
                   </div>
                 ))}
                 {players.length === 0 && (
@@ -1057,7 +1057,7 @@ function reportError(error, info) {
                       {susWarn && !susHit && <p className="text-xs text-yellow-400 font-bold mt-0.5">⚠️ 1 geel weg van schorsing</p>}
                     </div>
                     {edit && (
-                      <button onClick={() => onRemovePlayer(p.id)} className="text-slate-500 hover:text-red-400 p-1.5">
+                      <button aria-label="Speler verwijderen" onClick={() => onRemovePlayer(p.id)} className="text-slate-500 hover:text-red-400 p-1.5">
                         <Trash2 size={14} />
                       </button>
                     )}
@@ -1207,7 +1207,7 @@ function reportError(error, info) {
                   <div key={i} className="flex items-center gap-3 rounded-xl bg-slate-700/50 px-4 py-2.5">
                     <ClipboardList size={13} className="shrink-0 text-slate-500" />
                     <span className="flex-1 text-sm text-white">{task}</span>
-                    <button onClick={() => setTasks(t => t.filter((_, idx) => idx !== i))} className="p-0.5 text-slate-600 hover:text-red-400">
+                    <button aria-label="Taak verwijderen" onClick={() => setTasks(t => t.filter((_, idx) => idx !== i))} className="p-0.5 text-slate-600 hover:text-red-400">
                       <X size={13} />
                     </button>
                   </div>
@@ -1556,7 +1556,7 @@ function reportError(error, info) {
                         : <p className="text-sm text-slate-500">Chauffeur {i + 1} — <span className="text-slate-400">tap om te rijden</span></p>}
                     </div>
                     {claimed
-                      ? <button onClick={(e) => { e.stopPropagation(); releaseDriver(driver.id); }} className="rounded-lg p-1.5 text-slate-600 hover:text-red-400"><X size={14} /></button>
+                      ? <button aria-label="Chauffeur vrijgeven" onClick={(e) => { e.stopPropagation(); releaseDriver(driver.id); }} className="rounded-lg p-1.5 text-slate-600 hover:text-red-400"><X size={14} /></button>
                       : <Car size={15} className="shrink-0 text-slate-700" />}
                   </div>
                 );
@@ -1590,7 +1590,7 @@ function reportError(error, info) {
                         {isClaimed && <p className="mt-0.5 text-xs text-green-400">door {task.claimedBy}</p>}
                       </div>
                       {isClaimed
-                        ? <button onClick={(e) => { e.stopPropagation(); releaseTask(task.id); }} className="rounded-lg p-1.5 text-slate-600 hover:text-red-400"><X size={14} /></button>
+                        ? <button aria-label="Taak vrijgeven" onClick={(e) => { e.stopPropagation(); releaseTask(task.id); }} className="rounded-lg p-1.5 text-slate-600 hover:text-red-400"><X size={14} /></button>
                         : <ChevronRight size={15} className="shrink-0 text-slate-600" />}
                     </div>
                   );
@@ -1779,7 +1779,7 @@ function reportError(error, info) {
                       <p className="text-white font-semibold text-sm truncate">{sc?.name || '—'}</p>
                       {as && <p className="text-xs text-slate-500 truncate">assist: {as.name}</p>}
                     </div>
-                    <button onClick={() => removeGoal(g.id)} className="text-slate-600 hover:text-red-400 p-1"><X size={13} /></button>
+                    <button aria-label="Doelpunt verwijderen" onClick={() => removeGoal(g.id)} className="text-slate-600 hover:text-red-400 p-1"><X size={13} /></button>
                   </div>
                 );
               })}
@@ -1808,7 +1808,7 @@ function reportError(error, info) {
                     <span className="text-xs font-bold text-slate-500 tabular-nums w-7">{card.minute ? card.minute + "'" : ''}</span>
                     <div className={`w-3 h-4 rounded-sm shrink-0 ${card.type === 'red' ? 'bg-red-500' : 'bg-yellow-400'}`} />
                     <p className="flex-1 text-white font-semibold text-sm truncate">{player?.name || '—'}</p>
-                    <button onClick={() => removeCard(card.id)} className="text-slate-600 hover:text-red-400 p-1"><X size={13} /></button>
+                    <button aria-label="Kaart verwijderen" onClick={() => removeCard(card.id)} className="text-slate-600 hover:text-red-400 p-1"><X size={13} /></button>
                   </div>
                 );
               })}
