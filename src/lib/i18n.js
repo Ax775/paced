@@ -1565,8 +1565,6 @@ const STRINGS = {
     'settings.validate.height':  'Height must be between 120 and 220 cm',
     'settings.version':          'Paced · v1.3',
 
-    'reset.title':   'Reset profile?',
-    'reset.body':    'Are you sure? All profile data will be erased. Daily logs will be kept.',
     'reset.title':   'Erase all data?',
     'reset.body':    'This erases your profile, all daily logs and your preferences. Cannot be undone. Confirm by typing ERASE below.',
     'reset.input.placeholder': 'Type ERASE to confirm',
