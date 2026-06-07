@@ -3617,7 +3617,8 @@ function BottomNav({ active, onSelect, showPartnerTab = false }) {
   return (
     <nav
       aria-label={t('nav.aria')}
-      className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex pb-safe"
+      className="fixed bottom-0 left-0 right-0 z-50 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 flex"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.5rem)' }}
     >
       {tabs.map(({ id, labelKey, label: staticLabel, icon: Icon }) => {
         const on = active === id;
@@ -3629,12 +3630,18 @@ function BottomNav({ active, onSelect, showPartnerTab = false }) {
             onClick={() => onSelect(id)}
             aria-label={label}
             aria-current={on ? 'page' : undefined}
-            className={`flex-1 flex flex-col items-center py-3 gap-1 transition min-h-[56px] active:scale-95 ${
+            className={`relative flex-1 flex flex-col items-center pt-2.5 pb-1.5 gap-1 transition-all duration-200 min-h-[56px] active:scale-95 ${
               on ? 'text-sage-600' : 'text-ink-400 hover:text-ink-600'
             }`}
           >
-            <Icon aria-hidden="true" className="w-5 h-5" strokeWidth={on ? 2 : 1.5} />
+            <Icon aria-hidden="true" className="w-5 h-5 transition-all duration-200" strokeWidth={on ? 2.25 : 1.5} />
             <span className="text-[10px] uppercase tracking-wider font-medium">{label}</span>
+            {/* Active-tab dot: subtle, calm — confirms the current tab without
+                shouting. Reserved height even when inactive so labels don't shift. */}
+            <span
+              aria-hidden="true"
+              className={`h-1 w-1 rounded-full transition-all duration-200 ${on ? 'bg-sage-600 opacity-100' : 'opacity-0'}`}
+            />
           </button>
         );
       })}
@@ -3932,7 +3939,7 @@ function LogboekView({ profile, onGoHome }) {
             <button
               type="button"
               onClick={onGoHome}
-              className="mt-5 px-5 py-2.5 rounded-full bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 transition"
+              className="mt-5 inline-flex items-center px-6 min-h-[44px] rounded-full bg-sage-600 text-cream-50 text-sm font-medium hover:bg-sage-700 active:scale-[0.98] transition-all duration-200"
             >
               {t('log.empty.cta')}
             </button>

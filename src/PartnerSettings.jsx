@@ -183,7 +183,9 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
             Log in met een magic link op je email-adres. Je partner krijgt zelf ook een eigen account
             wanneer hij/zij de uitnodigingslink opent.
           </p>
-          <label htmlFor="partner-magic-email" className="sr-only">Email-adres</label>
+          <label htmlFor="partner-magic-email" className="block text-xs font-medium text-ink-600 mb-1.5">
+            Jouw email-adres
+          </label>
           <input
             id="partner-magic-email"
             type="email"
@@ -195,7 +197,7 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
             placeholder="jouw@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-2.5 text-sm
+            className="w-full rounded-xl border border-cream-200 bg-cream-50 px-4 py-3 text-base
                        text-ink-700 placeholder-ink-500 focus:outline-none focus:border-sage-400
                        focus:ring-2 focus:ring-sage-200 transition mb-3"
           />
@@ -277,15 +279,15 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
                 <div className="text-xs text-ink-500 mb-2 font-medium">
                   {link.partner_user_id ? '✓ Partner gekoppeld' : 'Wacht op partner'}
                 </div>
-                <div className="flex items-center gap-2 bg-cream-100 rounded-xl px-4 py-2.5 border border-cream-200">
+                <div className="flex items-center gap-1 bg-cream-100 rounded-xl pl-4 pr-1 py-1 border border-cream-200">
                   <span className="flex-1 text-xs text-ink-500 truncate">{inviteUrl}</span>
                   <button
                     type="button"
                     onClick={handleCopy}
-                    aria-label="Kopieer uitnodigingslink"
-                    className="shrink-0 text-ink-400 hover:text-ink-700 transition"
+                    aria-label={copied ? 'Link gekopieerd' : 'Kopieer uitnodigingslink'}
+                    className="shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg text-ink-400 hover:text-ink-700 hover:bg-cream-200 active:scale-95 transition-all duration-200"
                   >
-                    {copied ? <Check className="w-4 h-4 text-sage-500" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <Check className="w-5 h-5 text-sage-500" aria-hidden="true" /> : <Copy className="w-5 h-5" aria-hidden="true" />}
                   </button>
                 </div>
                 <p className="text-[11px] text-ink-400 mt-1.5">
@@ -324,8 +326,8 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
                   onClick={() => setUnlinkConfirm(true)}
                   className="w-full flex items-center justify-center gap-2 rounded-xl border
                              border-terracotta-200 bg-terracotta-100/50 text-terracotta-600
-                             py-2.5 text-sm font-medium hover:bg-terracotta-100
-                             active:scale-[0.98] transition mb-3"
+                             min-h-[44px] text-sm font-medium hover:bg-terracotta-100
+                             active:scale-[0.98] transition-all duration-200 mb-3"
                 >
                   <Unlink className="w-4 h-4" aria-hidden="true" />
                   Ontkoppelen
@@ -360,10 +362,10 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
             type="button"
             onClick={handleSignOut}
             className="w-full flex items-center justify-center gap-2 rounded-xl border
-                       border-cream-200 bg-cream-50 text-ink-500 py-2.5 text-xs
-                       hover:bg-cream-100 active:scale-[0.98] transition"
+                       border-cream-200 bg-cream-50 text-ink-500 min-h-[44px] text-sm
+                       hover:bg-cream-100 active:scale-[0.98] transition-all duration-200"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-4 h-4" aria-hidden="true" />
             Uitloggen
           </button>
 
