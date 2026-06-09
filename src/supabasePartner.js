@@ -26,8 +26,40 @@ export function getSupabase() {
   const url = window.PACED_SUPABASE_URL;
   const key = window.PACED_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
-  _supabase = createClient(url, key);
+  // Auth options are made explicit rather than left to the SDK defaults.
+  // autoRefreshToken + persistSession ARE on by default in supabase-js v2,
+  // but a magic-link partner who hasn't opened the app in >1h would silently
+  // hit an expired access token if a future SDK bump ever flipped the
+  // default — pinning them here makes the refresh contract part of our code,
+  // not the dependency's. detectSessionInUrl lets the magic-link redirect
+  // (…/#access_token=…) establish the session on load; a namespaced
+  // storageKey keeps the partner session from colliding with anything else
+  // on the same origin.
+  _supabase = createClient(url, key, {
+    auth: {
+      autoRefreshToken:  true,
+      persistSession:    true,
+      detectSessionInUrl: true,
+      storageKey:        'paced.supabase.auth',
+    },
+  });
   return _supabase;
+}
+
+// Resolve the authenticated user, tolerant of network failure. sb.auth.getUser()
+// REJECTS (it doesn't return {error}) when offline or the token endpoint is
+// unreachable — every caller below used to destructure `{ data: { user } }`
+// straight off the await, so a flaky connection surfaced as an unhandled
+// promise rejection and a stuck spinner instead of a clean error path. This
+// funnels all of them through one try/catch and a stable sentinel.
+async function requireUser(sb) {
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return { user: null, error: 'not_authenticated' };
+    return { user, error: null };
+  } catch {
+    return { user: null, error: 'not_authenticated' };
+  }
 }
 
 export function isConfigured() {
@@ -44,18 +76,25 @@ export async function getCurrentUser() {
 }
 
 export async function signInWithMagicLink(email, redirectTo) {
-  const sb = await getSupabase();
+  const sb = getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
-  return sb.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: redirectTo || window.location.origin },
-  });
+  try {
+    return await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo || window.location.origin },
+    });
+  } catch (err) {
+    // Network failure reaching the auth endpoint rejects here rather than
+    // returning {error}; normalise so the caller's `{ error }` branch fires
+    // instead of leaving the "Bezig…" status hanging forever.
+    return { data: null, error: err?.message || 'network_error' };
+  }
 }
 
 export async function signOut() {
-  const sb = await getSupabase();
+  const sb = getSupabase();
   if (!sb) return;
-  await sb.auth.signOut();
+  try { await sb.auth.signOut(); } catch { /* best-effort — clear locally regardless */ }
   _supabase = null;
 }
 
@@ -74,10 +113,10 @@ function randomCode() {
 }
 
 export async function createInvite(shareLevel = 'phase') {
-  const sb = await getSupabase();
+  const sb = getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { data: null, error: 'not_authenticated' };
+  const { user, error } = await requireUser(sb);
+  if (error) return { data: null, error };
   const code = randomCode();
   return sb.from('partner_links').insert({
     owner_user_id: user.id,
@@ -88,10 +127,10 @@ export async function createInvite(shareLevel = 'phase') {
 }
 
 export async function getMyLink() {
-  const sb = await getSupabase();
+  const sb = getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { data: null, error: 'not_authenticated' };
+  const { user, error } = await requireUser(sb);
+  if (error) return { data: null, error };
   return sb.from('partner_links')
     .select('*')
     .eq('owner_user_id', user.id)
@@ -100,10 +139,10 @@ export async function getMyLink() {
 }
 
 export async function deleteMyLink() {
-  const sb = await getSupabase();
+  const sb = getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { data: null, error: 'not_authenticated' };
+  const { user, error } = await requireUser(sb);
+  if (error) return { data: null, error };
   return sb.from('partner_links')
     .update({ active: false })
     .eq('owner_user_id', user.id);
@@ -117,8 +156,8 @@ export async function deleteMyLink() {
 export async function acceptInvite(code) {
   const sb = getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { data: null, error: 'not_authenticated' };
+  const { error: authErr } = await requireUser(sb);
+  if (authErr) return { data: null, error: authErr };
 
   // Normalize: invite codes are uppercase base36 server-side. Trim handles
   // trailing whitespace from copy-paste; case-insensitive entry handles
@@ -144,10 +183,10 @@ export async function acceptInvite(code) {
 }
 
 export async function getPartnerSnapshot() {
-  const sb = await getSupabase();
+  const sb = getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { data: null, error: 'not_authenticated' };
+  const { user, error } = await requireUser(sb);
+  if (error) return { data: null, error };
   const { data: link } = await sb.from('partner_links')
     .select('owner_user_id')
     .eq('partner_user_id', user.id)
@@ -161,10 +200,10 @@ export async function getPartnerSnapshot() {
 }
 
 export async function pushSnapshot(phase, cycleDay, shareLevel = 'phase', note = null) {
-  const sb = await getSupabase();
+  const sb = getSupabase();
   if (!sb) return { data: null, error: 'not_configured' };
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return { data: null, error: 'not_authenticated' };
+  const { user, error } = await requireUser(sb);
+  if (error) return { data: null, error };
   return sb.from('partner_snapshots').upsert({
     owner_user_id: user.id,
     phase,

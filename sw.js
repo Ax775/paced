@@ -70,15 +70,28 @@ self.addEventListener('fetch', (event) => {
   const path = url.pathname;
 
   // ── Navigation: network-first, offline fallback to cached shell ──────
+  // On a successful fetch we also refresh the cached copy of the shell.
+  // Without this, the offline fallback was whatever './index.html' was
+  // precached at install time — and since CACHE never bumps, a deploy left
+  // offline users staring at a stale shell forever. Now every online
+  // navigation keeps the offline copy current.
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() =>
-        caches.match('./index.html').then(
-          (cached) => cached || new Response(OFFLINE_HTML, {
-            headers: { 'Content-Type': 'text/html; charset=utf-8' },
-          })
+      fetch(req)
+        .then((res) => {
+          if (res && res.ok && res.type === 'basic') {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put('./index.html', copy)).catch(() => null);
+          }
+          return res;
+        })
+        .catch(() =>
+          caches.match('./index.html').then(
+            (cached) => cached || new Response(OFFLINE_HTML, {
+              headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            })
+          )
         )
-      )
     );
     return;
   }

@@ -2357,6 +2357,10 @@ function Onboarding({ onComplete }) {
 
 function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onThemeChange, onOpenLegal }) {
   const { t, locale, setLocale, activityMeta } = useT();
+  // Computed once for the PartnerSettings props below — previously
+  // getCycleState(profile) was called twice inline in the JSX (once for
+  // .phase, once for .cycleDay), running the cycle engine twice per render.
+  const settingsCycle = useMemo(() => getCycleState(profile), [profile]);
   const [form, setForm] = useState({
     name:            profile.name            || '',
     age:             profile.age             || '',
@@ -2904,8 +2908,8 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
       >
         <Card className="mb-5 anim-fade-up">
           <PartnerSettings
-            currentPhase={getCycleState(profile).phase}
-            cycleDay={getCycleState(profile).cycleDay}
+            currentPhase={settingsCycle.phase}
+            cycleDay={settingsCycle.cycleDay}
           />
         </Card>
       </PremiumGate>
@@ -6106,7 +6110,14 @@ function App() {
   // so the partner-viewer always sees up-to-date data. Skipped silently
   // when Supabase isn't configured, the user isn't logged in, or the user
   // doesn't have an active partner-link (i.e. they're not an owner).
-  const _ownerCycle = partnerConfigured() ? getCycleState(profile) : null;
+  // Memoised: getCycleState walks the cycle engine (cycle.js). This sits in
+  // the root component, so without the memo it re-ran on every App render —
+  // every tab switch, every invite-modal keystroke, every toast toggle —
+  // even though it only depends on `profile`.
+  const _ownerCycle = useMemo(
+    () => (partnerConfigured() && profile ? getCycleState(profile) : null),
+    [profile],
+  );
   const _ownerPhase = _ownerCycle?.phase ?? null;
   const _ownerDay   = _ownerCycle?.cycleDay ?? null;
   useEffect(() => {

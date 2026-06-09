@@ -118,12 +118,41 @@ export default function PartnerSettings({ currentPhase, cycleDay }) {
     if (currentPhase) await pushSnapshot(currentPhase, cycleDay, lvl);
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     const url = `${window.location.origin}/?invite=${link.invite_code}`;
-    navigator.clipboard.writeText(url).then(() => {
+    const flashCopied = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    };
+    // navigator.clipboard is undefined on non-secure origins and rejects on
+    // iOS when the call isn't seen as a direct user gesture. Without a catch
+    // this rejected silently — the user tapped "kopieer", nothing flashed,
+    // and the link never made it to their clipboard. Fall back to a hidden
+    // <textarea> + execCommand, then surface a status if even that fails.
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        flashCopied();
+        return;
+      }
+      throw new Error('clipboard-api-unavailable');
+    } catch {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) { flashCopied(); return; }
+        throw new Error('execCommand-failed');
+      } catch {
+        setStatus('Kopiëren lukte niet — selecteer en kopieer de link handmatig.');
+      }
+    }
   };
 
   // ── Not configured ──────────────────────────────────────────────────
