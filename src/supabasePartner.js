@@ -91,6 +91,19 @@ export async function signInWithMagicLink(email, redirectTo) {
   }
 }
 
+/**
+ * Subscribe to auth state changes. Returns an unsubscribe function.
+ * Safe to call when Supabase is not configured (returns no-op).
+ */
+export async function onAuthChange(callback) {
+  const sb = await getSupabase();
+  if (!sb) return () => {};
+  const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+    callback(session);
+  });
+  return () => subscription.unsubscribe();
+}
+
 export async function signOut() {
   const sb = getSupabase();
   if (!sb) return;

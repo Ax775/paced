@@ -53,6 +53,7 @@ import {
   getPartnerSnapshot,
   acceptInvite as acceptPartnerInvite,
   pushSnapshot as pushPartnerSnapshot,
+  onAuthChange as onPartnerAuthChange,
 } from './supabasePartner.js';
 
 /* ------------------------------------------------------------------ */
@@ -6097,13 +6098,30 @@ function App() {
   // show a direct "Koppelen" button or first prompt for magic-link login.
   useEffect(() => {
     if (!partnerConfigured()) return;
-    (async () => {
+    let unsubscribe = () => {};
+
+    const checkPartner = async () => {
       const u = await getPartnerUser();
       setInviteIsAuthed(!!u);
       setInviteAuthChecked(true);
       const { data } = await getPartnerSnapshot();
       if (data) setIsPartner(true);
-    })();
+    };
+
+    checkPartner();
+
+    // React to auth changes in the same tab (e.g. magic-link completion) so
+    // the partner UI updates without a manual page refresh.
+    onPartnerAuthChange(async (session) => {
+      if (session) {
+        checkPartner();
+      } else {
+        setInviteIsAuthed(false);
+        setIsPartner(false);
+      }
+    }).then((fn) => { unsubscribe = fn; });
+
+    return () => unsubscribe();
   }, []);
 
   // Partner: push a fresh snapshot when the owner's cycle phase changes,

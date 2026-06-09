@@ -20,6 +20,7 @@
 
 import { build as esbuild } from 'esbuild';
 import { execSync }         from 'node:child_process';
+import { createHash }       from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, rmSync, existsSync } from 'node:fs';
 
 const distDir = 'dist';
@@ -126,9 +127,26 @@ writeFileSync(`${distDir}/index.html`, html);
 // ── 4. Copy static assets ────────────────────────────────────────────────
 console.log('• Copying static assets');
 copyFileSync('manifest.webmanifest', `${distDir}/manifest.webmanifest`);
-copyFileSync('sw.js',                `${distDir}/sw.js`);
 copyFileSync('_headers',             `${distDir}/_headers`);
 copyFileSync('robots.txt',           `${distDir}/robots.txt`);
+
+// sw.js gets a content-derived cache name so a deploy auto-evicts the old
+// shell cache — no more hand-bumping `paced-shell-v1` on every release. The
+// root sw.js stays the static (un-hashed) dev version; only dist/sw.js is
+// rewritten. Hashing dist/app.js means the cache rolls exactly when the
+// bundle changes and stays stable across no-op rebuilds.
+const swHash = createHash('sha256')
+  .update(readFileSync(`${distDir}/app.js`))
+  .digest('hex')
+  .slice(0, 8);
+let swContent = readFileSync('sw.js', 'utf8');
+swContent = swContent.replace(
+  /const CACHE\s*=\s*['"]paced-shell-[^'"]*['"]/,
+  `const CACHE = 'paced-shell-${swHash}'`
+);
+writeFileSync(`${distDir}/sw.js`, swContent);
+console.log(`• Writing dist/sw.js  (cache: paced-shell-${swHash})`);
+
 cpSync('assets', `${distDir}/assets`, { recursive: true });
 // .well-known/ contains the apple-app-site-association manifest for iOS
 // Universal Links. Must be served from the domain root (not /assets/).
