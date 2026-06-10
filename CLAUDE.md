@@ -7,8 +7,8 @@
 | Uitvoer | `claude-sonnet-4-6` | Alle standaard subagent-taken |
 | Review | `claude-opus-4-8` | Na elk todo-blok: afwijking van plan? Edge cases? → `tasks/lessons.md` |
 
-**Escalatie:** Sonnet-subagent 2× vast op zelfde fout → escaleer naar Fable met faallog. Noteer wissel in `tasks/todo.md`.
+**Escalatie:** Sonnet-subagent 2× vast op zelfde fout → escaleer naar Opus 4.8 met faallog. Noteer wissel in `tasks/todo.md`.
 
-**Fable verplicht voor:** architectuurkeuzes `[complex]`, security-review, datamodelontwerp, allergenen-/gezondheidslogica, prompt-engineering voor externe API-calls.
+**Opus 4.8 verplicht voor:** architectuurkeuzes `[complex]`, security-review, datamodelontwerp, allergenen-/gezondheidslogica, prompt-engineering voor externe API-calls.
 
-**Nooit Fable voor:** boilerplate, styling, copy, dependency bumps, testfixtures.
+**Nooit Opus 4.8 voor:** boilerplate, styling, copy, dependency bumps, testfixtures.
