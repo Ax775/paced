@@ -1,0 +1,146 @@
+[
+  {
+    "id": "mindful-nl-drie-ademhalingen",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "Drie rustige ademhalingen — in door de neus, langzaam uit door de mond. Alles wat er is, mag er zijn.",
+    "slots": [],
+    "constraints": ["kort, toegankelijk, geen prestatie"]
+  },
+  {
+    "id": "mindful-nl-naam-moment-aanwezig",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "{name}, even helemaal hier zijn — wat hoor je? Wat voel je in je lichaam?",
+    "slots": ["name"],
+    "constraints": ["sensorisch anker, naam optioneel"]
+  },
+  {
+    "id": "mindful-nl-zelfcompassie",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "Zou je een goede vriend hetzelfde zeggen als je nu tegen jezelf denkt? Wees zo vriendelijk voor jezelf.",
+    "slots": [],
+    "constraints": ["zelfcompassie-oefening, kort"]
+  },
+  {
+    "id": "mindful-nl-naam-gedachten-wolk",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "{name}, gedachten zijn als wolken — je hoeft ze niet vast te houden. Laat ze voorbij drijven.",
+    "slots": ["name"],
+    "constraints": ["metafoor, geruststellend"]
+  },
+  {
+    "id": "mindful-nl-vijf-zintuigen",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "Noem iets wat je ziet, hoort en voelt — hier, nu, precies zoals het is.",
+    "slots": [],
+    "constraints": ["grounding-oefening, eenvoudig"]
+  },
+  {
+    "id": "mindful-nl-naam-dankbaarheid",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "{name}, wat was er vandaag, hoe klein ook, dat goed voelde?",
+    "slots": ["name"],
+    "constraints": ["dankbaarheid-prompt, laagdrempelig"]
+  },
+  {
+    "id": "mindful-nl-adem-anker",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "Je adem is er altijd. Als je afleidt, kom gewoon terug — geen oordeel.",
+    "slots": [],
+    "constraints": ["meditatie-principe, zelfcompassie"]
+  },
+  {
+    "id": "mindful-nl-naam-spanning-los",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "{name}, merk op of je ergens spanning vasthoudt — je schouders, je kaak, je handen — en adem die plek zacht.",
+    "slots": ["name"],
+    "constraints": ["body-scan licht, warm"]
+  },
+  {
+    "id": "mindful-nl-stilte-oke",
+    "category": "mindfulness",
+    "locale": "nl",
+    "template": "Stilte hoeft niet ingevuld te worden. Even niets is ook iets.",
+    "slots": [],
+    "constraints": ["rust-centraal, geen prestatie"]
+  },
+  {
+    "id": "mindful-en-three-breaths",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "Three easy breaths — in through the nose, slowly out through the mouth. Whatever is here, is welcome.",
+    "slots": [],
+    "constraints": ["short, accessible, no performance"]
+  },
+  {
+    "id": "mindful-en-name-present",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "{name}, just be here for a moment — what do you hear? What do you feel in your body?",
+    "slots": ["name"],
+    "constraints": ["sensory anchor, name optional"]
+  },
+  {
+    "id": "mindful-en-self-compassion",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "Would you say to a dear friend what you are saying to yourself right now? Offer yourself that same kindness.",
+    "slots": [],
+    "constraints": ["self-compassion practice, brief"]
+  },
+  {
+    "id": "mindful-en-name-thoughts-clouds",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "{name}, thoughts are like clouds — you do not have to hold onto them. Let them drift on by.",
+    "slots": ["name"],
+    "constraints": ["metaphor, reassuring"]
+  },
+  {
+    "id": "mindful-en-five-senses",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "Name something you can see, hear, and feel — right here, right now, exactly as it is.",
+    "slots": [],
+    "constraints": ["grounding exercise, simple"]
+  },
+  {
+    "id": "mindful-en-name-gratitude",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "{name}, what was something today, however small, that felt good?",
+    "slots": ["name"],
+    "constraints": ["gratitude prompt, low barrier"]
+  },
+  {
+    "id": "mindful-en-breath-anchor",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "Your breath is always there. When your mind wanders, just come back — no judgment.",
+    "slots": [],
+    "constraints": ["meditation principle, self-compassionate"]
+  },
+  {
+    "id": "mindful-en-name-release-tension",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "{name}, notice if you are holding tension anywhere — shoulders, jaw, hands — and breathe into that place gently.",
+    "slots": ["name"],
+    "constraints": ["light body-scan, warm tone"]
+  },
+  {
+    "id": "mindful-en-silence-ok",
+    "category": "mindfulness",
+    "locale": "en",
+    "template": "Silence does not need to be filled. Doing nothing for a moment is something.",
+    "slots": [],
+    "constraints": ["rest-centred, no performance pressure"]
+  }
+]

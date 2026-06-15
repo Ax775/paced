@@ -1,0 +1,146 @@
+[
+  {
+    "id": "notif-nl-checkin-uitnodiging",
+    "category": "notification",
+    "locale": "nl",
+    "template": "Even een momentje voor jezelf? Je check-in wacht.",
+    "slots": [],
+    "constraints": ["max 90 chars", "uitnodigend, niet dwingend"]
+  },
+  {
+    "id": "notif-nl-naam-checkin",
+    "category": "notification",
+    "locale": "nl",
+    "template": "{name}, hoe gaat het vandaag? Tik om in te checken.",
+    "slots": ["name"],
+    "constraints": ["max 90 chars", "warm en persoonlijk"]
+  },
+  {
+    "id": "notif-nl-brand-herinnering",
+    "category": "notification",
+    "locale": "nl",
+    "template": "{brand} denkt aan je — klaar als je er klaar voor bent.",
+    "slots": ["brand"],
+    "constraints": ["max 90 chars", "geen druk, app-naam via slot"]
+  },
+  {
+    "id": "notif-nl-slaap-zacht",
+    "category": "notification",
+    "locale": "nl",
+    "template": "Bijna bedtijd. Hoe was je dag? Leg het even vast voor je gaat slapen.",
+    "slots": [],
+    "constraints": ["max 90 chars", "zacht, niet verplichtend"]
+  },
+  {
+    "id": "notif-nl-streak",
+    "category": "notification",
+    "locale": "nl",
+    "template": "{streak} dagen op rij — je doet het geweldig. Nog één check-in vandaag?",
+    "slots": ["streak"],
+    "constraints": ["max 90 chars", "motiverend, positief"]
+  },
+  {
+    "id": "notif-nl-beweging-uitnodiging",
+    "category": "notification",
+    "locale": "nl",
+    "template": "Zin om even te bewegen? Jij bepaalt hoe en hoeveel.",
+    "slots": [],
+    "constraints": ["max 90 chars", "consent-forward"]
+  },
+  {
+    "id": "notif-nl-naam-brand-terugkeer",
+    "category": "notification",
+    "locale": "nl",
+    "template": "{name}, welkom terug bij {brand} — fijn dat je er bent.",
+    "slots": ["name", "brand"],
+    "constraints": ["max 90 chars", "warm welkom na pauze"]
+  },
+  {
+    "id": "notif-nl-hydratatie",
+    "category": "notification",
+    "locale": "nl",
+    "template": "Kleine herinnering: heb je vandaag al wat gedronken?",
+    "slots": [],
+    "constraints": ["max 90 chars", "zacht, geen oordeel"]
+  },
+  {
+    "id": "notif-nl-mindfulness-momentje",
+    "category": "notification",
+    "locale": "nl",
+    "template": "Één minuut voor jezelf? Adem even in en uit — dat is alles.",
+    "slots": [],
+    "constraints": ["max 90 chars", "laagdrempelig, kort"]
+  },
+  {
+    "id": "notif-en-checkin-invite",
+    "category": "notification",
+    "locale": "en",
+    "template": "A moment just for you? Your check-in is ready.",
+    "slots": [],
+    "constraints": ["max 90 chars", "inviting, not demanding"]
+  },
+  {
+    "id": "notif-en-name-checkin",
+    "category": "notification",
+    "locale": "en",
+    "template": "{name}, how are you today? Tap to check in.",
+    "slots": ["name"],
+    "constraints": ["max 90 chars", "warm and personal"]
+  },
+  {
+    "id": "notif-en-brand-reminder",
+    "category": "notification",
+    "locale": "en",
+    "template": "{brand} is here whenever you are ready.",
+    "slots": ["brand"],
+    "constraints": ["max 90 chars", "no pressure, app name via slot"]
+  },
+  {
+    "id": "notif-en-sleep-soft",
+    "category": "notification",
+    "locale": "en",
+    "template": "Almost bedtime. How was your day? Capture it before you sleep.",
+    "slots": [],
+    "constraints": ["max 90 chars", "gentle, not obligatory"]
+  },
+  {
+    "id": "notif-en-streak",
+    "category": "notification",
+    "locale": "en",
+    "template": "{streak} days in a row — you are doing great. One more check-in today?",
+    "slots": ["streak"],
+    "constraints": ["max 90 chars", "motivating, positive"]
+  },
+  {
+    "id": "notif-en-movement-invite",
+    "category": "notification",
+    "locale": "en",
+    "template": "Feel like moving today? You choose how, and how much.",
+    "slots": [],
+    "constraints": ["max 90 chars", "consent-forward"]
+  },
+  {
+    "id": "notif-en-name-brand-return",
+    "category": "notification",
+    "locale": "en",
+    "template": "{name}, welcome back to {brand} — glad you are here.",
+    "slots": ["name", "brand"],
+    "constraints": ["max 90 chars", "warm return after absence"]
+  },
+  {
+    "id": "notif-en-hydration",
+    "category": "notification",
+    "locale": "en",
+    "template": "Small reminder: have you had something to drink today?",
+    "slots": [],
+    "constraints": ["max 90 chars", "gentle, no judgment"]
+  },
+  {
+    "id": "notif-en-mindfulness-moment",
+    "category": "notification",
+    "locale": "en",
+    "template": "One minute just for you? Breathe in, breathe out — that is all.",
+    "slots": [],
+    "constraints": ["max 90 chars", "low-barrier, brief"]
+  }
+]

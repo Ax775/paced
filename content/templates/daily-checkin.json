@@ -1,0 +1,146 @@
+[
+  {
+    "id": "checkin-nl-hoe-voel-je",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "Hoe voel je je vandaag, van binnen?",
+    "slots": [],
+    "constraints": ["geen naam vereist, open vraag"]
+  },
+  {
+    "id": "checkin-nl-naam-even-stilstaan",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "{name}, even een momentje voor jezelf — hoe gaat het écht?",
+    "slots": ["name"],
+    "constraints": ["naam optioneel, leest ook zonder naam"]
+  },
+  {
+    "id": "checkin-nl-lichaam-vandaag",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "Wat merkt je lichaam vandaag op?",
+    "slots": [],
+    "constraints": ["open, niet sturend"]
+  },
+  {
+    "id": "checkin-nl-energie-peil",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "{name}, hoe is je energieniveau op dit moment?",
+    "slots": ["name"],
+    "constraints": ["neutraal, geen waardeoordeel"]
+  },
+  {
+    "id": "checkin-nl-stemming-kleur",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "Als je stemming vandaag een kleur had, welke zou dat zijn?",
+    "slots": [],
+    "constraints": ["creatieve, laagdrempelige ingang"]
+  },
+  {
+    "id": "checkin-nl-zorg-jezelf",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "Wat heeft je vandaag nodig om goed voor jezelf te zorgen?",
+    "slots": [],
+    "constraints": ["zorg-centraal, open vraag"]
+  },
+  {
+    "id": "checkin-nl-naam-vandaag-nodig",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "{name}, wat merk je vandaag het meest in je lijf?",
+    "slots": ["name"],
+    "constraints": ["lichaamsbewustzijn, neutraal"]
+  },
+  {
+    "id": "checkin-nl-rust-activiteit",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "Heb je vandaag meer behoefte aan rust of aan beweging?",
+    "slots": [],
+    "constraints": ["binaire keuze als zachte uitnodiging"]
+  },
+  {
+    "id": "checkin-nl-moment-zelf",
+    "category": "daily-checkin",
+    "locale": "nl",
+    "template": "Neem even een adem en check in bij jezelf — alles is goed.",
+    "slots": [],
+    "constraints": ["geruststellend, geen prestatie-druk"]
+  },
+  {
+    "id": "checkin-en-how-are-you",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "How are you feeling today, from the inside out?",
+    "slots": [],
+    "constraints": ["open question, no name required"]
+  },
+  {
+    "id": "checkin-en-name-moment",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "{name}, take a moment just for you — how are you really doing?",
+    "slots": ["name"],
+    "constraints": ["name optional, reads fine without"]
+  },
+  {
+    "id": "checkin-en-body-today",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "What is your body noticing today?",
+    "slots": [],
+    "constraints": ["open, non-directive"]
+  },
+  {
+    "id": "checkin-en-energy-level",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "{name}, how would you describe your energy right now?",
+    "slots": ["name"],
+    "constraints": ["neutral, no judgment"]
+  },
+  {
+    "id": "checkin-en-mood-color",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "If your mood today had a colour, what would it be?",
+    "slots": [],
+    "constraints": ["creative, low-barrier entry point"]
+  },
+  {
+    "id": "checkin-en-what-do-you-need",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "What does today ask of you — and what do you need in return?",
+    "slots": [],
+    "constraints": ["reflective, care-centred"]
+  },
+  {
+    "id": "checkin-en-name-body-notice",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "{name}, what stands out most in your body today?",
+    "slots": ["name"],
+    "constraints": ["body awareness, neutral tone"]
+  },
+  {
+    "id": "checkin-en-rest-or-move",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "Does today feel more like a rest day or a move day?",
+    "slots": [],
+    "constraints": ["gentle binary, no pressure"]
+  },
+  {
+    "id": "checkin-en-breath-checkin",
+    "category": "daily-checkin",
+    "locale": "en",
+    "template": "Take one breath, then check in — whatever you find is welcome.",
+    "slots": [],
+    "constraints": ["reassuring, no performance expectation"]
+  }
+]

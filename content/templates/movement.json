@@ -1,0 +1,146 @@
+[
+  {
+    "id": "movement-nl-menstruatie-zachte-stretch",
+    "category": "movement",
+    "locale": "nl",
+    "template": "In je {phase} fase kan een zachte stretch of wandeling heel fijn aanvoelen — maar rust is ook bewegen op jouw manier.",
+    "slots": ["phase"],
+    "constraints": ["rust als gelijkwaardig, geen dwang"]
+  },
+  {
+    "id": "movement-nl-menstruatie-naam-lichaam",
+    "category": "movement",
+    "locale": "nl",
+    "template": "{name}, je {phase} fase is een goed moment om te luisteren naar wat je lijf echt wil. Geen verplichtingen.",
+    "slots": ["name", "phase"],
+    "constraints": ["toestemming om te rusten, warm"]
+  },
+  {
+    "id": "movement-nl-folliculaire-ontdekken",
+    "category": "movement",
+    "locale": "nl",
+    "template": "In je {phase} fase hebben veel mensen zin om iets nieuws te proberen. Wat trekt jou aan?",
+    "slots": ["phase"],
+    "constraints": ["uitnodigend, geen opdracht"]
+  },
+  {
+    "id": "movement-nl-folliculaire-naam-energie",
+    "category": "movement",
+    "locale": "nl",
+    "template": "{name}, als je merkt dat je energie wat hoger zit in je {phase} fase — geniet ervan op jouw manier.",
+    "slots": ["name", "phase"],
+    "constraints": ["vrijblijvend, vreugdevol"]
+  },
+  {
+    "id": "movement-nl-ovulatie-buiten",
+    "category": "movement",
+    "locale": "nl",
+    "template": "In de {phase} fase voelt bewegen buiten voor veel mensen extra plezierig. Hoe is dat voor jou?",
+    "slots": ["phase"],
+    "constraints": ["observerend, geen eis"]
+  },
+  {
+    "id": "movement-nl-ovulatie-naam-dans",
+    "category": "movement",
+    "locale": "nl",
+    "template": "{name}, de {phase} fase is misschien een goed moment voor iets wat je simpelweg leuk vindt — dansen, zwemmen, fietsen.",
+    "slots": ["name", "phase"],
+    "constraints": ["vreugde centraal, niet competitief"]
+  },
+  {
+    "id": "movement-nl-luteale-kalm",
+    "category": "movement",
+    "locale": "nl",
+    "template": "In de {phase} fase is rustiger bewegen — yoga, wandelen, rekken — vaak wat je lijf het meest waardeert.",
+    "slots": ["phase"],
+    "constraints": ["beschrijvend, geen medische claim"]
+  },
+  {
+    "id": "movement-nl-luteale-naam-eigen-tempo",
+    "category": "movement",
+    "locale": "nl",
+    "template": "{name}, je {phase} fase nodigt uit om jouw eigen tempo te volgen — wat voel je vandaag?",
+    "slots": ["name", "phase"],
+    "constraints": ["introspectief, geen vergelijking"]
+  },
+  {
+    "id": "movement-nl-algemeen-plezier",
+    "category": "movement",
+    "locale": "nl",
+    "template": "Bewegen mag plezier zijn. Wat maakt jou blij in je lichaam vandaag?",
+    "slots": [],
+    "constraints": ["vreugde-centraal, geen fase vereist"]
+  },
+  {
+    "id": "movement-en-menstrual-gentle",
+    "category": "movement",
+    "locale": "en",
+    "template": "During your {phase} phase, a gentle stretch or slow walk can feel wonderful — but rest counts too.",
+    "slots": ["phase"],
+    "constraints": ["rest treated as equal, no pressure"]
+  },
+  {
+    "id": "movement-en-menstrual-name-listen",
+    "category": "movement",
+    "locale": "en",
+    "template": "{name}, your {phase} phase is a great time to listen closely to what your body actually wants. No obligations.",
+    "slots": ["name", "phase"],
+    "constraints": ["permission to rest, warm tone"]
+  },
+  {
+    "id": "movement-en-follicular-explore",
+    "category": "movement",
+    "locale": "en",
+    "template": "In your {phase} phase, you might feel drawn to try something new. What sounds appealing?",
+    "slots": ["phase"],
+    "constraints": ["inviting, not instructional"]
+  },
+  {
+    "id": "movement-en-follicular-name-energy",
+    "category": "movement",
+    "locale": "en",
+    "template": "{name}, if you notice more energy during your {phase} phase — enjoy it in whatever way feels good.",
+    "slots": ["name", "phase"],
+    "constraints": ["optional, joyful framing"]
+  },
+  {
+    "id": "movement-en-ovulatory-outside",
+    "category": "movement",
+    "locale": "en",
+    "template": "During your {phase} phase, moving outdoors often feels especially enjoyable. Does that resonate today?",
+    "slots": ["phase"],
+    "constraints": ["observational, no demand"]
+  },
+  {
+    "id": "movement-en-ovulatory-name-fun",
+    "category": "movement",
+    "locale": "en",
+    "template": "{name}, your {phase} phase might be a lovely moment for movement that simply feels fun — dancing, cycling, swimming.",
+    "slots": ["name", "phase"],
+    "constraints": ["joy-centred, not competitive"]
+  },
+  {
+    "id": "movement-en-luteal-calm",
+    "category": "movement",
+    "locale": "en",
+    "template": "In your {phase} phase, gentler movement — yoga, walking, stretching — is often what the body appreciates most.",
+    "slots": ["phase"],
+    "constraints": ["descriptive, no medical claims"]
+  },
+  {
+    "id": "movement-en-luteal-name-pace",
+    "category": "movement",
+    "locale": "en",
+    "template": "{name}, your {phase} phase invites you to follow your own pace — what does today feel like?",
+    "slots": ["name", "phase"],
+    "constraints": ["introspective, no comparison"]
+  },
+  {
+    "id": "movement-en-general-joy",
+    "category": "movement",
+    "locale": "en",
+    "template": "Movement can simply be joy. What brings you delight in your body today?",
+    "slots": [],
+    "constraints": ["joy-centred, no phase required"]
+  }
+]

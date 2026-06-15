@@ -1,0 +1,146 @@
+[
+  {
+    "id": "phase-nl-menstruatie-rust",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "In je {phase} fase vraagt je lichaam soms om meer rust dan gewoonlijk. Dat is precies wat het nodig heeft.",
+    "slots": ["phase"],
+    "constraints": ["beschrijvend, geen medische claim"]
+  },
+  {
+    "id": "phase-nl-menstruatie-naam-warmte",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "{name}, in je {phase} fase mag je tempo wat lager liggen — zacht zijn voor jezelf is geen zwakte.",
+    "slots": ["name", "phase"],
+    "constraints": ["naam optioneel, ondersteunend"]
+  },
+  {
+    "id": "phase-nl-folliculaire-energie",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "In de {phase} fase bouwen veel mensen energie op. Merk je dat bij jezelf?",
+    "slots": ["phase"],
+    "constraints": ["observerend, niet voorschrijvend"]
+  },
+  {
+    "id": "phase-nl-folliculaire-naam-nieuw",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "{name}, de {phase} fase brengt vaak een gevoel van nieuw begin. Mooi om dat te voelen als het er is.",
+    "slots": ["name", "phase"],
+    "constraints": ["validerende toon"]
+  },
+  {
+    "id": "phase-nl-ovulatie-verbinding",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "In de {phase} fase ervaren veel mensen een piek in energie en sociaal gevoel. Hoe is dat voor jou?",
+    "slots": ["phase"],
+    "constraints": ["uitnodigend, niet prescriptief"]
+  },
+  {
+    "id": "phase-nl-ovulatie-naam-uitstraling",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "{name}, de {phase} fase kan een moment zijn waarop je je meer verbonden voelt — met jezelf en anderen.",
+    "slots": ["name", "phase"],
+    "constraints": ["warm en beschrijvend"]
+  },
+  {
+    "id": "phase-nl-luteale-inkeer",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "In de {phase} fase kan je intuïtie scherper aanvoelen. Een goed moment om naar binnen te keren.",
+    "slots": ["phase"],
+    "constraints": ["introspectief, positief geframed"]
+  },
+  {
+    "id": "phase-nl-luteale-naam-vertraging",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "{name}, de {phase} fase nodigt soms uit om rustiger aan te doen — luister naar wat je lijf zegt.",
+    "slots": ["name", "phase"],
+    "constraints": ["verzorgend, geen verplichtingen"]
+  },
+  {
+    "id": "phase-nl-cyclus-dag",
+    "category": "cycle-phase",
+    "locale": "nl",
+    "template": "Dag {cycleDay} van je cyclus — elke fase heeft haar eigen ritme.",
+    "slots": ["cycleDay"],
+    "constraints": ["informatief, neutraal"]
+  },
+  {
+    "id": "phase-en-menstrual-rest",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "During your {phase} phase, your body often calls for more stillness. That's a perfectly reasonable request.",
+    "slots": ["phase"],
+    "constraints": ["descriptive, no medical claims"]
+  },
+  {
+    "id": "phase-en-menstrual-name-gentle",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "{name}, your {phase} phase is a natural invitation to slow down — being gentle with yourself is wisdom, not weakness.",
+    "slots": ["name", "phase"],
+    "constraints": ["name optional, supportive tone"]
+  },
+  {
+    "id": "phase-en-follicular-energy",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "The {phase} phase often brings a gradual return of energy. Do you notice that in yourself?",
+    "slots": ["phase"],
+    "constraints": ["observational, not prescriptive"]
+  },
+  {
+    "id": "phase-en-follicular-name-fresh",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "{name}, the {phase} phase can carry a feeling of fresh starts. Enjoy it if it's there for you.",
+    "slots": ["name", "phase"],
+    "constraints": ["validating, no pressure"]
+  },
+  {
+    "id": "phase-en-ovulatory-connection",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "In your {phase} phase, many people feel a lift in both energy and connection. What does it feel like for you?",
+    "slots": ["phase"],
+    "constraints": ["inviting, individual experience acknowledged"]
+  },
+  {
+    "id": "phase-en-ovulatory-name-outward",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "{name}, the {phase} phase can be a time when you feel more at ease with the world around you.",
+    "slots": ["name", "phase"],
+    "constraints": ["warm and descriptive"]
+  },
+  {
+    "id": "phase-en-luteal-inward",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "The {phase} phase can sharpen your inner sense of what matters. A good time to listen inward.",
+    "slots": ["phase"],
+    "constraints": ["introspective, positively framed"]
+  },
+  {
+    "id": "phase-en-luteal-name-slowdown",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "{name}, your {phase} phase sometimes asks you to take things slower — your body usually knows why.",
+    "slots": ["name", "phase"],
+    "constraints": ["caring, no obligations"]
+  },
+  {
+    "id": "phase-en-cycle-day",
+    "category": "cycle-phase",
+    "locale": "en",
+    "template": "Day {cycleDay} of your cycle — every phase has its own rhythm.",
+    "slots": ["cycleDay"],
+    "constraints": ["informative, neutral"]
+  }
+]
