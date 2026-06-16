@@ -22,6 +22,7 @@ import { build as esbuild } from 'esbuild';
 import { execSync }         from 'node:child_process';
 import { createHash }       from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, rmSync, existsSync } from 'node:fs';
+import { buildArticles } from './scripts/build-articles.mjs';
 
 const distDir = 'dist';
 
@@ -185,6 +186,11 @@ cpSync('assets', `${distDir}/assets`, { recursive: true });
 if (existsSync('.well-known')) {
   cpSync('.well-known', `${distDir}/.well-known`, { recursive: true });
 }
+
+// ── 6. SEO content layer: static article pages + generated sitemap ───────
+// Runs last so it overwrites the copied sitemap.xml stub with the full,
+// generated sitemap (home + hubs + every article).
+buildArticles(distDir);
 
 console.log('─'.repeat(48));
 console.log('✓ Build complete → dist/');
