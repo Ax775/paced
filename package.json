@@ -18,6 +18,7 @@
     "content:tov": "node scripts/generate-tov.mjs",
     "content:templates": "node scripts/generate-templates.mjs",
     "content:regen": "node scripts/regen.mjs",
+    "draft:article": "node scripts/draft-article.mjs",
     "gen:icon": "node scripts/generate-app-icon.mjs",
     "gen:og": "node scripts/generate-og-image.mjs",
     "gen:splash": "node scripts/generate-splash.mjs",
