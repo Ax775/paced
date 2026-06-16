@@ -1,0 +1,244 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`category cycle-phase > matches the structural schema snapshot 1`] = `
+{
+  "category": "cycle-phase",
+  "ids": [
+    "phase-en-cycle-day",
+    "phase-en-follicular-energy",
+    "phase-en-follicular-name-fresh",
+    "phase-en-luteal-inward",
+    "phase-en-luteal-name-slowdown",
+    "phase-en-menstrual-name-gentle",
+    "phase-en-menstrual-rest",
+    "phase-en-ovulatory-connection",
+    "phase-en-ovulatory-name-outward",
+    "phase-nl-cyclus-dag",
+    "phase-nl-folliculaire-energie",
+    "phase-nl-folliculaire-naam-nieuw",
+    "phase-nl-luteale-inkeer",
+    "phase-nl-luteale-naam-vertraging",
+    "phase-nl-menstruatie-naam-warmte",
+    "phase-nl-menstruatie-rust",
+    "phase-nl-ovulatie-naam-uitstraling",
+    "phase-nl-ovulatie-verbinding",
+  ],
+  "perLocale": {
+    "en": 9,
+    "nl": 9,
+  },
+  "slotVocabulary": [
+    "cycleDay",
+    "name",
+    "phase",
+  ],
+  "total": 18,
+}
+`;
+
+exports[`category daily-checkin > matches the structural schema snapshot 1`] = `
+{
+  "category": "daily-checkin",
+  "ids": [
+    "checkin-en-body-today",
+    "checkin-en-breath-checkin",
+    "checkin-en-energy-level",
+    "checkin-en-how-are-you",
+    "checkin-en-mood-color",
+    "checkin-en-name-body-notice",
+    "checkin-en-name-moment",
+    "checkin-en-rest-or-move",
+    "checkin-en-what-do-you-need",
+    "checkin-nl-energie-peil",
+    "checkin-nl-hoe-voel-je",
+    "checkin-nl-lichaam-vandaag",
+    "checkin-nl-moment-zelf",
+    "checkin-nl-naam-even-stilstaan",
+    "checkin-nl-naam-vandaag-nodig",
+    "checkin-nl-rust-activiteit",
+    "checkin-nl-stemming-kleur",
+    "checkin-nl-zorg-jezelf",
+  ],
+  "perLocale": {
+    "en": 9,
+    "nl": 9,
+  },
+  "slotVocabulary": [
+    "name",
+  ],
+  "total": 18,
+}
+`;
+
+exports[`category mindfulness > matches the structural schema snapshot 1`] = `
+{
+  "category": "mindfulness",
+  "ids": [
+    "mindful-en-breath-anchor",
+    "mindful-en-five-senses",
+    "mindful-en-name-gratitude",
+    "mindful-en-name-present",
+    "mindful-en-name-release-tension",
+    "mindful-en-name-thoughts-clouds",
+    "mindful-en-self-compassion",
+    "mindful-en-silence-ok",
+    "mindful-en-three-breaths",
+    "mindful-nl-adem-anker",
+    "mindful-nl-drie-ademhalingen",
+    "mindful-nl-naam-dankbaarheid",
+    "mindful-nl-naam-gedachten-wolk",
+    "mindful-nl-naam-moment-aanwezig",
+    "mindful-nl-naam-spanning-los",
+    "mindful-nl-stilte-oke",
+    "mindful-nl-vijf-zintuigen",
+    "mindful-nl-zelfcompassie",
+  ],
+  "perLocale": {
+    "en": 9,
+    "nl": 9,
+  },
+  "slotVocabulary": [
+    "name",
+  ],
+  "total": 18,
+}
+`;
+
+exports[`category movement > matches the structural schema snapshot 1`] = `
+{
+  "category": "movement",
+  "ids": [
+    "movement-en-follicular-explore",
+    "movement-en-follicular-name-energy",
+    "movement-en-general-joy",
+    "movement-en-luteal-calm",
+    "movement-en-luteal-name-pace",
+    "movement-en-menstrual-gentle",
+    "movement-en-menstrual-name-listen",
+    "movement-en-ovulatory-name-fun",
+    "movement-en-ovulatory-outside",
+    "movement-nl-algemeen-plezier",
+    "movement-nl-folliculaire-naam-energie",
+    "movement-nl-folliculaire-ontdekken",
+    "movement-nl-luteale-kalm",
+    "movement-nl-luteale-naam-eigen-tempo",
+    "movement-nl-menstruatie-naam-lichaam",
+    "movement-nl-menstruatie-zachte-stretch",
+    "movement-nl-ovulatie-buiten",
+    "movement-nl-ovulatie-naam-dans",
+  ],
+  "perLocale": {
+    "en": 9,
+    "nl": 9,
+  },
+  "slotVocabulary": [
+    "name",
+    "phase",
+  ],
+  "total": 18,
+}
+`;
+
+exports[`category notification > matches the structural schema snapshot 1`] = `
+{
+  "category": "notification",
+  "ids": [
+    "notif-en-brand-reminder",
+    "notif-en-checkin-invite",
+    "notif-en-hydration",
+    "notif-en-mindfulness-moment",
+    "notif-en-movement-invite",
+    "notif-en-name-brand-return",
+    "notif-en-name-checkin",
+    "notif-en-sleep-soft",
+    "notif-en-streak",
+    "notif-nl-beweging-uitnodiging",
+    "notif-nl-brand-herinnering",
+    "notif-nl-checkin-uitnodiging",
+    "notif-nl-hydratatie",
+    "notif-nl-mindfulness-momentje",
+    "notif-nl-naam-brand-terugkeer",
+    "notif-nl-naam-checkin",
+    "notif-nl-slaap-zacht",
+    "notif-nl-streak",
+  ],
+  "perLocale": {
+    "en": 9,
+    "nl": 9,
+  },
+  "slotVocabulary": [
+    "brand",
+    "name",
+    "streak",
+  ],
+  "total": 18,
+}
+`;
+
+exports[`category nutrition > matches the structural schema snapshot 1`] = `
+{
+  "category": "nutrition",
+  "ids": [
+    "nutrition-en-colour-on-plate",
+    "nutrition-en-eating-awareness",
+    "nutrition-en-eating-together",
+    "nutrition-en-iron-rich",
+    "nutrition-en-name-breakfast",
+    "nutrition-en-name-hunger",
+    "nutrition-en-name-hydration",
+    "nutrition-en-snack-joy",
+    "nutrition-en-warm-meal",
+    "nutrition-nl-eten-samen",
+    "nutrition-nl-groenten-kleur",
+    "nutrition-nl-ijzer-rijk",
+    "nutrition-nl-naam-hydratatie",
+    "nutrition-nl-naam-ontbijt",
+    "nutrition-nl-naam-trek",
+    "nutrition-nl-snack-liefde",
+    "nutrition-nl-voeding-gevoel",
+    "nutrition-nl-warm-eten",
+  ],
+  "perLocale": {
+    "en": 9,
+    "nl": 9,
+  },
+  "slotVocabulary": [
+    "name",
+  ],
+  "total": 18,
+}
+`;
+
+exports[`category sleep > matches the structural schema snapshot 1`] = `
+{
+  "category": "sleep",
+  "ids": [
+    "sleep-en-let-go",
+    "sleep-en-name-breath-night",
+    "sleep-en-name-evening-check",
+    "sleep-en-name-sleep-well",
+    "sleep-en-own-rhythm",
+    "sleep-en-screen-wind-down",
+    "sleep-en-sleep-quality",
+    "sleep-en-tomorrow-ready",
+    "sleep-en-well-earned",
+    "sleep-nl-loslaten",
+    "sleep-nl-morgen-vers",
+    "sleep-nl-naam-adem-nacht",
+    "sleep-nl-naam-rust-avond",
+    "sleep-nl-naam-slaap-goed",
+    "sleep-nl-ritme-eigen",
+    "sleep-nl-scherm-rust",
+    "sleep-nl-slaapkwaliteit",
+    "sleep-nl-welverdiend",
+  ],
+  "perLocale": {
+    "en": 9,
+    "nl": 9,
+  },
+  "slotVocabulary": [
+    "name",
+  ],
+  "total": 18,
+}
+`;

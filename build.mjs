@@ -22,6 +22,7 @@ import { build as esbuild } from 'esbuild';
 import { execSync }         from 'node:child_process';
 import { createHash }       from 'node:crypto';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, rmSync, existsSync } from 'node:fs';
+import { buildArticles } from './scripts/build-articles.mjs';
 
 const distDir = 'dist';
 
@@ -129,6 +130,7 @@ console.log('• Copying static assets');
 copyFileSync('manifest.webmanifest', `${distDir}/manifest.webmanifest`);
 copyFileSync('_headers',             `${distDir}/_headers`);
 copyFileSync('robots.txt',           `${distDir}/robots.txt`);
+copyFileSync('sitemap.xml',          `${distDir}/sitemap.xml`);
 
 // sw.js gets a content-derived cache name so a deploy auto-evicts the old
 // shell cache — no more hand-bumping `paced-shell-v1` on every release. The
@@ -147,12 +149,48 @@ swContent = swContent.replace(
 writeFileSync(`${distDir}/sw.js`, swContent);
 console.log(`• Writing dist/sw.js  (cache: paced-shell-${swHash})`);
 
+// ── 5. Harden the production CSP: hash-pin the inline scripts ─────────────
+//
+// The dev CSP carries `script-src 'self' 'unsafe-inline'` because index.html
+// has four small inline scripts (theme-init, Supabase config, Sentry config,
+// SW registration). 'unsafe-inline' means an XSS-injected <script> would also
+// run — defeating the point of the CSP. There are no XSS sinks today, but CSP
+// is defense-in-depth, so we drop 'unsafe-inline' from script-src and pin the
+// exact four scripts by their sha256 hash instead.
+//
+// The hashes are computed from the FINAL dist/index.html the browser receives,
+// so they are correct by construction and recompute automatically on every
+// build — which is exactly the "must recompute on every edit" objection that
+// previously made manual hashing not worth it. style-src keeps 'unsafe-inline'
+// because React emits inline style="" attributes, which CSP hashes don't cover.
+const distHtml = readFileSync(`${distDir}/index.html`, 'utf8');
+const inlineScripts = [...distHtml.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+const scriptHashes = inlineScripts.map(
+  (m) => `'sha256-${createHash('sha256').update(m[1]).digest('base64')}'`
+);
+if (scriptHashes.length === 0) {
+  throw new Error('build.mjs: no inline <script> blocks found to hash — CSP would be wrong');
+}
+let headers = readFileSync(`${distDir}/_headers`, 'utf8');
+const cspScriptRx = /script-src 'self' 'unsafe-inline'/;
+if (!cspScriptRx.test(headers)) {
+  throw new Error("build.mjs: expected \"script-src 'self' 'unsafe-inline'\" in _headers");
+}
+headers = headers.replace(cspScriptRx, `script-src 'self' ${scriptHashes.join(' ')}`);
+writeFileSync(`${distDir}/_headers`, headers);
+console.log(`• Hardened CSP  (script-src: ${scriptHashes.length} inline hashes, no unsafe-inline)`);
+
 cpSync('assets', `${distDir}/assets`, { recursive: true });
 // .well-known/ contains the apple-app-site-association manifest for iOS
 // Universal Links. Must be served from the domain root (not /assets/).
 if (existsSync('.well-known')) {
   cpSync('.well-known', `${distDir}/.well-known`, { recursive: true });
 }
+
+// ── 6. SEO content layer: static article pages + generated sitemap ───────
+// Runs last so it overwrites the copied sitemap.xml stub with the full,
+// generated sitemap (home + hubs + every article).
+buildArticles(distDir);
 
 console.log('─'.repeat(48));
 console.log('✓ Build complete → dist/');

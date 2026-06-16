@@ -1,0 +1,146 @@
+[
+  {
+    "id": "sleep-nl-welverdiend",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "Je lichaam heeft hard gewerkt vandaag. Nachtrust is geen luxe — het is verzorging.",
+    "slots": [],
+    "constraints": ["geen prestatiedruk, warm"]
+  },
+  {
+    "id": "sleep-nl-naam-slaap-goed",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "{name}, slaap lekker — morgen begint opnieuw.",
+    "slots": ["name"],
+    "constraints": ["kort, warm, naam optioneel"]
+  },
+  {
+    "id": "sleep-nl-loslaten",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "Laat de dag los. Je hebt gedaan wat je kon, en dat is genoeg.",
+    "slots": [],
+    "constraints": ["zelfcompassie, niet prestatiegericht"]
+  },
+  {
+    "id": "sleep-nl-naam-rust-avond",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "{name}, hoe was je avond? Merk op wat je lichaam je vertelt voordat je gaat slapen.",
+    "slots": ["name"],
+    "constraints": ["reflectief, geen oordeel"]
+  },
+  {
+    "id": "sleep-nl-scherm-rust",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "Misschien is dit een goed moment om schermen even weg te leggen en je lichaam naar slaap te laten zakken.",
+    "slots": [],
+    "constraints": ["zacht, niet dwingend"]
+  },
+  {
+    "id": "sleep-nl-ritme-eigen",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "Ieder lichaam heeft een eigen slaapritme. Jij kent het jouwe het beste.",
+    "slots": [],
+    "constraints": ["empowerend, zonder voorschriften"]
+  },
+  {
+    "id": "sleep-nl-naam-adem-nacht",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "{name}, één diepe adem in, langzaam uit — en laat de nacht zijn werk doen.",
+    "slots": ["name"],
+    "constraints": ["kalm, no-pressure winding down"]
+  },
+  {
+    "id": "sleep-nl-morgen-vers",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "Rust nu, zodat morgen jij er klaar voor kunt zijn — op jouw manier.",
+    "slots": [],
+    "constraints": ["vooruitkijkend maar zonder verwachtingen"]
+  },
+  {
+    "id": "sleep-nl-slaapkwaliteit",
+    "category": "sleep",
+    "locale": "nl",
+    "template": "Hoe was je slaap gisterennacht? Er is geen goed of fout antwoord.",
+    "slots": [],
+    "constraints": ["check-in, neutraal oordeel"]
+  },
+  {
+    "id": "sleep-en-well-earned",
+    "category": "sleep",
+    "locale": "en",
+    "template": "Your body has carried you through the whole day. Rest now — it's one of the kindest things you can do.",
+    "slots": [],
+    "constraints": ["no performance pressure, warm"]
+  },
+  {
+    "id": "sleep-en-name-sleep-well",
+    "category": "sleep",
+    "locale": "en",
+    "template": "{name}, sleep well — tomorrow starts fresh.",
+    "slots": ["name"],
+    "constraints": ["short, warm, name optional"]
+  },
+  {
+    "id": "sleep-en-let-go",
+    "category": "sleep",
+    "locale": "en",
+    "template": "Let the day go. You did what you could, and that is enough.",
+    "slots": [],
+    "constraints": ["self-compassion, not achievement-focused"]
+  },
+  {
+    "id": "sleep-en-name-evening-check",
+    "category": "sleep",
+    "locale": "en",
+    "template": "{name}, how did your evening feel? Notice what your body is telling you before you drift off.",
+    "slots": ["name"],
+    "constraints": ["reflective, no judgment"]
+  },
+  {
+    "id": "sleep-en-screen-wind-down",
+    "category": "sleep",
+    "locale": "en",
+    "template": "Maybe now is a good moment to set the screen aside and let your body settle towards sleep.",
+    "slots": [],
+    "constraints": ["gentle suggestion, not commanding"]
+  },
+  {
+    "id": "sleep-en-own-rhythm",
+    "category": "sleep",
+    "locale": "en",
+    "template": "Every body has its own sleep rhythm. You know yours best — trust that.",
+    "slots": [],
+    "constraints": ["empowering, no prescriptions"]
+  },
+  {
+    "id": "sleep-en-name-breath-night",
+    "category": "sleep",
+    "locale": "en",
+    "template": "{name}, one deep breath in, slow breath out — and let the night take care of the rest.",
+    "slots": ["name"],
+    "constraints": ["calm, no-pressure winding down"]
+  },
+  {
+    "id": "sleep-en-tomorrow-ready",
+    "category": "sleep",
+    "locale": "en",
+    "template": "Rest now, so tomorrow you can show up — in whatever way feels right for you.",
+    "slots": [],
+    "constraints": ["forward-looking without expectations"]
+  },
+  {
+    "id": "sleep-en-sleep-quality",
+    "category": "sleep",
+    "locale": "en",
+    "template": "How was your sleep last night? There is no right or wrong answer here.",
+    "slots": [],
+    "constraints": ["neutral check-in, no judgment"]
+  }
+]

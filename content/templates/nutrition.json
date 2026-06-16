@@ -1,0 +1,146 @@
+[
+  {
+    "id": "nutrition-nl-warm-eten",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "Warm, voedzaam eten kan een heel fijne daad van zelfzorg zijn. Wat zou je lichaam vandaag blij maken?",
+    "slots": [],
+    "constraints": ["zorg-centraal, geen dieet-taal"]
+  },
+  {
+    "id": "nutrition-nl-naam-hydratatie",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "{name}, heb je vandaag al genoeg gedronken? Water en kruidenthee zijn mooie vormen van zorg voor jezelf.",
+    "slots": ["name"],
+    "constraints": ["zacht, geen eis, naam optioneel"]
+  },
+  {
+    "id": "nutrition-nl-groenten-kleur",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "Kleur op je bord is een simpele manier om je lichaam veel goeds te geven — elke kleur telt.",
+    "slots": [],
+    "constraints": ["positief, geen verboden voedsel"]
+  },
+  {
+    "id": "nutrition-nl-naam-ontbijt",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "{name}, heb je gegeten vanochtend? Voeding is de basis waarop je dag staat.",
+    "slots": ["name"],
+    "constraints": ["zorgzaam, geen oordeel, naam optioneel"]
+  },
+  {
+    "id": "nutrition-nl-voeding-gevoel",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "Hoe voelt eten voor je vandaag — geniet je ervan, of eet je meer op de automatische piloot?",
+    "slots": [],
+    "constraints": ["reflectief, geen waardeoordeel"]
+  },
+  {
+    "id": "nutrition-nl-ijzer-rijk",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "Voedingsmiddelen zoals peulvruchten, noten en groene bladgroenten kunnen een fijne toevoeging zijn aan je dag.",
+    "slots": [],
+    "constraints": ["informatief, geen medische claim, geen doseringen"]
+  },
+  {
+    "id": "nutrition-nl-naam-trek",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "{name}, luister naar je honger — het is een bericht van je lichaam dat de moeite waard is om op te letten.",
+    "slots": ["name"],
+    "constraints": ["interoceptie, positief"]
+  },
+  {
+    "id": "nutrition-nl-snack-liefde",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "Een snack die je blij maakt én voedzaam is — dat zijn niet twee verschillende dingen.",
+    "slots": [],
+    "constraints": ["anti-dieetcultuur, vreugdegericht"]
+  },
+  {
+    "id": "nutrition-nl-eten-samen",
+    "category": "nutrition",
+    "locale": "nl",
+    "template": "Samen eten kan eten extra aangenaam maken — maar genieten alleen is net zo waardevol.",
+    "slots": [],
+    "constraints": ["sociaal aspect, inclusief voor solo"]
+  },
+  {
+    "id": "nutrition-en-warm-meal",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "A warm, nourishing meal can be a quiet act of self-care. What would feel good to your body today?",
+    "slots": [],
+    "constraints": ["care-centred, no diet language"]
+  },
+  {
+    "id": "nutrition-en-name-hydration",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "{name}, have you had enough to drink today? Water and herbal tea are gentle ways to take care of yourself.",
+    "slots": ["name"],
+    "constraints": ["soft, no demand, name optional"]
+  },
+  {
+    "id": "nutrition-en-colour-on-plate",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "Colour on your plate is a simple way to give your body a variety of goodness — every colour counts.",
+    "slots": [],
+    "constraints": ["positive framing, no forbidden foods"]
+  },
+  {
+    "id": "nutrition-en-name-breakfast",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "{name}, did you get to eat this morning? Food is the foundation your day stands on.",
+    "slots": ["name"],
+    "constraints": ["caring, no judgment, name optional"]
+  },
+  {
+    "id": "nutrition-en-eating-awareness",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "How does eating feel for you today — are you enjoying it, or going through the motions?",
+    "slots": [],
+    "constraints": ["reflective, no value judgment"]
+  },
+  {
+    "id": "nutrition-en-iron-rich",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "Foods like legumes, nuts, and leafy greens can be a lovely addition to your day — whenever that feels right.",
+    "slots": [],
+    "constraints": ["informative, no medical claim, no dosages"]
+  },
+  {
+    "id": "nutrition-en-name-hunger",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "{name}, listen to your hunger — it is your body sending you a message worth paying attention to.",
+    "slots": ["name"],
+    "constraints": ["interoception, positive framing"]
+  },
+  {
+    "id": "nutrition-en-snack-joy",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "A snack that makes you happy and nourishes you — those are not two different things.",
+    "slots": [],
+    "constraints": ["anti-diet culture, joy-oriented"]
+  },
+  {
+    "id": "nutrition-en-eating-together",
+    "category": "nutrition",
+    "locale": "en",
+    "template": "Sharing a meal can make eating extra enjoyable — but savouring it alone is just as valuable.",
+    "slots": [],
+    "constraints": ["social aspect, inclusive for solo dining"]
+  }
+]

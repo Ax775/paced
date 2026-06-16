@@ -1,8 +1,8 @@
 {
   "id": "/paced/",
-  "name": "Paced — Vrouwelijke Gezondheid",
+  "name": "Paced — Cyclus & Welzijn",
   "short_name": "Paced",
-  "description": "Persoonlijke gezondheids- en cyclus-tracker voor vrouwen",
+  "description": "Rustige cyclus- & welzijnstracker zonder account, zonder tracking, zonder reclame. Al je data blijft op je eigen toestel.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

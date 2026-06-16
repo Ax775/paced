@@ -32,6 +32,7 @@ import {
   ensureTrialStarted, loadCachedSubscription, saveCachedSubscription,
 } from './lib/storage.js';
 import { computeBadges } from './lib/badges.js';
+import { personalize } from './lib/content/personalize.js';
 import { initMonitoring, captureError } from './lib/monitoring.js';
 import { resolveEntitlement, canUseFeature } from './lib/entitlement.js';
 import { fetchSubscription, startCheckout, openBillingPortal } from './supabaseSubscription.js';
@@ -3178,18 +3179,23 @@ function PhaseTimeline({ state }) {
 }
 
 function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) {
-  const { t, formatDate, phaseMeta: getPhaseMeta, nutrientFocus, tips: getTips } = useT();
+  const { t, locale, formatDate, phaseMeta: getPhaseMeta, nutrientFocus, tips: getTips } = useT();
   const state   = useMemo(() => getCycleState(profile), [profile]);
   const targets = useMemo(() => getDailyTargets(profile, state.phase), [profile, state.phase]);
   const hidden  = useMemo(() => new Set(profile.hiddenCards || []), [profile.hiddenCards]);
   const insightText = useMemo(() => {
+    const seed = toISODate(new Date());
+    const name = profile.name ? profile.name.split(' ')[0] : '';
+    // Primary source: the content pipeline (offline templates, BRAND_NAME-aware,
+    // guardrail-clean). Falls back to the legacy insights pool if a category
+    // ever returns nothing.
+    const res = personalize('cycle-phase', { locale, phase: state.phase, state: { name }, seed });
+    if (res) return res.text;
     const pool = getTips(state.phase);
-    const iso = toISODate(new Date());
     let h = 0;
-    for (let i = 0; i < iso.length; i++) h = (h * 31 + iso.charCodeAt(i)) | 0;
-    const idx = Math.abs(h) % pool.length;
-    return pool[idx](profile.name ? profile.name.split(' ')[0] : '');
-  }, [state.phase, profile.name, getTips]);
+    for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+    return pool[Math.abs(h) % pool.length](name);
+  }, [state.phase, profile.name, getTips, locale]);
   const PhaseIcon = PHASE_ICONS[state.phase];
 
   const [log, commitLog, restoreLog] = useDailyLog();
