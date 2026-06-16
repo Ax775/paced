@@ -42,8 +42,8 @@ verzorging, niet om regels of getallen.
 ## Hoe dit past in je cyclus
 
 De folliculaire fase is er één van vier. Wil je het hele plaatje? Lees de
-[uitleg over de vier cyclusfases](/artikelen/menstruatiecyclus-fases), of ga verder
-naar de [eisprong](/artikelen/eisprong-ovulatie) die op deze fase volgt.
+[uitleg over de vier cyclusfases](/artikelen/menstruatiecyclus-fases/), of ga verder
+naar de [eisprong](/artikelen/eisprong-ovulatie/) die op deze fase volgt.
 
 In [Paced](/) volg je je energie, beweging en voeding per fase — rustig, zonder
 account en volledig op je eigen toestel.

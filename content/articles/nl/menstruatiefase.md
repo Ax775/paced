@@ -41,8 +41,8 @@ ijzer uit plantaardige bronnen. Het gaat om verzorging, niet om regels.
 ## Verder lezen
 
 De menstruatiefase is het begin van een nieuwe cyclus en gaat over in de
-[folliculaire fase](/artikelen/folliculaire-fase). Voor het hele overzicht: lees de
-[vier cyclusfases](/artikelen/menstruatiecyclus-fases).
+[folliculaire fase](/artikelen/folliculaire-fase/). Voor het hele overzicht: lees de
+[vier cyclusfases](/artikelen/menstruatiecyclus-fases/).
 
 In [Paced](/) houd je je menstruatie, energie en symptomen rustig bij — zonder
 account, alles op je eigen toestel.

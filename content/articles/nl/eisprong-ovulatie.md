@@ -42,9 +42,9 @@ groenten en bessen — past mooi bij deze fase. Geen regels, gewoon verzorging.
 
 ## Verder lezen
 
-De eisprong volgt op de [folliculaire fase](/artikelen/folliculaire-fase) en gaat
-over in de [luteale fase](/artikelen/luteale-fase). Voor het hele overzicht: lees de
-[vier cyclusfases](/artikelen/menstruatiecyclus-fases).
+De eisprong volgt op de [folliculaire fase](/artikelen/folliculaire-fase/) en gaat
+over in de [luteale fase](/artikelen/luteale-fase/). Voor het hele overzicht: lees de
+[vier cyclusfases](/artikelen/menstruatiecyclus-fases/).
 
 In [Paced](/) houd je je eisprongmarkers en energie rustig bij — zonder account,
 alles op je eigen toestel.

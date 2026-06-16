@@ -41,8 +41,8 @@ plant sources. It is about care, not rules.
 ## Read on
 
 The menstrual phase is the start of a new cycle and flows into the
-[follicular phase](/articles/follicular-phase). For the full picture, read the
-[four cycle phases](/articles/menstrual-cycle-phases).
+[follicular phase](/articles/follicular-phase/). For the full picture, read the
+[four cycle phases](/articles/menstrual-cycle-phases/).
 
 In [Paced](/) you track your period, energy and symptoms calmly — without an account,
 all on your own device.

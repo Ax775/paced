@@ -41,9 +41,9 @@ phase nicely. No rules, just care.
 
 ## Read on
 
-Ovulation follows the [follicular phase](/articles/follicular-phase) and flows into
-the [luteal phase](/articles/luteal-phase). For the full overview, read the
-[four cycle phases](/articles/menstrual-cycle-phases).
+Ovulation follows the [follicular phase](/articles/follicular-phase/) and flows into
+the [luteal phase](/articles/luteal-phase/). For the full overview, read the
+[four cycle phases](/articles/menstrual-cycle-phases/).
 
 In [Paced](/) you track your ovulation markers and energy calmly — without an account,
 all on your own device.
