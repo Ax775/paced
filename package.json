@@ -19,6 +19,7 @@
     "content:templates": "node scripts/generate-templates.mjs",
     "content:regen": "node scripts/regen.mjs",
     "gen:icon": "node scripts/generate-app-icon.mjs",
+    "gen:og": "node scripts/generate-og-image.mjs",
     "gen:splash": "node scripts/generate-splash.mjs",
     "preflight": "node scripts/preflight.mjs",
     "ios:sync": "npm run build && npx cap sync ios",

@@ -1,137 +1,84 @@
-# Content Pipeline — todo
+# SEO-optimalisatie Paced — todo
 
-> Doel: kostenefficiënte content-pipeline. **Opus/Fable (`claude-opus-4-8`)** genereert
-> eenmalig offline; **Haiku (`claude-haiku-4-5-20251001`)** personaliseert runtime
-> alleen bij vrije tekst. App-naam altijd via `BRAND_NAME`-config, nooit hardcoded.
+> Doel: maximale vindbaarheid (organisch + social) én conversie, zonder MDR-rode
+> lijnen te overschrijden. Domein `https://paced.nl`, publieke naam **Paced**,
+> uitgever **Xaven BV** (bron: docs/app-store-metadata.md, capacitor.config.json).
 
-## Codebase-bevindingen (vastgelegd)
-- App heet **Paced**, hardcoded op 3 niveaus: `PACED_*` globals, `paced.*`
-  localStorage-keys (zitten in user-data → niet zomaar hernoemen), UI-copy + headers.
-- Pure **JS/ESM**: `.js`/`.jsx` bron, `.mjs` scripts, vitest `.js`-tests, esbuild-build.
-  Geen tsconfig. `engines: node >=20`.
-- `supabase/functions/*` = Deno **TS** edge functions → runtime-proxy hoort hier (`.ts`).
-- Content woont nu in `src/lib/insights.js` (date-seeded tip-pools per fase).
+## Vastgestelde uitgangssituatie (codebase)
+- `<html lang="nl">` ✓, maar **body = lege `<div id="root">`** → crawlers/social-
+  unfurlers (WhatsApp, LinkedIn, iMessage, FB — géén JS) zien NUL content.
+- `<head>`: alleen viewport/theme/description (dun, generiek). **Geen** canonical,
+  **geen** Open Graph, **geen** Twitter Cards, **geen** JSON-LD.
+- robots.txt minimaal (geen Sitemap-directive). **Geen** sitemap.xml.
+- Geen OG-/social-share-image (1200×630).
+- build.mjs stript alleen dev-scripts → toegevoegde meta/link/JSON-LD + statische
+  body-content **overleven de build**. Kopieert manifest/_headers/robots; sitemap
+  moet toegevoegd.
+- Herbruikbare, MDR-getoetste copy (NL+EN) in docs/app-store-metadata.md.
 
-## Beslissingen (met user bevestigd)
-1. **Taal: match repo** → `.mjs`/`.js` (geen TS-toolchain toevoegen). Edge-fn blijft Deno-TS.
-2. **API-client: `@anthropic-ai/sdk` als devDependency** — alleen offline gen-scripts.
-   Runtime-Haiku via config-baar proxy-endpoint (geen key in browser).
-3. **Seed-content wordt gecommit** = offline-fallback + testfixture. Live-generatie
-   (echte API-call) draai ik hier niet (geen key/kosten); scripts zijn wél runnable.
+## MDR-rode lijnen (docs/mdr-positioning.md) — copy mag NOOIT:
+diagnose/behandeling/ziektevoorspelling claimen · "vervangt anticonceptie" ·
+medisch-hulpmiddel-taal. Positionering = rustige, privacy-first lifestyle/wellness-
+tracker; alles op het toestel; geen account/tracking/reclame.
 
-## Geraakte / nieuwe bestanden
-**Config (SSOT)**
-- [ ] `src/config/brand.js` — `BRAND_NAME` + key-prefix + model-ids + proxy-endpoint config.
+## Stappen (impact-volgorde)
+- [ ] **index.html `<head>`** — title (keyword+benefit), sterke description (~155),
+      canonical, robots, application-name/author, OG (type/site_name/title/desc/url/
+      image/locale nl_NL + alternate en_GB), Twitter summary_large_image.
+- [ ] **JSON-LD** in `<head>` — WebSite + Organization (Xaven BV) + SoftwareApplication
+      (HealthApplication, gratis offer, inLanguage nl/en, publisher). GEEN nep-rating,
+      GEEN FAQPage (guideline-risico + content-mismatch), GEEN medical schema.
+- [ ] **index.html `<body>`** — statische SEO-hero in `#root` (H1 + value-prop +
+      privacy-features + CTA), die React bij mount vervangt. Crawlers zonder JS
+      krijgen echte content; users de app. + `<noscript>` fallback.
+- [ ] **robots.txt** — `Sitemap: https://paced.nl/sitemap.xml`.
+- [ ] **sitemap.xml** (nieuw) — homepage (SPA: 1 indexeerbare URL).
+- [ ] **build.mjs** — sitemap.xml naar dist kopiëren (assets/ al gekopieerd → OG-image meelift).
+- [ ] **scripts/generate-og-image.mjs** + `npm run gen:og` — 1200×630 branded PNG →
+      assets/og-image.png (sharp, zelfde patroon als gen:icon). Genereren + committen.
+- [ ] **manifest.webmanifest** — description aanlijnen met positionering (klein).
 
-**Guardrails (gedeeld: review-stap + runtime)**
-- [ ] `src/lib/content/guardrails.js` — checklist: geen medisch advies/diagnose, geen
-      calorie-/gewichtgetallen, geen vergelijkende lichaamstaal. `checkGuardrails(text)`.
+## Risico's / niet-doelen
+- Geen hreflang naar niet-bestaande per-taal-URLs (SPA = 1 URL, client-side i18n) →
+  alleen og:locale + alternate, eerlijk.
+- Geen aparte support/privacy-pagina's bouwen (zijn `?legal=`/`?…` query-params).
+- Statische hero kort houden (geen duplicate-content-wildgroei); React vervangt 'm.
+- Niets dat de gehardende CSP breekt (JSON-LD = inline <script type=ld+json>, geen JS-exec
+  → valt buiten script-src hashing? check: build hasht inline <script> zonder type? verifiëren).
 
-**Gen-scripts (Opus/Fable, offline)**
-- [ ] `scripts/lib/anthropic.mjs` — dunne SDK-wrapper + model-constants + retry.
-- [ ] `scripts/lib/content-spec.mjs` — categorieën, JSON-schema, verboden frames.
-- [ ] `scripts/generate-tov.mjs` → `content/tone-of-voice.md`.
-- [ ] `scripts/generate-templates.mjs` → `content/templates/<cat>.json` + review-stap
-      (2e Opus-call tegen tov + guardrails; afgekeurd regenereren, max 2 rondes).
-- [ ] `scripts/regen.mjs` — dispatch `--category=<cat>` voor `content:regen`.
+## Verificatie
+- build draait; dist/index.html bevat canonical/OG/JSON-LD; dist/sitemap.xml aanwezig.
+- JSON-LD valide (parse-check). OG-image 1200×630 bestaat.
+- Bestaande tests blijven groen; app boot zonder console-errors (preview-rooktest).
 
-**Seed-content (gecommit, offline-fallback)**
-- [ ] `content/tone-of-voice.md`.
-- [ ] `content/templates/{daily-checkin,cycle-phase,sleep,movement,nutrition,mindfulness,notification}.json`
-      — ≥8 varianten per categorie per locale (nl+en), schema-conform, guardrail-clean.
+## Review (afgerond 2026-06-16)
+**Alle stappen klaar, build groen, dist geverifieerd.**
 
-**Runtime personalisatie**
-- [ ] `src/lib/content/templates.js` — laadt/valideert template-JSON, slot-interpolatie.
-- [ ] `src/lib/content/personalize.js` — default = pure interpolatie (gratis/instant);
-      vrije tekst → Haiku via proxy met tov+template als kader, lage max-tokens,
-      guardrail op output, fallback naar neutrale template. **Nooit opus in dit pad.**
-- [ ] `supabase/functions/personalize/index.ts` — Deno Haiku-proxy (key server-side).
-
-**Regen-flow**
-- [ ] package.json scripts: `content:tov`, `content:templates`, `content:regen`.
-
-**Tests**
-- [ ] `tests/content-templates.test.js` — snapshot op schema van elke categorie-JSON.
-- [ ] `tests/content-personalize.test.js` — runtime roept **nooit** `claude-opus-4-8`;
-      injecteerbare client → assert Haiku-model-id; default-pad doet geen call.
-- [ ] `tests/content-guardrails.test.js` — 5 verboden-frame fixtures → allemaal fallback.
-
-## Risico's
-- Hernoemen `paced.*` localStorage-keys breekt bestaande installs → **niet doen** in deze
-  taak; `BRAND_NAME` is display-naam, key-prefix blijft `paced` (gedocumenteerd in brand.js).
-- Browser mag geen API-key zien → runtime-AI strikt via proxy; default-pad blijft offline.
-- Health-domein: alle gegenereerde + seed-content moet door `checkGuardrails`.
-
-## Niet-doelen
-- Bestaande `insights.js` migreren/vervangen (kan later; pipeline staat los).
-- Live API-generatie draaien / kosten maken.
-- Auth/proxy-hosting deployen; edge-fn wordt geleverd, niet uitgerold.
-- TS-toolchain introduceren.
-
-## Werkverdeling Opus vs Sonnet
-- **Opus (ik, dit gesprek)**: brand-config, guardrail-logica, personalize-architectuur,
-  script-orchestratie + review-loop, tests. (= architectuur/security/gezondheidslogica)
-- **Sonnet (subagent)**: bulk seed-copy in JSON volgens vast schema (= copy), daarna
-  programmatisch door guardrails getoetst.
-
-## Review (afgerond 2026-06-13)
-**Status: alle todo's klaar, 43 nieuwe tests groen.**
-
-Gebouwd:
-- `src/config/brand.js` — SSOT: `BRAND_NAME` (window-override), gefrozen `STORAGE_PREFIX`
-  (`paced.*`-keys niet hernoemd → geen install-breuk), `MODELS.{generate,personalize}`,
-  `CONTENT_PROXY_URL`. Isomorf (Node + browser).
-- `src/lib/content/guardrails.js` — 5 regels, NL+EN regex, gericht op de *schadelijke vorm*
-  (getal+eenheid, vergelijking, diagnose-werkwoord) zodat ondersteunende copy niet false-positivet.
-- `src/lib/content/spec.js` — taxonomie + JSON-schema + validators; React-vrij.
-- `src/lib/content/templates.js` — offline registry + slot-interpolatie ({name}-strip,
-  {brand} altijd uit config, deterministische dag-pick).
-- `src/lib/content/personalize.js` — default = gratis interpolatie; vrije tekst → Haiku via
-  injecteerbare client, guardrail + fallback. Refereert nooit `MODELS.generate`.
-- `scripts/lib/anthropic.mjs`, `scripts/generate-tov.mjs`, `scripts/generate-templates.mjs`
-  (2-gate review-loop, max 2 herstelrondes), `scripts/regen.mjs`.
-- `supabase/functions/personalize/index.ts` — Deno Haiku-proxy (key server-side).
-- Seed: `content/tone-of-voice.md` + 7× `content/templates/*.json` (18 entries elk,
-  9 nl + 9 en), schema- én guardrail-clean.
-- Tests: 43 nieuwe (schema-snapshots, runtime-roept-nooit-Opus, 5 verboden-frame-fallbacks).
-
-Afwijkingen van plan:
-- Taal `.mjs/.js` i.p.v. `.ts` (user-bevestigd; Node 20 + repo-conventie).
-- Seed-content handmatig + Sonnet-subagent i.p.v. live API-generatie (geen key/kosten);
-  scripts zijn wél runnable en getest op graceful-fail zonder key.
-
-Edge cases afgedekt:
-- Lege {name} → nette zin + herkapitalisatie. Lege userText → géén AI-call.
-- Proxy-error/onveilige output → neutrale template-fallback.
-- `BRAND_NAME` niet via caller-data te injecteren (alleen config).
-
-Bekende, buiten-scope observatie:
-- `npx vitest run` pakt ook tests in `.claude/worktrees/...` van een andere sessie mee
-  (85 failures, allemaal dáár, niet van ons). Pre-existing globbing; niet aangeraakt.
-
-## Livegang-wiring (afgerond 2026-06-15)
-Keuzes met user bevestigd:
-- **Journal-AI (Haiku-pad): NIET gewired.** Vrije-tekst dagboeknotities zouden het
-  apparaat verlaten → botst met Paced's "alles lokaal"-belofte. Code blijft gebouwd
-  maar uit (`CONTENT_PROXY_URL` leeg ⇒ fallback naar template). Toekomst: opt-in/consent
-  zoals `paced.partner.consent.v1`. **Gevolg: proxy-deploy + CSP-aanpassing niet nodig
-  voor launch.**
-- **Dagelijks inzicht: bron vervangen** door de template-pipeline.
-
-Wijzigingen:
-- `src/app.jsx`: import `personalize`; `insightText` (Dashboard) komt nu uit
-  `personalize('cycle-phase', {locale, phase, state:{name}, seed:isoDate})`, met
-  fallback naar de legacy `getTips`-pool als de pipeline ooit niets teruggeeft.
-- `src/lib/content/templates.js`: JSON-imports met `with { type: 'json' }`
-  (ECMAScript-standaard, vereist door Node ESM; esbuild + vitest inlinen het).
+Gewijzigd/nieuw:
+- `index.html` `<head>`: keyword+benefit title, sterke description, canonical
+  (paced.nl), robots (max-image-preview:large), application-name/author/publisher,
+  keywords, volledige Open Graph (incl. og:image 1200×630 + locale nl_NL/en_GB),
+  Twitter summary_large_image, JSON-LD @graph (WebSite + Organization Xaven BV +
+  SoftwareApplication HealthApplication, gratis offer). Geen nep-rating/FAQ/medical.
+- `index.html` `<body>`: statische SEO-hero in #root (H1 + value-prop + 4 privacy-
+  features + CTA + MDR-disclaimer) + <noscript>. React vervangt 'm bij mount.
+- `robots.txt`: Sitemap-directive. `sitemap.xml` (nieuw): homepage.
+- `build.mjs`: sitemap.xml → dist.
+- `scripts/generate-og-image.mjs` + `npm run gen:og`: branded 1200×630 PNG
+  (sharp, systeem-fonts, icoon gecomposit). `assets/og-image.png` gegenereerd+gecommit.
+- `manifest.webmanifest`: name "Paced — Cyclus & Welzijn" + aangelijnde description.
 
 Verificatie:
-- `node build.mjs` ✓ (CSP gehardend, JSON gebundeld).
-- Node-ESM directe executie: alle 8 fase×locale-combinaties geven geldige tekst (met/zonder naam).
-- 43 content-tests groen na de import-attribuut-wijziging.
-- Browser-rooktest (dist op :4173): app boot zonder console-errors, onboarding rendert.
+- `node build.mjs` ✓; CSP nog 4 hashes (JSON-LD = data-blok, niet gehasht, valt buiten script-src).
+- dist: canonical/OG/twitter/JSON-LD aanwezig; sitemap.xml + og-image gekopieerd;
+  robots-directive aanwezig. JSON-LD parse-valide (3 types).
+- Preview (gebouwde app): boot zonder console-errors; rauwe HTML toont hero
+  (crawler/no-JS); React vervangt hero → h1Count=1, géén duplicate content;
+  sitemap 200 application/xml, og-image 200 image/png.
 
-Status livegang (gewired scope): **klaar.** Optioneel vóór/na launch:
-- Seed-content vervangen door echte Opus-generatie (`npm run content:tov && content:templates`)
-  zodra ANTHROPIC_API_KEY beschikbaar — huidige seed is handgeschreven maar guardrail-clean.
-- vitest worktree-globbing fix (chip staat klaar) zodat `npm test` schoon is.
+MDR-veilig: geen diagnose/behandeling/anticonceptie-claims; disclaimer in hero.
+
+Vervolg (buiten scope, optioneel):
+- PWA-manifest `screenshots` toevoegen (richer install-UI) — vereist schermafbeeldingen.
+- Echte content-/blog-pagina's voor long-tail organisch verkeer (SPA heeft nu 1 URL).
+- Google Search Console + Bing Webmaster verifiëren na deploy; sitemap indienen.

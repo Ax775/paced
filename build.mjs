@@ -129,6 +129,7 @@ console.log('• Copying static assets');
 copyFileSync('manifest.webmanifest', `${distDir}/manifest.webmanifest`);
 copyFileSync('_headers',             `${distDir}/_headers`);
 copyFileSync('robots.txt',           `${distDir}/robots.txt`);
+copyFileSync('sitemap.xml',          `${distDir}/sitemap.xml`);
 
 // sw.js gets a content-derived cache name so a deploy auto-evicts the old
 // shell cache — no more hand-bumping `paced-shell-v1` on every release. The

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#c9768f" />
-  <meta name="description" content="Persoonlijke gezondheids- en cyclus-tracker voor vrouwen." />
+  <meta name="description" content="Een rustige cyclus- & welzijnstracker zonder account, zonder tracking, zonder reclame. Al je data blijft op je eigen toestel — alleen jij ziet wat je registreert." />
   <!-- `apple-mobile-web-app-capable` is een Safari-only legacy meta — moderne
        browsers gebruiken `mobile-web-app-capable`. Beide gevuld zodat zowel
        iOS Safari als Chrome de PWA in standalone-modus draaien zonder
@@ -14,7 +14,87 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Paced">
   <meta name="format-detection" content="telephone=no">
-  <title>Paced — Vrouwelijke Gezondheid</title>
+  <title>Paced — rustige cyclus- & welzijnstracker, alles op je eigen toestel</title>
+
+  <!-- ── SEO / discoverability ──────────────────────────────────────────
+       Canonical + crawler hints. The app is a single client-rendered SPA
+       (één indexeerbare URL); locale is client-side, dus geen per-taal
+       hreflang-URLs — alleen og:locale + alternate, eerlijk gehouden. -->
+  <link rel="canonical" href="https://paced.nl/" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="application-name" content="Paced" />
+  <meta name="author" content="Xaven BV" />
+  <meta name="publisher" content="Xaven BV" />
+  <meta name="keywords" content="cyclustracker, menstruatie, cyclus app, welzijn, privacy, zonder account, ovulatie, voeding, vrouwen" />
+
+  <!-- Open Graph (social unfurls: WhatsApp, LinkedIn, iMessage, Facebook —
+       deze crawlers draaien GEEN JavaScript, dus dit is de enige content
+       die ze van een gedeelde link zien). -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Paced" />
+  <meta property="og:title" content="Paced — rustige cyclus- & welzijnstracker" />
+  <meta property="og:description" content="Volg je cyclus, voeding en energie zonder account, zonder tracking, zonder reclame. Al je data blijft op je eigen toestel." />
+  <meta property="og:url" content="https://paced.nl/" />
+  <meta property="og:image" content="https://paced.nl/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Paced — rustige cyclus- & welzijnstracker" />
+  <meta property="og:locale" content="nl_NL" />
+  <meta property="og:locale:alternate" content="en_GB" />
+
+  <!-- Twitter / X card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Paced — rustige cyclus- & welzijnstracker" />
+  <meta name="twitter:description" content="Volg je cyclus, voeding en energie zonder account, zonder tracking, zonder reclame. Al je data blijft op je eigen toestel." />
+  <meta name="twitter:image" content="https://paced.nl/assets/og-image.png" />
+  <meta name="twitter:image:alt" content="Paced — rustige cyclus- & welzijnstracker" />
+
+  <!-- Structured data. WebSite + Organization (uitgever) + SoftwareApplication.
+       Bewust GEEN aggregateRating (geen echte reviews → guideline-overtreding),
+       GEEN FAQPage, GEEN medical-schema (MDR: Paced is lifestyle/wellness, geen
+       medisch hulpmiddel). type="application/ld+json" is een data-blok, geen
+       uitvoerbare JS — valt buiten CSP script-src. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://paced.nl/#website",
+        "url": "https://paced.nl/",
+        "name": "Paced",
+        "description": "Een rustige cyclus- & welzijnstracker zonder account, zonder tracking, zonder reclame.",
+        "inLanguage": ["nl-NL", "en-GB"],
+        "publisher": { "@id": "https://paced.nl/#organization" }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://paced.nl/#organization",
+        "name": "Xaven BV",
+        "url": "https://paced.nl/",
+        "logo": "https://paced.nl/assets/icon-512.png",
+        "email": "info@xaven.io"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://paced.nl/#app",
+        "name": "Paced",
+        "applicationCategory": "HealthApplication",
+        "operatingSystem": "iOS, Web (PWA)",
+        "url": "https://paced.nl/",
+        "description": "Paced is een rustige, privacy-first cyclus- en welzijnstracker. Volg je menstruatie, voeding en energie — alles blijft op je eigen toestel, zonder account, tracking of reclame.",
+        "inLanguage": ["nl-NL", "en-GB"],
+        "image": "https://paced.nl/assets/og-image.png",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "EUR"
+        },
+        "publisher": { "@id": "https://paced.nl/#organization" }
+      }
+    ]
+  }
+  </script>
 
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
@@ -465,7 +545,42 @@
   </script>
 </head>
 <body>
-  <div id="root"></div>
+  <!-- #root bevat een statische hero als SEO- + no-JS-fallback: crawlers en
+       link-unfurlers die geen JavaScript draaien lezen echte content i.p.v. een
+       lege div. React vervangt deze inhoud volledig bij mount (createRoot…render
+       leegt #root), dus dit is puur de eerste, betekenisvolle paint. Inline
+       styles → build-proof (onafhankelijk van Tailwind class-scanning). -->
+  <div id="root">
+    <main style="max-width:36rem;margin:0 auto;padding:3rem 1.5rem;font-family:Inter,system-ui,sans-serif;color:#3E3B33;">
+      <h1 style="font-family:Fraunces,Georgia,serif;font-size:2rem;line-height:1.2;margin:0 0 .75rem;color:#2A2823;">
+        Rustige cyclus- &amp; welzijnstracker
+      </h1>
+      <p style="font-size:1.05rem;line-height:1.6;margin:0 0 1.25rem;color:#5F5A4E;">
+        Paced helpt je je menstruatie, voeding en energie rustig te volgen —
+        zonder account, zonder tracking, zonder reclame. Al je gegevens blijven
+        op je eigen toestel; alleen jij ziet wat je registreert.
+      </p>
+      <ul style="list-style:none;padding:0;margin:0 0 1.5rem;line-height:1.9;color:#5F5A4E;">
+        <li>✓ Alles lokaal op je toestel — geen cloud, geen analytics</li>
+        <li>✓ Cyclus, voeding, slaap, beweging, stemming en notities</li>
+        <li>✓ Cyclus-bewuste inzichten per fase — patronen, geen voorspellingen</li>
+        <li>✓ Gratis, geen reclame, volledige export naar CSV of Apple Health</li>
+      </ul>
+      <a href="https://paced.nl/" style="display:inline-block;background:#B06849;color:#fff;text-decoration:none;font-weight:600;padding:.8rem 1.6rem;border-radius:1.25rem;">
+        Begin gratis
+      </a>
+      <p style="font-size:.8rem;line-height:1.5;margin:1.75rem 0 0;color:#8B8578;">
+        Paced is een tracking- en bewustwordingsapp, geen medisch hulpmiddel en
+        geen vervanging voor medisch advies. Uitgegeven door Xaven BV, Nederland.
+      </p>
+    </main>
+  </div>
+  <noscript>
+    <p style="text-align:center;padding:1rem;font-family:system-ui,sans-serif;color:#5F5A4E;">
+      Paced werkt het best met JavaScript ingeschakeld. Alle functies draaien
+      lokaal in je browser — er worden geen gegevens naar een server gestuurd.
+    </p>
+  </noscript>
 
   <!-- React app. Babel standalone transforms JSX in-browser and walks
        the import graph to pull in ./src/lib/*.js as real ES modules. -->
