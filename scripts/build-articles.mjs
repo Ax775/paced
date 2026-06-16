@@ -122,7 +122,10 @@ function ctaBlock(locale) {
 
 function renderArticle(meta, body, locale, alternates = []) {
   const base = LOCALE_BASE[locale];
-  const canonical = `${SITE}/${base}/${meta.slug}`;
+  // Trailing slash: Cloudflare Pages serves the directory index at /slug/ (200)
+  // and 308-redirects /slug → /slug/. Canonical/og/JSON-LD must point at the
+  // final, non-redirecting URL, so we keep the slash everywhere.
+  const canonical = `${SITE}/${base}/${meta.slug}/`;
   const html = marked.parse(body);
   // Split after the first </h2> so the CTA sits mid-article, else append.
   const splitAt = html.indexOf('</h2>');
@@ -234,7 +237,7 @@ export function buildArticles(distDir = 'dist') {
       if (!meta.slug) throw new Error(`${file}: frontmatter needs a slug`);
       items.push({ locale, base, meta, body });
       if (meta.translationKey) {
-        (byKey[meta.translationKey] ||= []).push({ locale, href: `${SITE}/${base}/${meta.slug}` });
+        (byKey[meta.translationKey] ||= []).push({ locale, href: `${SITE}/${base}/${meta.slug}/` });
       }
     }
   }
@@ -255,7 +258,7 @@ export function buildArticles(distDir = 'dist') {
     mkdirSync(`${distDir}/${base}/${meta.slug}`, { recursive: true });
     writeFileSync(`${distDir}/${base}/${meta.slug}/index.html`, renderArticle(meta, body, locale, alternates));
     urls.push({
-      loc: `${SITE}/${base}/${meta.slug}`,
+      loc: `${SITE}/${base}/${meta.slug}/`,
       lastmod: meta.updated || meta.published,
       changefreq: 'monthly',
       priority: '0.7',

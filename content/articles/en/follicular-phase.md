@@ -41,8 +41,8 @@ grains and fermented foods like sauerkraut. It is about care, not rules or numbe
 ## How this fits your cycle
 
 The follicular phase is one of four. Want the whole picture? Read the
-[explainer on the four cycle phases](/articles/menstrual-cycle-phases), or move on to
-[ovulation](/articles/ovulation), which follows this phase.
+[explainer on the four cycle phases](/articles/menstrual-cycle-phases/), or move on to
+[ovulation](/articles/ovulation/), which follows this phase.
 
 In [Paced](/) you track your energy, movement and nutrition by phase — calmly,
 without an account and fully on your own device.

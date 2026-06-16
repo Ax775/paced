@@ -42,9 +42,9 @@ lichaam doet meer werk.
 
 ## Verder lezen
 
-De luteale fase volgt op de [eisprong](/artikelen/eisprong-ovulatie) en gaat over in
+De luteale fase volgt op de [eisprong](/artikelen/eisprong-ovulatie/) en gaat over in
 je menstruatie, het begin van een nieuwe cyclus. Voor het hele overzicht: lees de
-[vier cyclusfases](/artikelen/menstruatiecyclus-fases).
+[vier cyclusfases](/artikelen/menstruatiecyclus-fases/).
 
 In [Paced](/) volg je je stemming, slaap en energie door de luteale fase heen —
 rustig, zonder account, alles op je eigen toestel.

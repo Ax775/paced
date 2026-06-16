@@ -41,9 +41,9 @@ Eating more in this phase is okay and even logical — your body is doing more w
 
 ## Read on
 
-The luteal phase follows [ovulation](/articles/ovulation) and flows into your period,
+The luteal phase follows [ovulation](/articles/ovulation/) and flows into your period,
 the start of a new cycle. For the full overview, read the
-[four cycle phases](/articles/menstrual-cycle-phases).
+[four cycle phases](/articles/menstrual-cycle-phases/).
 
 In [Paced](/) you track your mood, sleep and energy through the luteal phase — calmly,
 without an account, all on your own device.
