@@ -3,6 +3,7 @@ title: Cyclus tracker zonder account — waarom Paced je data lokaal houdt
 description: Een cyclus tracker zonder account, zonder inloggen en zonder dataverkoop. Lees hoe Paced al je gegevens lokaal op je eigen toestel bewaart.
 slug: cyclus-tracker-zonder-account
 locale: nl
+translationKey: cycle-tracker-no-account
 cluster: Privacy & cyclus-apps
 keywords: cyclus tracker zonder account, menstruatie app privacy, period tracker zonder inloggen, cyclus app data lokaal
 published: 2026-06-16

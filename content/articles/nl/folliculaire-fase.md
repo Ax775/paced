@@ -3,6 +3,7 @@ title: De folliculaire fase — opbouw, energie en frisse zin
 description: Wat is de folliculaire fase en hoe voelt die? Een rustige uitleg over de opbouwfase na je menstruatie, energie, beweging en voeding.
 slug: folliculaire-fase
 locale: nl
+translationKey: follicular-phase
 cluster: De 4 cyclusfases
 keywords: folliculaire fase, folliculaire fase wat is dat, folliculaire fase energie, folliculaire fase voeding
 published: 2026-06-16

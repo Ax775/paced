@@ -3,6 +3,7 @@ title: De 4 fases van je menstruatiecyclus — een rustige uitleg
 description: Wat zijn de menstruatie-, folliculaire, ovulatie- en luteale fase? Een warme, begrijpelijke uitleg van de vier cyclusfases en hoe ze kunnen voelen.
 slug: menstruatiecyclus-fases
 locale: nl
+translationKey: cycle-phases
 cluster: De 4 cyclusfases
 keywords: menstruatiecyclus fases, cyclusfases uitleg, fases menstruatiecyclus, cyclus fasen
 published: 2026-06-16

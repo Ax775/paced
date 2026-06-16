@@ -3,6 +3,7 @@ title: De menstruatiefase — rust, warmte en luisteren naar je lichaam
 description: Wat gebeurt er tijdens je menstruatie en hoe ga je er zacht mee om? Een rustige uitleg over de menstruatiefase, energie, rust en voeding.
 slug: menstruatiefase
 locale: nl
+translationKey: menstrual-phase
 cluster: De 4 cyclusfases
 keywords: menstruatiefase, menstruatie energie, rust tijdens menstruatie, voeding tijdens menstruatie
 published: 2026-06-16

@@ -3,6 +3,7 @@ title: De luteale fase — naar binnen keren en zacht zijn voor jezelf
 description: Wat is de luteale fase en waarom voel je je dan anders? Een rustige uitleg over de fase voor je menstruatie, energie, slaap en stemming.
 slug: luteale-fase
 locale: nl
+translationKey: luteal-phase
 cluster: De 4 cyclusfases
 keywords: luteale fase, luteale fase symptomen, luteale fase moe, luteale fase stemming, fase voor menstruatie
 published: 2026-06-16

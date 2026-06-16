@@ -47,8 +47,9 @@ function parseFrontmatter(raw) {
 }
 
 /** Shared <head> + chrome for every article/hub page. */
-function pageShell({ locale, title, description, canonical, jsonLd, bodyHtml }) {
+function pageShell({ locale, title, description, canonical, jsonLd, bodyHtml, alternates = [] }) {
   const ld = jsonLd ? `\n  <script type="application/ld+json">\n${JSON.stringify(jsonLd, null, 2)}\n  </script>` : '';
+  const alt = alternates.map((a) => `\n  <link rel="alternate" hreflang="${a.hreflang}" href="${a.href}" />`).join('');
   return `<!DOCTYPE html>
 <html lang="${locale}">
 <head>
@@ -57,7 +58,7 @@ function pageShell({ locale, title, description, canonical, jsonLd, bodyHtml }) 
   <meta name="theme-color" content="#c9768f" />
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}" />
-  <link rel="canonical" href="${canonical}" />
+  <link rel="canonical" href="${canonical}" />${alt}
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <meta name="author" content="${PUBLISHER}" />
   <meta property="og:type" content="article" />
@@ -119,7 +120,7 @@ function ctaBlock(locale) {
   </div>`;
 }
 
-function renderArticle(meta, body, locale) {
+function renderArticle(meta, body, locale, alternates = []) {
   const base = LOCALE_BASE[locale];
   const canonical = `${SITE}/${base}/${meta.slug}`;
   const html = marked.parse(body);
@@ -168,6 +169,7 @@ function renderArticle(meta, body, locale) {
     description: meta.description,
     canonical,
     jsonLd,
+    alternates,
     bodyHtml: `${crumbs}\n  <article>\n${withCta}\n  </article>`,
   });
 }
@@ -219,32 +221,53 @@ function writeSitemap(distDir, urls) {
 
 export function buildArticles(distDir = 'dist') {
   const urls = [{ loc: `${SITE}/`, lastmod: '2026-06-16', changefreq: 'monthly', priority: '1.0' }];
-  let count = 0;
 
+  // ── Pass 1: read every article (all locales) and index by translationKey ──
+  const items = []; // { locale, base, meta, body }
+  const byKey = {}; // translationKey → [{ locale, href }]
   for (const locale of Object.keys(LOCALE_BASE)) {
     const dir = `${SRC_DIR}/${locale}`;
     if (!existsSync(dir)) continue;
-    const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
-    if (files.length === 0) continue;
-
     const base = LOCALE_BASE[locale];
-    const articles = [];
-    for (const file of files) {
+    for (const file of readdirSync(dir).filter((f) => f.endsWith('.md'))) {
       const { meta, body } = parseFrontmatter(readFileSync(`${dir}/${file}`, 'utf8'));
       if (!meta.slug) throw new Error(`${file}: frontmatter needs a slug`);
-      mkdirSync(`${distDir}/${base}/${meta.slug}`, { recursive: true });
-      writeFileSync(`${distDir}/${base}/${meta.slug}/index.html`, renderArticle(meta, body, locale));
-      articles.push(meta);
-      urls.push({
-        loc: `${SITE}/${base}/${meta.slug}`,
-        lastmod: meta.updated || meta.published,
-        changefreq: 'monthly',
-        priority: '0.7',
-      });
-      count++;
+      items.push({ locale, base, meta, body });
+      if (meta.translationKey) {
+        (byKey[meta.translationKey] ||= []).push({ locale, href: `${SITE}/${base}/${meta.slug}` });
+      }
     }
+  }
 
-    // hub
+  // ── Pass 2: render each article with hreflang alternates for its key-mates ──
+  let count = 0;
+  for (const { locale, base, meta, body } of items) {
+    const peers = meta.translationKey ? byKey[meta.translationKey] : null;
+    const alternates =
+      peers && peers.length > 1
+        ? [
+            ...peers.map((p) => ({ hreflang: p.locale, href: p.href })),
+            // x-default points at the NL version (primary market), else self.
+            { hreflang: 'x-default', href: (peers.find((p) => p.locale === 'nl') || peers[0]).href },
+          ]
+        : [];
+
+    mkdirSync(`${distDir}/${base}/${meta.slug}`, { recursive: true });
+    writeFileSync(`${distDir}/${base}/${meta.slug}/index.html`, renderArticle(meta, body, locale, alternates));
+    urls.push({
+      loc: `${SITE}/${base}/${meta.slug}`,
+      lastmod: meta.updated || meta.published,
+      changefreq: 'monthly',
+      priority: '0.7',
+    });
+    count++;
+  }
+
+  // ── Hubs (one per locale that has articles) ──
+  for (const locale of Object.keys(LOCALE_BASE)) {
+    const base = LOCALE_BASE[locale];
+    const articles = items.filter((i) => i.locale === locale).map((i) => i.meta);
+    if (articles.length === 0) continue;
     mkdirSync(`${distDir}/${base}`, { recursive: true });
     writeFileSync(`${distDir}/${base}/index.html`, renderHub(locale, articles));
     urls.push({ loc: `${SITE}/${base}/`, lastmod: '2026-06-16', changefreq: 'weekly', priority: '0.8' });

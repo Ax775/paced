@@ -3,6 +3,7 @@ title: De eisprong (ovulatie) — je energiepiek in de cyclus
 description: Wat gebeurt er tijdens de eisprong en hoe voelt de ovulatiefase? Een rustige uitleg over je energiepiek en het vruchtbare venster.
 slug: eisprong-ovulatie
 locale: nl
+translationKey: ovulation
 cluster: De 4 cyclusfases
 keywords: eisprong, ovulatie, ovulatiefase, vruchtbaar venster, wat gebeurt er tijdens de eisprong
 published: 2026-06-16
