@@ -37,7 +37,7 @@ Je hoeft geen vast schema te volgen of door te zetten als het niet meer prettig 
 
 ## Rustig je beweging en cyclus volgen
 
-Door in de gaten te houden hoe je je voelt en beweegt door je cyclus heen, ga je patronen herkennen die uniek zijn voor jou. Zo leer je steeds beter aanvoelen wat op welk moment fijn is, zonder druk en zonder vergelijking. Wil je meer weten over deze fase? Lees over de [menstruatiefase](/artikelen/menstruatiefase/), of bekijk het overzicht van de [vier cyclusfases](/artikelen/menstruatiecyclus-fases/).
+Door in de gaten te houden hoe je je voelt en beweegt door je cyclus heen, ga je patronen herkennen die uniek zijn voor jou. Zo leer je steeds beter aanvoelen wat op welk moment fijn is, zonder druk en zonder vergelijking. Zie ook het overzicht [bewegen afgestemd op je cyclus](/artikelen/bewegen-per-cyclusfase/), lees over de [menstruatiefase](/artikelen/menstruatiefase/), of bekijk de [vier cyclusfases](/artikelen/menstruatiecyclus-fases/).
 
 *Dit artikel is bedoeld als algemene informatie en niet als medisch advies. Het vervangt geen medisch hulpmiddel. Heb je zorgen of aanhoudende klachten, raadpleeg dan een arts of zorgverlener.*
 
