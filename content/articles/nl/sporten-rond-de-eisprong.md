@@ -3,6 +3,7 @@ title: Sporten rond de eisprong: bewegen met je energie mee
 description: Rond de eisprong voel je vaak meer energie. Ontdek hoe je in deze fase op een fijne manier kunt bewegen — zonder druk, op jouw tempo.
 slug: sporten-rond-de-eisprong
 locale: nl
+translationKey: movement-ovulation
 cluster: Beweging per fase
 keywords: sporten rond de eisprong, beweging ovulatie, bewegen per cyclusfase, energie eisprong
 published: 2026-06-24

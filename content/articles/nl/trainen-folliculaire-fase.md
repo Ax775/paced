@@ -3,6 +3,7 @@ title: Trainen in de folliculaire fase: zo voelt het
 description: Ontdek hoe beweging in je folliculaire fase mag aanvoelen — met meer ruimte voor energie, plezier en luisteren naar je lichaam.
 slug: trainen-folliculaire-fase
 locale: nl
+translationKey: movement-follicular
 cluster: Beweging per fase
 keywords: folliculaire fase, trainen, beweging, cyclus, energie
 published: 2026-06-24

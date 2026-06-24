@@ -3,6 +3,7 @@ title: Bewegen in de luteale fase: zacht in beweging blijven
 description: Ontdek hoe bewegen in de luteale fase mag aanvoelen — rustiger, zachter en helemaal afgestemd op wat jouw lichaam vandaag vraagt.
 slug: bewegen-luteale-fase
 locale: nl
+translationKey: movement-luteal
 cluster: Beweging per fase
 keywords: bewegen luteale fase, beweging per cyclusfase, luteale fase energie, zacht bewegen, lichaam luisteren
 published: 2026-06-24
