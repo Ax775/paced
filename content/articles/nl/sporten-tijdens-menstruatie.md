@@ -3,6 +3,7 @@ title: Sporten tijdens je menstruatie: zo luister je naar je lijf
 description: Mag je sporten tijdens je menstruatie? Ontdek rustig wat bij deze fase past, van zacht bewegen tot meer energie, en hoe je naar je lichaam luistert.
 slug: sporten-tijdens-menstruatie
 locale: nl
+translationKey: movement-menstrual
 cluster: Beweging per fase
 keywords: sporten tijdens menstruatie, bewegen menstruatiefase, beweging per fase, luisteren naar je lichaam, zachte beweging
 published: 2026-06-24

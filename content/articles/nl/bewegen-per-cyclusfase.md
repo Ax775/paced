@@ -3,6 +3,7 @@ title: Bewegen afgestemd op je cyclus: zo voelt het lichter
 description: Ontdek hoe je beweging zachtjes kunt afstemmen op je cyclusfase — met ruimte voor plezier, rust en luisteren naar je lichaam.
 slug: bewegen-per-cyclusfase
 locale: nl
+translationKey: movement-cycle
 cluster: Beweging per fase
 keywords: bewegen afgestemd op je cyclus, beweging per fase, cyclus en sport, luisteren naar je lichaam, energie per fase
 published: 2026-06-24
