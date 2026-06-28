@@ -104,3 +104,67 @@ spreiding over een paar weken oogt natuurlijker voor Google.
 > [AllAboutCookies](https://allaboutcookies.org/safe-period-tracking-apps) ·
 > [NordVPN](https://nordvpn.com/blog/period-tracker-apps-privacy/) ·
 > [Consumer Reports](https://www.consumerreports.org/health/health-privacy/period-tracker-apps-privacy-a2278134145/)
+
+---
+
+## 6. Pitch-mail voor privacy-listicles
+
+Stuur dit naar de **auteur** van het artikel (zoek de byline + contact; personaliseer de
+`[…]`). Kort houden, niets bijvoegen, één keer opvolgen na ~1 week.
+
+**Onderwerp:** Privacy-first period tracker (no account, all on-device) — for your data-privacy guide
+
+> Hi [Naam],
+>
+> I read your guide on private period-tracking apps — genuinely useful, especially the point
+> about [specifiek detail uit hun artikel]. I wanted to flag **Paced** (https://paced.nl) as a
+> candidate for inclusion, because its model is a bit different from the usual:
+>
+> - No account, no cloud, no analytics, no ads — everything is stored **locally on the user's
+>   own device**.
+> - Because the data never leaves the device, there's nothing to leak, sell, or hand over.
+> - Full export (CSV / Apple Health) and one-tap wipe; no hidden backups.
+> - Free; works in the browser (PWA), iOS app coming. It's a wellness/awareness tool, not a
+>   medical device.
+>
+> Built by Xaven BV (Netherlands). Happy to answer questions or share more detail — and either
+> way, thanks for covering this topic. It matters.
+>
+> Best,
+> [Jouw naam]
+
+**Tips:** personaliseer de eerste zin écht (laat zien dat je het stuk las); claim niets
+medisch; bied aan om vragen te beantwoorden i.p.v. iets te eisen.
+
+---
+
+## 7. awesome-privacy Pull Request
+
+> ⚠️ **Check eerst de inclusiecriteria.** Veel privacy-lijsten (incl. awesome-privacy) geven
+> voorrang aan **open-source**. Paced is momenteel **proprietary** → de PR kan worden afgewezen.
+> Lees de CONTRIBUTING/criteria van de repo. Vereisen ze FOSS, sla deze dan over en focus op
+> plekken die closed-source-maar-privacyvriendelijke apps wél accepteren (AlternativeTo, de
+> privacy-listicles, Product Hunt).
+
+**Entry** (pas het format aan op de bestaande regels in de juiste sectie van de lijst):
+> - [Paced](https://paced.nl) - Calm period & cycle tracker that stores all data **locally on
+>   your device**. No account, no cloud, no analytics, no ads. Export to CSV/Apple Health,
+>   one-tap wipe. Free, works offline (PWA).
+
+**PR-titel:** Add Paced (local-first period & cycle tracker) to Health / Period Tracking
+
+**PR-omschrijving:**
+> Adds **Paced** (https://paced.nl), a privacy-first menstrual-cycle tracker.
+>
+> Why it fits this list:
+> - All data is stored locally on the user's device — no account, no cloud, no analytics, no
+>   tracking, no ads.
+> - Nothing leaves the device, so there's nothing to sell or hand over to third parties.
+> - Full data export (CSV / Apple Health) and one-tap wipe; no hidden backups.
+> - Free; PWA (works offline), iOS app in progress.
+>
+> Note: it is currently closed-source (proprietary). Flagging that openly in case the list
+> requires FOSS — feel free to advise.
+
+Eerlijk over de closed-source-status zijn werkt beter dan het verzwijgen; maintainers
+waarderen transparantie en je voorkomt een nee achteraf.
