@@ -44,6 +44,14 @@ export const MODELS = Object.freeze({
 });
 
 /**
+ * Publieke App Store-URL. Locale-neutraal: Apple stuurt de bezoeker zelf naar
+ * de juiste landstore, dus geen /nl/ of /us/ in het pad hardcoden.
+ * Gebruikt door de SSG (artikel-CTA, supportpagina); de statische hero in
+ * index.html heeft z'n eigen kopie omdat plain HTML niets kan importeren.
+ */
+export const APP_STORE_URL = 'https://apps.apple.com/app/id6804403415';
+
+/**
  * True wanneer de app in de native Capacitor-iOS-shell draait (App Store).
  *
  * App Store guideline 3.1.1: digitale abonnementen mogen in een iOS-app

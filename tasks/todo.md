@@ -87,3 +87,19 @@ de fix (historische log-buffer).
 Bewust gelaten (geen launch-blocker): GEWICHT KG-label-wrap op mobiel
 (kosmetisch); server-side rate-limit personalize-proxy (pas nodig bij deploy,
 staat in DEPLOY-GATE + taak-chip); brute-force-throttling invite-RPC (serverwerk).
+
+## App Store-link door de funnel (2026-09-13)
+App is live: https://apps.apple.com/app/id6804403415 (locale-neutraal, Apple
+routeert naar de juiste store). Doel: site, artikelen en launch-copy verwijzen
+ernaar zodat de funnel sluit.
+
+- [x] `src/config/brand.js`: APP_STORE_URL als single source of truth
+- [x] `index.html`: statische hero — secundaire CTA naast "Begin gratis"
+- [x] `scripts/build-articles.mjs`: artikel-CTA (32 artikelen) + supportpagina
+- [x] `docs/launch-copy.md`: PH / Reddit EN+NL / social / pitch-mail — alle
+      "iOS-app komt eraan"-verwijzingen vervangen door de live link
+- [x] Verificatie: build groen, 266 tests, link in hero/support/NL+EN-artikel,
+      geen overflow op 375px, CTA visueel gecheckt
+
+Niet-doelen: geen download-banner in de PWA zelf (opdringerig, en de PWA is
+juist het punt). Geen smart-app-banner meta — die kaapt de webervaring.
