@@ -514,6 +514,21 @@
     /* ── Toast: give it more contrast against the dark page background ── */
     [data-theme="dark"] .bg-ink-700 { background-color: #3D3A36 !important; }
 
+    /* ── Tip van de dag ──
+       De warme gradient stond als inline `style` op het element en
+       ontsnapte daarmee aan álle [data-theme="dark"]-overrides: de
+       achtergrond bleef crème terwijl .text-ink-700 wit werd, dus in
+       donkere modus was de tip onleesbaar. Als class kan dark 'm wél
+       meenemen. */
+    .tip-card {
+      background: linear-gradient(135deg, #FFF6E5 0%, #F8E9D2 100%);
+      border-color: #E2C9A2;
+    }
+    [data-theme="dark"] .tip-card {
+      background: linear-gradient(135deg, #322A22 0%, #3E3227 100%) !important;
+      border-color: #5A4634 !important;
+    }
+
     /* ── Remaining hover/misc gaps ── */
     [data-theme="dark"] .hover\:bg-cream-100:hover  { background-color: #2E2B28 !important; }
     [data-theme="dark"] .hover\:bg-sage-200:hover   { background-color: #3D5238 !important; }
@@ -533,7 +548,10 @@
         var pref = null;
         try { pref = localStorage.getItem('paced.theme'); } catch (_) {}
         var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var dark    = pref === 'dark' || (pref !== 'light' && sysDark);
+        /* Standaard licht: alleen een expliciete keuze voor 'dark' of
+           'auto' (volg systeem) kan de app donker zetten. Zonder
+           voorkeur blijft Paced licht, ook op een donker toestel. */
+        var dark    = pref === 'dark' || (pref === 'auto' && sysDark);
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
       }
       applyTheme();

@@ -56,3 +56,34 @@
 - **SW-shell-cache + statische pagina's bijten elkaar.** Een navigate-handler
   die élke navigatie als "de shell" cachet, vergiftigt de PWA zodra je statische
   artikel-URL's toevoegt. Cache-keys expliciet aan paden binden.
+
+## Gebruikersfeedback ronde 1 (2026-09-13)
+
+- **Inline `style` ontsnapt aan een class-based dark mode.** De hele
+  donkere modus hangt aan `[data-theme="dark"] .bg-…`-overrides. "Tip van
+  de dag" zette zijn achtergrond inline, dus die bleef crème terwijl
+  `.text-ink-700` wit werd → onleesbaar. Regel: een achtergrond die met
+  het thema mee moet, is een class. Nooit inline.
+- **Placeholders die nergens gevuld worden, zie je alleen in de UI.**
+  `{namePart}` (5 tip-teksten) en `{shown}` (temperatuurgrafiek) stonden
+  letterlijk op het scherm: de copy verwachtte een andere sleutel dan de
+  aanroep meegaf. Tests dekken dit niet. Scan na elke copy-wijziging de
+  gerenderde `innerText` op `/\{[a-zA-Z]+\}/` — kost één regel JS.
+- **Kleuren met dezelfde brand-familie zijn niet automatisch
+  onderscheidbaar.** `PHASE_META.hue` is 2× terracotta + 2× sage: prima
+  als accent naast elkaar, onleesbaar als 42 vlakjes in een raster. Een
+  kalender vraagt hoek-afstand op de kleurencirkel, niet merk-eenheid.
+- **Een vraag en zijn antwoordopties horen samen gereviewd te worden.**
+  "Hoe voelde jouw beweging?" met Rust/Licht/Matig/Intensief eronder:
+  beide kanten waren los prima, samen onzin. Idem "Zwangerschap" als
+  kopje boven drie stellingen.
+- **Opt-in is de default voor alles wat dagelijkse discipline vraagt.**
+  Basaaltemperatuur en eisprong stonden aan voor iedereen; wie niet meet,
+  ziet elke dag een lege kaart die zegt dat ze iets niet doen.
+- **`scrollIntoView({behavior:'smooth'})` doet niets in een niet-renderend
+  paneel.** Geen animatieframes = geen scroll. Bij verificatie in een
+  verborgen browserpaneel: eerst `behavior:'auto'` proberen voordat je
+  concludeert dat de feature stuk is.
+- **Screenshots van een verborgen paneel zijn leeg, niet fout.** DOM-
+  inspectie (`getComputedStyle`, `innerText`, `aria-label`) is dan het
+  betrouwbare alternatief — en voor contrast zelfs beter dan kijken.
