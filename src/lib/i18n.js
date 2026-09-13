@@ -238,13 +238,13 @@ const PHASE_WORK_I18N = {
 
 const SPORT_INTENSITIES_I18N = {
   nl: [
-    { id: 'rest',     label: 'Rust',      hint: 'Vandaag rusten, ook beweging' },
+    { id: 'rest',     label: 'Rust',      hint: 'Geen training — herstel telt ook' },
     { id: 'light',    label: 'Licht',     hint: 'Wandelen, yoga, stretchen' },
     { id: 'moderate', label: 'Matig',     hint: 'Cardio, pilates, krachtoefeningen' },
     { id: 'intense',  label: 'Intensief', hint: 'HIIT, hardlopen, zware kracht' },
   ],
   en: [
-    { id: 'rest',     label: 'Rest',     hint: 'Resting today, also movement' },
+    { id: 'rest',     label: 'Rest',     hint: 'No training — recovery counts too' },
     { id: 'light',    label: 'Light',    hint: 'Walking, yoga, stretching' },
     { id: 'moderate', label: 'Moderate', hint: 'Cardio, pilates, strength work' },
     { id: 'intense',  label: 'Intense',  hint: 'HIIT, running, heavy strength' },
@@ -733,7 +733,10 @@ const STRINGS = {
     'nav.aria':     'Hoofdnavigatie',
 
     /* dashboard header */
-    'dash.greeting': 'Hoi {name} 👋',
+    'dash.greeting': 'Hi {name} 👋',
+    'dash.cardsHint':     'Niet alles bijhouden? Elk onderdeel hierboven kun je uitzetten.',
+    'dash.cardsHint.cta': 'Kies wat je ziet',
+    'card.optOut': 'Wil je dit niet bijhouden? Zet deze kaart uit via Instellingen → Dashboard-kaarten.',
     'dash.streak.aria': 'Reeks',
     'dash.openSettings': 'Instellingen openen',
     'dash.summary.aria': 'Voortgang vandaag',
@@ -829,7 +832,7 @@ const STRINGS = {
     'tracker.water':       'Water',
     'tracker.water.glass': '{n} / {target} glazen',
     'tracker.water.hint':  'Elk glas ≈ 250 ml · tik om te vullen, tik het laatste gevulde glas om te wissen.',
-    'tracker.sleep':       'Slaap gisteravond',
+    'tracker.sleep':       'Slaap vannacht',
     'tracker.sleep.hint':  'Goede slaap ondersteunt hormonale balans en herstel.',
     'tracker.move':        'Beweging vandaag',
     'tracker.add.aria':    'Voeg {inc} {unit} toe',
@@ -841,6 +844,7 @@ const STRINGS = {
     'tracker.sleep.aria':  '{n} uur slaap',
     'tracker.move.aria':   '{n} minuten bewegen',
     'tracker.move.clearAria': 'Wis bewegingstijd',
+    'tracker.move.plusAria': 'Tel {n} minuten bij de bewegingstijd op',
     'tracker.move.hint.menstrual':  'Een rustige wandeling of stretching is genoeg.',
     'tracker.move.hint.follicular': 'Goed moment om de intensiteit op te bouwen.',
     'tracker.move.hint.ovulatory':  'Piekenergie — ga ervoor!',
@@ -887,7 +891,7 @@ const STRINGS = {
     'sport.logged':    'Gelogd',
     'sport.adviceFor': 'Advies voor {phase}',
     'sport.ideas':     'Ideeën',
-    'sport.feltHow':   'Hoe voelde jouw beweging?',
+    'sport.feltHow':   'Hoe intensief was je beweging?',
 
     /* self-care */
     'selfcare.title': 'Zachte rituelen',
@@ -901,6 +905,9 @@ const STRINGS = {
     'gut.title': 'Darmgezondheid',
     'gut.info':  'Darmgezondheid heeft directe invloed op hormoonniveaus. Probiotica (levende bacteriën in yoghurt en kefir) ondersteunen je darmmicrobioom. Vezels (groenten, peulvruchten) houden de darmbeweging op gang. Gefermenteerde voeding voegt extra melkzuurbacteriën toe.',
     'gut.count': '{n} of 3',
+    'gut.why':   'Een kalme darm helpt je lichaam hormonen af te voeren en houdt je energie stabieler. Vink af wat je vandaag at — je ziet het terug in je logboek.',
+    'gut.progress': '{n} van {total} afgevinkt — elk vinkje telt, ook één.',
+    'gut.complete': 'Alle drie vandaag. Je darmen krijgen precies waar ze om vragen.',
     'gut.probiotics.label':  'Probiotica',
     'gut.probiotics.hint':   'Yoghurt, kefir, miso…',
     'gut.fiber.label':       'Vezelrijke maaltijd',
@@ -951,6 +958,7 @@ const STRINGS = {
 
     /* phase recipes */
     'recipes.titleFor':    'Recepten voor jouw fase · {phase}',
+    'recipes.focusIntro':  'Deze recepten zijn gekozen op de voeding die je nu goed doet: {focus}. Elk recept leunt op die voedingsstoffen.',
     'recipes.ingredients': 'Ingrediënten',
     'recipes.steps':       'Bereiding',
     'breakfast.title':     'Snelle ontbijtideeën',
@@ -968,7 +976,7 @@ const STRINGS = {
     'reminder.dismiss':  'Herinnering sluiten',
 
     /* onboarding */
-    'onb.intro.title':       'Hoi, ik ben Paced.',
+    'onb.intro.title':       'Hi, ik ben Paced.',
     'onb.intro.subtitle':    'Jouw rustige gids voor cyclus-bewuste voeding, energie en welzijn.',
     'onb.intro.nameLabel':   'Hoe heet je?',
     'onb.intro.namePh':      'Jouw naam (optioneel)',
@@ -1155,6 +1163,7 @@ const STRINGS = {
     'log.row.prot':       'Eiwit',
     'log.row.water':      'Water',
     'log.row.ovulation':  'Eisprong',
+    'log.row.gut':        'Darm {n}/3',
     'log.row.empty':      'Nog niets gelogd vandaag.',
     'log.row.startCta':   'Begin met loggen',
     'log.row.empty.past': 'Niets gelogd',
@@ -1276,6 +1285,9 @@ const STRINGS = {
     'nav.aria':     'Main navigation',
 
     'dash.greeting': 'Hi {name} 👋',
+    'dash.cardsHint':     'Not tracking everything? You can switch off any section above.',
+    'dash.cardsHint.cta': 'Choose what you see',
+    'card.optOut': "Rather not track this? Switch this card off under Settings → Dashboard cards.",
     'dash.streak.aria': 'Streak',
     'dash.openSettings': 'Open settings',
     'dash.summary.aria': 'Progress today',
@@ -1375,6 +1387,7 @@ const STRINGS = {
     'tracker.sleep.aria':  '{n} hours of sleep',
     'tracker.move.aria':   '{n} minutes of movement',
     'tracker.move.clearAria': 'Clear movement time',
+    'tracker.move.plusAria': 'Add {n} minutes to movement time',
     'tracker.move.hint.menstrual':  'A gentle walk or stretching is enough.',
     'tracker.move.hint.follicular': 'A good moment to build up intensity.',
     'tracker.move.hint.ovulatory':  'Peak energy — go for it!',
@@ -1415,7 +1428,7 @@ const STRINGS = {
     'sport.logged':    'Logged',
     'sport.adviceFor': 'Advice for {phase}',
     'sport.ideas':     'Ideas',
-    'sport.feltHow':   'How did your movement feel?',
+    'sport.feltHow':   'How intense was your movement?',
 
     'selfcare.title': 'Gentle rituals',
     'selfcare.intro': 'Five categories to choose from — no obligation, just ideas.',
@@ -1426,6 +1439,9 @@ const STRINGS = {
     'gut.title': 'Gut health',
     'gut.info':  'Gut health directly influences hormone levels. Probiotics (live bacteria in yoghurt and kefir) support your gut microbiome. Fibre (vegetables, legumes) keeps digestion moving. Fermented foods add extra lactic acid bacteria.',
     'gut.count': '{n} of 3',
+    'gut.why':   'A calm gut helps your body clear hormones and keeps your energy steadier. Tick what you had today — you will see it back in your logbook.',
+    'gut.progress': '{n} of {total} so far — every tick counts, even one.',
+    'gut.complete': 'All three today. Your gut is getting exactly what it asks for.',
     'gut.probiotics.label':  'Probiotics',
     'gut.probiotics.hint':   'Yoghurt, kefir, miso…',
     'gut.fiber.label':       'Fibre-rich meal',
@@ -1471,6 +1487,7 @@ const STRINGS = {
     'focus.openVoeding': 'View recipes in Food',
 
     'recipes.titleFor':    'Recipes for your phase · {phase}',
+    'recipes.focusIntro':  'These recipes are picked for what serves you now: {focus}. Each one leans on those nutrients.',
     'recipes.ingredients': 'Ingredients',
     'recipes.steps':       'Method',
     'breakfast.title':     'Quick breakfast ideas',
@@ -1668,6 +1685,7 @@ const STRINGS = {
     'log.row.prot':       'Protein',
     'log.row.water':      'Water',
     'log.row.ovulation':  'Ovulation',
+    'log.row.gut':        'Gut {n}/3',
     'log.row.empty':      'Nothing logged today yet.',
     'log.row.startCta':   'Start logging',
     'log.row.empty.past': 'Nothing logged',

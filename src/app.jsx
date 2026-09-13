@@ -22,7 +22,7 @@ import {
   getCycleHistory, isValidTemperature, TEMP_MIN, TEMP_MAX,
   detectOvulationFromTemperatureSeries, toISODate,
   predictNextPeriod, getFertileWindow, getFertilityStatus, atMidnight,
-  daysBetween, getOverdueDays,
+  daysBetween, getOverdueDays, phaseForCycleDay, clampCycleLength,
 } from './lib/cycle.js';
 import { getDailyTargets, ACTIVITY_LEVELS } from './lib/nutrition.js';
 import {
@@ -468,8 +468,13 @@ function NumberValue({ value, unit, target, label, onChange }) {
           const v = e.target.value.replace(/[^0-9]/g, '');
           onChange(v === '' ? 0 : Math.min(99999, Number(v)));
         }}
+        /* Dit ís een invoerveld, maar het zag eruit als een cijfer —
+           gebruikers vonden alleen de +chips en konden dus niet
+           preciezer dan de stapgrootte loggen. De stippellijn maakt
+           bewerkbaarheid zichtbaar zonder een harde inputrand. */
         className="w-[3.4rem] text-right bg-transparent text-[26px] leading-none
-                   focus:outline-none focus:text-sage-700"
+                   border-b border-dashed border-cream-300
+                   focus:outline-none focus:text-sage-700 focus:border-sage-400"
         aria-label={label ? t('tracker.input.aria', { label, unit }) : t('tracker.input.unitOnly', { unit })}
       />
       <span className="text-ink-400 text-sm">/ {target} {unit}</span>
@@ -1078,8 +1083,12 @@ function GutChecklist({ gut, onToggle }) {
     { id: 'fiber',      label: t('gut.fiber.label'),      hint: t('gut.fiber.hint'),      icon: Wheat },
     { id: 'fermented',  label: t('gut.fermented.label'),  hint: t('gut.fermented.hint'),  icon: Salad },
   ];
+  const done = items.filter(({ id }) => !!gut[id]).length;
   return (
     <div className="space-y-2">
+      {/* Aanvinken deed zichtbaar niets: geen waarom vooraf, geen
+          bevestiging achteraf. Beide toegevoegd. */}
+      <p className="text-[12px] text-ink-500 leading-relaxed mb-1">{t('gut.why')}</p>
       {items.map(({ id, label, hint, icon: Icon }) => {
         const on = !!gut[id];
         return (
@@ -1117,6 +1126,12 @@ function GutChecklist({ gut, onToggle }) {
           </button>
         );
       })}
+      <div
+        className={`text-[12px] leading-relaxed pt-1 ${done === items.length ? 'text-sage-700' : 'text-ink-400'}`}
+        aria-live="polite"
+      >
+        {done === items.length ? t('gut.complete') : t('gut.progress', { n: done, total: items.length })}
+      </div>
     </div>
   );
 }
@@ -1167,7 +1182,9 @@ function SleepTracker({ hours, onChange }) {
 /*  Movement tracker                                                   */
 /* ------------------------------------------------------------------ */
 
-const MOVEMENT_SLOTS = [15, 30, 45, 60, 90];
+const MOVEMENT_SLOTS = [15, 30, 45, 60, 90, 120];
+/** Bovengrens voor de +15-knop: een dag heeft er maar 1440. */
+const MOVEMENT_MAX = 600;
 
 function MovementTracker({ minutes, onChange, phase }) {
   const { t } = useT();
@@ -1204,6 +1221,19 @@ function MovementTracker({ minutes, onChange, phase }) {
             </button>
           );
         })}
+        {/* De vaste blokken dekten tot 90 minuten; een lange wandeling of
+            een toernooidag paste er niet in. Hiermee tel je door. */}
+        {minutes < MOVEMENT_MAX && (
+          <button
+            type="button"
+            aria-label={t('tracker.move.plusAria', { n: 15 })}
+            onClick={() => onChange(Math.min(MOVEMENT_MAX, minutes + 15))}
+            className="min-h-[44px] min-w-[56px] px-3 py-3 rounded-xl border border-dashed border-cream-300
+                       bg-cream-50 text-ink-500 text-sm transition hover:border-sage-300 hover:text-sage-700 active:scale-95"
+          >
+            +15m
+          </button>
+        )}
         {minutes > 0 && (
           <button
             type="button"
@@ -1403,10 +1433,24 @@ function TemperatureMiniChart({ series }) {
       </svg>
       <div className="flex items-center justify-between text-[10px] text-ink-400 mt-1">
         <span>{lo.toFixed(1)}°C</span>
-        <span>{t('temp.range', { valid: valid.length, total: series.length })}</span>
+        <span>{t('temp.range', { shown: valid.length, total: series.length })}</span>
         <span>{hi.toFixed(1)}°C</span>
       </div>
     </div>
+  );
+}
+
+/**
+ * Eén regel onderaan een opt-in-kaart: "dit hoeft niet, en zo zet je 'm
+ * uit". Staat bij de kaart zelf i.p.v. alleen in Instellingen, zodat
+ * niemand zich verplicht voelt dagelijks te meten.
+ */
+function CardOptOutHint() {
+  const { t } = useT();
+  return (
+    <p className="text-[11px] text-ink-400 mt-4 leading-relaxed">
+      {t('card.optOut')}
+    </p>
   );
 }
 
@@ -1454,6 +1498,7 @@ function BasalTemperatureCard({ todayTemp, todayISO, onChange, ovulationDetectio
           </div>
         </div>
       )}
+      <CardOptOutHint />
     </CollapsibleCard>
   );
 }
@@ -1530,6 +1575,7 @@ function OvulationTracker({ ovulation, onUpdate, autoDetectedISO }) {
           🌿 {t('ovulation.autoNote', { date: formatShortDate(autoDetectedISO, formatDate) })}
         </p>
       )}
+      <CardOptOutHint />
     </CollapsibleCard>
   );
 }
@@ -1980,6 +2026,16 @@ function ReminderBanner({ profile }) {
 /*  Onboarding — 3-step conversational flow                            */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Kaarten die een nieuw profiel standaard NIET op het dashboard krijgt.
+ * Basaaltemperatuur en "eisprong vandaag" zijn expliciet opt-in: ze
+ * vragen dagelijkse discipline (elke ochtend meten) en zijn voor de
+ * meeste gebruikers ruis. Wie ze wil, zet ze aan via Instellingen →
+ * Dashboard-kaarten. Alleen van toepassing op NIEUWE profielen —
+ * bestaande installs houden hun eigen `hiddenCards`.
+ */
+const DEFAULT_HIDDEN_CARDS = ['temperature', 'ovulation'];
+
 function Onboarding({ onComplete }) {
   const { t, activityMeta } = useT();
   const [step, setStep] = useState(0);
@@ -2015,6 +2071,7 @@ function Onboarding({ onComplete }) {
       weightKg:        Number(form.weightKg) || 62,
       heightCm:        Number(form.heightCm) || 168,
       activityLevel:   form.activityLevel,
+      hiddenCards:     [...DEFAULT_HIDDEN_CARDS],
       onboardingDone:  true,
       createdAt:       new Date().toISOString(),
     };
@@ -2358,7 +2415,7 @@ function Onboarding({ onComplete }) {
 /*  Settings screen                                                    */
 /* ------------------------------------------------------------------ */
 
-function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onThemeChange, onOpenLegal }) {
+function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'light', onThemeChange, onOpenLegal }) {
   const { t, locale, setLocale, activityMeta } = useT();
   // Computed once for the PartnerSettings props below — previously
   // getCycleState(profile) was called twice inline in the JSX (once for
@@ -2611,7 +2668,7 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
                   : 'bg-cream-50 border-cream-200 text-ink-500 hover:border-sage-200'
               }`}
             >
-              Liever niet zeggen
+              Zeg ik liever niet
             </button>
             {CONTRACEPTION_OPTIONS.map((opt) => {
               const active = form.contraception === opt.id;
@@ -2634,29 +2691,40 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'auto', onTh
           </div>
         </Field>
 
+        {/* "Zwangerschap" als kopje met drie stellingen eronder was geen
+            vraag waar je antwoord op geeft. Nu één heldere ja/nee-vraag;
+            de opgeslagen waarden ('trying' / 'avoiding') blijven gelijk,
+            dus bestaande profielen en de fertiliteitskaart veranderen niet. */}
         <Field>
-          <Label>Zwangerschap</Label>
-          <div className="grid grid-cols-1 gap-2 mt-1">
-            {PREGNANCY_INTENTS.map((opt) => {
-              const active = form.pregnancyIntent === opt.id;
+          <Label>Probeer je zwanger te worden?</Label>
+          <div className="grid grid-cols-2 gap-2 mt-1">
+            {[
+              { id: 'trying',   answer: 'Ja' },
+              { id: 'avoiding', answer: 'Nee' },
+            ].map(({ id, answer }) => {
+              const active = form.pregnancyIntent === id;
+              const hint = PREGNANCY_INTENTS.find((o) => o.id === id)?.hint ?? '';
               return (
                 <button
                   type="button"
-                  key={opt.id}
-                  onClick={() => setF('pregnancyIntent', active ? '' : opt.id)}
+                  key={id}
+                  onClick={() => setF('pregnancyIntent', active ? '' : id)}
                   aria-pressed={active}
-                  className={`text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] ${
+                  className={`text-left px-4 py-3 rounded-xl border transition active:scale-[0.99] min-h-[44px] ${
                     active
                       ? 'bg-sage-100 border-sage-300 text-sage-700'
                       : 'bg-cream-50 border-cream-200 text-ink-600 hover:border-sage-200'
                   }`}
                 >
-                  <div className="text-sm font-medium">{opt.label}</div>
-                  <div className="text-xs text-ink-400 mt-0.5">{opt.hint}</div>
+                  <div className="text-sm font-medium">{answer}</div>
+                  <div className="text-xs text-ink-400 mt-0.5">{hint}</div>
                 </button>
               );
             })}
           </div>
+          <p className="text-[11px] text-ink-400 mt-2 leading-relaxed">
+            Optioneel — tik je antwoord nogmaals aan om het weer leeg te laten.
+          </p>
         </Field>
 
         {form.contraception && suppressesCycle(form.contraception) && (
@@ -3496,7 +3564,7 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
             value={log.calories}
             target={targets.calories}
             unit="kcal"
-            increments={[100, 250, 500]}
+            increments={[50, 100, 250, 500]}
             onAdd={addCalories}
             onSet={setCalories}
           />
@@ -3615,7 +3683,23 @@ function Dashboard({ profile, onUpdateProfile, onOpenSettings, onOpenVoeding }) 
         </p>
       </CollapsibleCard>}
 
-      <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
+      {/* Niet iedereen wil alles bijhouden. Dat je onderdelen kunt
+          uitzetten stond alleen in Instellingen verstopt — hier staat het
+          waar de kaarten zelf staan. */}
+      {onOpenSettings && (
+        <p className="text-center text-[11px] text-ink-400 leading-relaxed mt-8 px-4">
+          {t('dash.cardsHint')}{' '}
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="text-sage-600 underline decoration-dotted underline-offset-2 hover:text-sage-700 active:scale-95 transition"
+          >
+            {t('dash.cardsHint.cta')}
+          </button>
+        </p>
+      )}
+
+      <div className="text-center text-[11px] text-ink-400 mt-4 mb-2">
         {t('settings.version')}
       </div>
 
@@ -3728,10 +3812,17 @@ function formatLogDate(date, isToday, t, dayName, monthShort) {
 }
 
 function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, onGoToToday }) {
-  const { t, dayName, monthShort, bleedingLabel, sportIntensities, phaseMeta: getPhaseMeta } = useT();
+  const { t, dayName, monthShort, bleedingLabel, sportIntensities, symptomMeta, phaseMeta: getPhaseMeta } = useT();
   const dateLabel = formatLogDate(date, isToday, t, dayName, monthShort);
   const syms = log.symptoms || {};
+  // Op naam, niet op index: de volgorde van SYMPTOM_META is geen contract.
+  const symsById = useMemo(() => {
+    const map = {};
+    for (const s of symptomMeta()) map[s.id] = s;
+    return map;
+  }, [symptomMeta]);
   const symptomsLogged = Object.entries(syms).filter(([, v]) => v > 0);
+  const gutCount = Object.values(log.gut || {}).filter(Boolean).length;
   const waterTarget = Math.max(6, Math.round(targets.hydrationL * 4));
   const ovulationMarked = !!(log.ovulation?.felt || log.ovulation?.fromTemp);
   const bleeding = log.bleeding || {};
@@ -3806,7 +3897,7 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                   <div className="text-[11px] text-ink-500 w-16 text-right shrink-0">{log.hydration} gl</div>
                 </div>
               )}
-              {(log.sleep > 0 || log.movement > 0 || log.temperature > 0 || sportLabel) && (
+              {(log.sleep > 0 || log.movement > 0 || log.temperature > 0 || sportLabel || gutCount > 0) && (
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   {log.sleep > 0 && (
                     <div className="flex items-center gap-1 text-[11px] text-ink-400">
@@ -3828,6 +3919,11 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                       <Dumbbell className="w-3 h-3" />{sportLabel}
                     </div>
                   )}
+                  {gutCount > 0 && (
+                    <div className="flex items-center gap-1 text-[11px] text-ink-400">
+                      <Salad className="w-3 h-3" />{t('log.row.gut', { n: gutCount })}
+                    </div>
+                  )}
                   {ovulationMarked && (
                     <div className="flex items-center gap-1 text-[11px] text-sage-600">
                       <Heart className="w-3 h-3" />{t('log.row.ovulation')}
@@ -3842,12 +3938,22 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
                 </div>
               )}
               {symptomsLogged.length > 0 && (
-                <div className="flex items-center gap-1 mt-2 pt-2 border-t border-cream-200/60 flex-wrap">
-                  {symptomsLogged.map(([id, val]) => (
-                    <span key={id} className="text-[10px] text-ink-500 bg-cream-100 border border-cream-200 px-1.5 py-0.5 rounded-full">
-                      {id[0].toUpperCase()}{val}
-                    </span>
-                  ))}
+                /* Was "E2 M4 C3" — een code die niemand kon lezen. Nu de
+                   emoji van die score plus het label en de schaal. */
+                <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-cream-200/60 flex-wrap">
+                  {symptomsLogged.map(([id, val]) => {
+                    const meta = symsById[id];
+                    const icon = meta?.icons?.[val - 1] ?? '';
+                    return (
+                      <span
+                        key={id}
+                        className="text-[10px] text-ink-500 bg-cream-100 border border-cream-200 px-2 py-0.5 rounded-full"
+                      >
+                        {icon && <span aria-hidden="true" className="mr-1">{icon}</span>}
+                        {meta?.label ?? id} {val}/5
+                      </span>
+                    );
+                  })}
                 </div>
               )}
               {log.note ? (
@@ -3868,7 +3974,9 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
               )}
             </div>
           ) : (
-            <div className="text-[11px] text-ink-400/60 italic">{t('log.row.empty')}</div>
+            /* Niet 'log.row.empty' — die zegt "vandaag" en stond onder
+               elke lege dag uit het verleden. De .past-variant bestond al. */
+            <div className="text-[11px] text-ink-400/60 italic">{t('log.row.empty.past')}</div>
           )}
         </div>
       </div>
@@ -3878,6 +3986,72 @@ function LogboekEntry({ date, isToday, log, state, targets, hasData, animDelay, 
 
 function capitalize(s) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+/**
+ * Maandraster boven het logboek.
+ *
+ * De lijst met dagkaarten is prima voor "wat deed ik deze week", maar
+ * onbruikbaar zodra je verder terug wilt: scrollen door dertig kaarten
+ * om 8 maart te vinden. Dit raster laat in één oogopslag zien wélke
+ * dagen iets bevatten en springt er direct naartoe.
+ */
+function LogboekMonthGrid({ activeMonth, days, todayISO, onJump }) {
+  const withData = useMemo(() => {
+    const set = new Set();
+    for (const d of days) if (d.hasData) set.add(isoDate(d.date));
+    return set;
+  }, [days]);
+
+  const year  = activeMonth.getFullYear();
+  const month = activeMonth.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Maandag-eerst, net als de cyclus-kalender op het dashboard.
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7;
+  const cells = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <div className="mb-6 anim-fade-up">
+      <div className="grid grid-cols-7 gap-1 mb-1.5">
+        {CAL_DAY_HEADERS.map((d) => (
+          <div key={d} className="text-[10px] uppercase tracking-wider text-ink-400 text-center">
+            {d}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) => {
+          if (day === null) return <div key={`pad-${i}`} aria-hidden="true" />;
+          const iso = isoDate(new Date(year, month, day));
+          const has = withData.has(iso);
+          const isToday = iso === todayISO;
+          // Toekomstige dagen bestaan nog niet als kaart in de lijst.
+          const isFuture = iso > todayISO;
+          return (
+            <button
+              key={iso}
+              type="button"
+              disabled={isFuture}
+              onClick={() => onJump(iso)}
+              aria-label={has ? `${iso} — ga naar deze dag` : `${iso} — niets gelogd`}
+              className={`relative aspect-square rounded-lg flex items-center justify-center text-[11px] transition ${
+                isFuture
+                  ? 'text-ink-400/30 cursor-default'
+                  : has
+                    ? 'bg-sage-100 border border-sage-300 text-sage-700 font-medium active:scale-95 hover:bg-sage-200'
+                    : 'bg-cream-50 border border-cream-200 text-ink-400 active:scale-95 hover:border-sage-200'
+              } ${isToday ? 'ring-2 ring-sage-500 ring-offset-1 ring-offset-cream-50' : ''}`}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function LogboekView({ profile, onGoHome }) {
@@ -3932,6 +4106,18 @@ function LogboekView({ profile, onGoHome }) {
   const prevMonthLabel = capitalize(formatDate(prevMonthDate, { month: 'long' }));
   const nextMonthLabel = capitalize(formatDate(nextMonthDate, { month: 'long' }));
 
+  const [jumpedIso, setJumpedIso] = useState(null);
+  const handleJump = useCallback((iso) => {
+    const el = document.getElementById(`log-${iso}`);
+    if (!el) return;
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+    // Korte markering, anders is na het scrollen niet duidelijk welke
+    // van de zeven zichtbare kaarten je bedoelde.
+    setJumpedIso(iso);
+    window.setTimeout(() => setJumpedIso((cur) => (cur === iso ? null : cur)), 1600);
+  }, []);
+
   return (
     <div className="min-h-dvh px-5 pt-8 pb-28 max-w-md mx-auto screen-safe">
       <header className="flex items-center justify-between mb-7 anim-fade-up">
@@ -3984,6 +4170,13 @@ function LogboekView({ profile, onGoHome }) {
         </button>
       </div>
 
+      <LogboekMonthGrid
+        activeMonth={activeMonth}
+        days={days}
+        todayISO={isoDate(today)}
+        onJump={handleJump}
+      />
+
       {days.every(d => !d.hasData) ? (
         <div className="text-center py-16 text-ink-400 anim-fade-up">
           <p className="text-4xl mb-3">🌱</p>
@@ -4005,9 +4198,20 @@ function LogboekView({ profile, onGoHome }) {
         </div>
       ) : (
         <div className="space-y-3" key={isoDate(activeMonth)}>
-          {days.map((entry, i) => (
-            <LogboekEntry key={isoDate(entry.date)} {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
-          ))}
+          {days.map((entry, i) => {
+            const iso = isoDate(entry.date);
+            return (
+              <div
+                key={iso}
+                id={`log-${iso}`}
+                className={`rounded-xl3 transition-shadow duration-300 ${
+                  jumpedIso === iso ? 'ring-2 ring-sage-400 ring-offset-2 ring-offset-cream-50' : ''
+                }`}
+              >
+                <LogboekEntry {...entry} animDelay={i * 25} onGoToToday={onGoHome} />
+              </div>
+            );
+          })}
         </div>
       )}
       <div className="text-center text-[11px] text-ink-400 mt-8 mb-2">
@@ -4360,10 +4564,24 @@ function DaySummaryStrip({ log, goals, targets, waterGlassTarget }) {
 
 const CAL_DAY_HEADERS = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 
-const CAL_COLORS = {
-  period:    '#e8748a',
-  fertile:   '#6dbf82',
-  ovulation: '#3d9e57',
+/**
+ * Kalenderkleuren per cyclusfase.
+ *
+ * De oude palet kleurde op markering (menstruatie / vruchtbaar /
+ * ovulatie) met twee groenen die nauwelijks van elkaar te
+ * onderscheiden waren, én liet twee van de vier fases weg. Nu krijgt
+ * elke fase uit het model een eigen tint met echte hoek-afstand op de
+ * kleurencirkel: roze → groen → amber → pruim. Alle vier halen ≥4.5:1
+ * met de crème tekstkleur, dus het dagnummer blijft leesbaar.
+ *
+ * Losstaand van PHASE_META.hue: die tinten (2× terracotta, 2× sage)
+ * werken als accent náást elkaar, niet als 42 vlakjes in een raster.
+ */
+const CAL_PHASE_COLORS = {
+  [PHASES.MENSTRUAL]:  '#B8455F',
+  [PHASES.FOLLICULAR]: '#5E8348',
+  [PHASES.OVULATORY]:  '#A8720F',
+  [PHASES.LUTEAL]:     '#7A5E9B',
 };
 
 function buildCalendarGrid(profile, today) {
@@ -4372,6 +4590,9 @@ function buildCalendarGrid(profile, today) {
   start.setDate(start.getDate() - dow - 7);
 
   const cycleLength = profile?.cycleLength || 28;
+  // Fase-berekening deelt modulo op deze lengte; clampen voorkomt dat
+  // een corrupt profiel (0, negatief, 400) het raster laat ontsporen.
+  const cycleLen    = clampCycleLength(cycleLength);
   const periodLen   = profile?.mensDuration || 5;
   const history     = Array.isArray(profile?.periodHistory) ? profile.periodHistory : [];
   const lastStart   = profile?.lastPeriodStart || null;
@@ -4442,7 +4663,23 @@ function buildCalendarGrid(profile, today) {
       predicted = isFuture;
     }
 
-    out.push({ iso, day: d.getDate(), isToday, isFuture, tag, predicted });
+    // Fase per dag. We rekenen direct met de cyclusdag i.p.v.
+    // getCycleState(), omdat die bewust blíjft hangen in luteaal zodra
+    // de voorspelde datum passeert ("awaitingPeriod") — correct voor
+    // het dashboard van vandaag, verkeerd voor een raster dat zes weken
+    // vooruit en achteruit kijkt. Modulo werkt beide kanten op, dus ook
+    // dagen vóór de laatst gelogde start krijgen een fase.
+    let phase = null;
+    if (lastStart) {
+      const diff = daysBetween(lastStart, d);
+      const cycleDay = ((diff % cycleLen) + cycleLen) % cycleLen + 1;
+      phase = phaseForCycleDay(cycleDay, cycleLen);
+    }
+    // Een gelogde menstruatiedag is grond-waarheid en wint van de
+    // gemiddelde-cyclus-berekening.
+    if (loggedPeriodSet.has(iso)) phase = PHASES.MENSTRUAL;
+
+    out.push({ iso, day: d.getDate(), isToday, isFuture, tag, predicted, phase });
   }
   return out;
 }
@@ -4463,19 +4700,16 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
     return null;
   }, [profile, cycleLength]);
 
+  // De cel vertelt twee dingen: in welke fase de dag valt (kleur) en of
+  // hij in het vruchtbare venster ligt (stip). Het label zegt allebei.
   const tagLabel = (cell) => {
-    if (!cell.tag) return cell.predicted ? '' : 'Geen markering';
-    const base = cell.tag === 'period'    ? 'Menstruatie'
-              : cell.tag === 'fertile'    ? 'Vruchtbaar venster'
-              :                              'Ovulatie';
-    return cell.predicted ? `${base} (voorspeld)` : base;
-  };
-
-  const swatch = (kind) => {
-    if (kind === 'period')    return CAL_COLORS.period;
-    if (kind === 'fertile')   return CAL_COLORS.fertile;
-    if (kind === 'ovulation') return CAL_COLORS.ovulation;
-    return null;
+    const parts = [];
+    if (cell.phase) parts.push(PHASE_META[cell.phase].label);
+    if (cell.tag === 'fertile')   parts.push('vruchtbaar venster');
+    if (cell.tag === 'ovulation') parts.push('verwachte eisprong');
+    if (!parts.length) return 'Nog geen cyclusgegevens';
+    const base = parts.join(' · ');
+    return cell.isFuture ? `${base} (voorspeld)` : base;
   };
 
   const tooltipCell = selected ? grid.find((c) => c.iso === selected) : null;
@@ -4526,15 +4760,18 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
 
       <div className="grid grid-cols-7 gap-1">
         {grid.map((cell) => {
-          const bg = swatch(cell.tag);
-          const opacity = cell.predicted ? 0.4 : 1;
+          const bg = cell.phase ? CAL_PHASE_COLORS[cell.phase] : null;
+          // Toekomst = voorspelling, dus lichter. Het verleden is
+          // geregistreerd (of afgeleid uit een echte start) en blijft vol.
+          const opacity = cell.isFuture ? 0.45 : 1;
           const isSelected = selected === cell.iso;
+          const isFertile = cell.tag === 'fertile' || cell.tag === 'ovulation';
           return (
             <button
               key={cell.iso}
               type="button"
               onClick={() => setSelected(isSelected ? null : cell.iso)}
-              aria-label={`${cell.iso} — ${tagLabel(cell) || 'geen'}`}
+              aria-label={`${cell.iso} — ${tagLabel(cell)}`}
               aria-pressed={isSelected}
               className={`relative aspect-square rounded-lg flex items-center justify-center text-[11px] transition active:scale-95 ${
                 bg ? 'text-cream-50 font-medium' : 'text-ink-500 bg-cream-50 border border-cream-200'
@@ -4542,6 +4779,17 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
               style={bg ? { background: bg, opacity } : undefined}
             >
               {cell.day}
+              {isFertile && (
+                <span
+                  aria-hidden="true"
+                  className={`absolute bottom-[3px] left-1/2 -translate-x-1/2 rounded-full ${
+                    cell.tag === 'ovulation' ? 'w-1.5 h-1.5' : 'w-1 h-1'
+                  }`}
+                  /* Hardcoded wit: .bg-cream-50 wordt in donkere modus
+                     juist dónker en zou op de fasekleur verdwijnen. */
+                  style={{ background: 'rgba(255,255,255,0.92)' }}
+                />
+              )}
             </button>
           );
         })}
@@ -4552,7 +4800,7 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
           <div className="flex items-start justify-between gap-3 mb-1">
             <div>
               <div className="font-medium text-ink-700">{formatShortDate(tooltipCell.iso, formatDate)}</div>
-              <div className="text-ink-500">{tagLabel(tooltipCell) || 'Geen markering — gewone cyclusdag.'}</div>
+              <div className="text-ink-500">{tagLabel(tooltipCell)}</div>
             </div>
             {isEditable(tooltipCell) && onUpdateProfile && (
               <button
@@ -4579,10 +4827,19 @@ function CycleCalendarCard({ profile, onUpdateProfile }) {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 mt-4">
-        <LegendDot color={CAL_COLORS.period}    label="Menstruatie" />
-        <LegendDot color={CAL_COLORS.fertile}   label="Vruchtbaar" />
-        <LegendDot color={CAL_COLORS.ovulation} label="Ovulatie" />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mt-4">
+        {[PHASES.MENSTRUAL, PHASES.FOLLICULAR, PHASES.OVULATORY, PHASES.LUTEAL].map((p) => (
+          <LegendDot key={p} color={CAL_PHASE_COLORS[p]} label={PHASE_META[p].label} />
+        ))}
+        <div className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className="w-3 h-3 rounded-full bg-ink-400/30 flex items-center justify-center"
+          >
+            <span className="w-1 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.92)' }} />
+          </span>
+          <span className="text-[11px] text-ink-500">Vruchtbaar venster</span>
+        </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full border-2 border-sage-500" aria-hidden="true" />
           <span className="text-[11px] text-ink-500">Vandaag</span>
@@ -4904,6 +5161,11 @@ function TipVanDeDag({ phase, log, goals, targets, name }) {
   const tipFn = phaseTips[dayOfWeek % phaseTips.length];
 
   const displayName = name ? name.split(' ')[0] : '';
+  // De tip-teksten gebruiken {namePart} — een optionele aanspreking die
+  // wegvalt als er geen naam is ("Je had gisteren krampen, Sanne." vs
+  // "Je had gisteren krampen."). Alleen {name} doorgeven liet het
+  // letterlijke "{namePart}" in de kaart staan.
+  const namePart = displayName ? `, ${displayName}` : '';
   let tip = tipFn(displayName);
 
   const yLog = useMemo(() => {
@@ -4918,15 +5180,15 @@ function TipVanDeDag({ phase, log, goals, targets, name }) {
 
   // Contextual override: pick the most actionable tip from yesterday's data.
   if (yLog.sleep > 0 && yLog.sleep < sleepTarget - 1.5) {
-    tip = t('tip.sleepLow', { name: displayName, h: yLog.sleep });
+    tip = t('tip.sleepLow', { name: displayName, namePart, h: yLog.sleep });
   } else if (yLog.symptoms?.mood > 0 && yLog.symptoms.mood <= 2) {
-    tip = t('tip.moodLow', { name: displayName });
+    tip = t('tip.moodLow', { name: displayName, namePart });
   } else if (yLog.symptoms?.cramps > 0 && yLog.symptoms.cramps <= 2) {
-    tip = t('tip.cramps', { name: displayName });
+    tip = t('tip.cramps', { name: displayName, namePart });
   } else if (yLog.movement > 0 && yLog.movement < movementTarget * 0.5) {
-    tip = t('tip.movementLow', { name: displayName, min: movementTarget });
+    tip = t('tip.movementLow', { name: displayName, namePart, min: movementTarget });
   } else if (yLog.protein > 0 && yLog.protein < proteinTarget * 0.7) {
-    tip = t('tip.proteinLow', { name: displayName, target: proteinTarget });
+    tip = t('tip.proteinLow', { name: displayName, namePart, target: proteinTarget });
   } else if (yLog.hydration > 0 && yLog.hydration * 250 < hydrationTarget * 0.7) {
     const litres = (hydrationTarget / 1000).toFixed(1);
     tip = t('tip.hydrationLow', { actual: (yLog.hydration * 0.25).toFixed(1), target: litres });
@@ -4941,11 +5203,7 @@ function TipVanDeDag({ phase, log, goals, targets, name }) {
 
   return (
     <div
-      className="relative p-5 mb-5 rounded-xl3 border shadow-soft anim-fade-up overflow-hidden"
-      style={{
-        background: 'linear-gradient(135deg, #FFF6E5 0%, #F8E9D2 100%)',
-        borderColor: '#E2C9A2',
-      }}
+      className="tip-card relative p-5 mb-5 rounded-xl3 border shadow-soft anim-fade-up overflow-hidden"
     >
       <div className="flex items-start gap-3">
         <div className="w-9 h-9 rounded-full bg-cream-50 border border-terracotta-200 flex items-center justify-center shrink-0">
@@ -5023,9 +5281,13 @@ function WorkloadCard({ phase }) {
 /* ------------------------------------------------------------------ */
 
 function PhaseRecipes({ phase }) {
-  const { t, phaseMeta, phaseRecipes } = useT();
+  const { t, phaseMeta, phaseRecipes, nutrientFocus } = useT();
   const [expanded, setExpanded] = useState(null);
   const recipes = phaseRecipes(phase);
+  // De kop zei alléén "recepten voor <fase>" — niet wélke voeding deze
+  // fase vraagt, waardoor de selectie willekeurig oogde. De voedingsfocus
+  // die het dashboard al kent, verklaart 'm in één regel.
+  const focus = nutrientFocus(phase);
 
   return (
     <CollapsibleCard
@@ -5034,6 +5296,11 @@ function PhaseRecipes({ phase }) {
       defaultCollapsed={false}
       className="mb-5"
     >
+      {focus && (
+        <p className="text-[12px] text-ink-500 leading-relaxed mb-4">
+          {t('recipes.focusIntro', { focus: focus.headline.toLowerCase() })}
+        </p>
+      )}
       <div className="space-y-3">
         {recipes.map((recipe) => {
           const open = expanded === recipe.name;
@@ -6127,8 +6394,11 @@ function App() {
   const [inviteEmailSent,   setInviteEmailSent]   = useState(false);
   const [inviteStatus,      setInviteStatus]      = useState('');
   const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('paced.theme') || 'auto'; }
-    catch { return 'auto'; }
+    // Standaard 'light' — zie het pre-paint-script in index.html. Een
+    // donker toestel maakt de app dus niet vanzelf donker; 'auto' is
+    // een bewuste keuze in Instellingen.
+    try { return localStorage.getItem('paced.theme') || 'light'; }
+    catch { return 'light'; }
   });
 
   const handleThemeChange = useCallback((newTheme) => {
@@ -6248,7 +6518,7 @@ function App() {
       if (!e.key) return; // localStorage.clear() in another tab
       if (e.key === 'paced.profile') setProfile(loadProfile());
       if (e.key === 'paced.theme') {
-        const nextTheme = localStorage.getItem('paced.theme') || 'auto';
+        const nextTheme = localStorage.getItem('paced.theme') || 'light';
         const sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const dark = nextTheme === 'dark' || (nextTheme === 'auto' && sysDark);
         document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
