@@ -20,6 +20,10 @@ import {
 const SITE = 'https://paced.nl';
 const BRAND = 'Paced';
 const PUBLISHER = 'Xaven BV';
+// Locale-neutraal: Apple routeert zelf naar de landstore van de bezoeker.
+// Spiegelt APP_STORE_URL in src/config/brand.js (de app-bundel kan hier niet
+// bij, want dit script draait in Node vóór de bundle bestaat).
+const APP_STORE_URL = 'https://apps.apple.com/app/id6804403415';
 const SRC_DIR = 'content/articles';
 const LOCALE_BASE = { nl: 'artikelen', en: 'articles' };
 const HUB_TITLE = { nl: 'Artikelen', en: 'Articles' };
@@ -90,6 +94,7 @@ function pageShell({ locale, title, description, canonical, jsonLd, bodyHtml, al
     .crumbs { font-size:.85rem; color:#8B8578; margin-bottom:1rem; }
     .cta { display:block; background:#fff; border:1px solid #E2D8BE; border-radius:1.25rem; padding:1.25rem 1.5rem; margin:2.5rem 0; text-align:center; }
     .cta a.btn { display:inline-block; background:#B06849; color:#fff; text-decoration:none; font-weight:600; padding:.7rem 1.5rem; border-radius:1rem; margin-top:.5rem; }
+    .cta-alt { margin-top:.7rem; font-size:.85rem; }
     footer.site { font-size:.8rem; color:#8B8578; border-top:1px solid #EDE6D3; margin-top:2.5rem; padding:1.5rem; max-width:44rem; margin-left:auto; margin-right:auto; }
     .hub li { margin:.4rem 0; }
   </style>
@@ -112,15 +117,19 @@ ${bodyHtml}
 }
 
 function ctaBlock(locale) {
+  // Web-CTA blijft primair (de PWA werkt overal, ook op Android/desktop);
+  // de App Store is een secundaire route voor iPhone-lezers.
   if (locale === 'en') {
     return `  <div class="cta">
     <strong>Track your cycle calmly — no account, no tracking.</strong><br/>
     <a class="btn" href="/">Open ${BRAND}</a>
+    <div class="cta-alt"><a href="${APP_STORE_URL}">Or download the iPhone app →</a></div>
   </div>`;
   }
   return `  <div class="cta">
     <strong>Volg je cyclus rustig — zonder account, zonder tracking.</strong><br/>
     <a class="btn" href="/">Open ${BRAND}</a>
+    <div class="cta-alt"><a href="${APP_STORE_URL}">Of download de iPhone-app →</a></div>
   </div>`;
 }
 
@@ -313,6 +322,7 @@ export function buildArticles(distDir = 'dist') {
   <div class="cta">
     <strong>Mail ons — we lezen alles zelf.</strong><br/>
     <a class="btn" href="mailto:info@xaven.io?subject=${encodeURIComponent(`Supportvraag ${BRAND}`)}">info@xaven.io</a>
+    <div class="cta-alt"><a href="${APP_STORE_URL}">${BRAND} voor iPhone in de App Store →</a></div>
   </div>
   <h2>Veelgestelde vragen</h2>
   <p><strong>Waar staan mijn gegevens?</strong><br/>

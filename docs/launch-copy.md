@@ -3,6 +3,7 @@
 Klaar-voor-gebruik launchteksten + een lijst echte plekken voor je eerste backlinks.
 Hoek: **privacy-first cyclus-tracker — alles lokaal op je toestel**. MDR-veilig
 (wellness/awareness, geen medische claims). Domein: https://paced.nl
+**iOS-app (live): https://apps.apple.com/app/id6804403415**
 
 ---
 
@@ -15,6 +16,7 @@ Hoek: **privacy-first cyclus-tracker — alles lokaal op je toestel**. MDR-veili
 > no account, no cloud, no analytics, no ads. Track your cycle, nutrition, sleep and mood,
 > with gentle, phase-aware insights. Free, works offline, export to CSV or Apple Health
 > anytime. Your data never leaves your phone, so there's nothing to leak, sell, or hand over.
+> Use it in any browser, or get the iPhone app: https://apps.apple.com/app/id6804403415
 
 **Maker's first comment:**
 > Hi PH 👋 I built Paced because every cycle app I tried wanted an account first — meaning
@@ -41,7 +43,7 @@ Hoek: **privacy-first cyclus-tracker — alles lokaal op je toestel**. MDR-veili
 > mood, with gentle insights per cycle phase (patterns, not predictions or medical advice).
 > Full export to CSV/Apple Health, and a one-tap wipe — no hidden backups.
 >
-> It's free and works in the browser (iOS app coming). It's a wellness/awareness tool, not a
+> It's free, works in any browser, and there's an iPhone app on the App Store (https://apps.apple.com/app/id6804403415). It's a wellness/awareness tool, not a
 > medical device. I'd genuinely love feedback — especially whether a privacy-first approach
 > is something you'd actually trust/use. Link in comments to respect the no-spam rule.
 
@@ -64,7 +66,8 @@ eerst waarde/vraag feedback.
 > **lokaal op je eigen toestel** blijft. Geen account, geen tracking, geen reclame. Je volgt
 > je cyclus, voeding, slaap en stemming, met zachte inzichten per fase (patronen, geen
 > voorspellingen of medisch advies). Volledige export naar CSV/Apple Health en wissen met
-> één knop. Gratis, werkt in de browser (iOS-app komt eraan). Geen medisch hulpmiddel.
+> één knop. Gratis, werkt in elke browser, en er is een iPhone-app in de App Store
+> (https://apps.apple.com/app/id6804403415). Geen medisch hulpmiddel.
 > Benieuwd wat je ervan vindt — vooral of die privacy-aanpak iets is wat je zou vertrouwen.
 
 **Plekken (NL):** [Tweakers](https://tweakers.net) (privacy-bewust publiek — ideaal,
@@ -76,7 +79,8 @@ vrouwengezondheid-communities.
 ## 4. Kort (X / LinkedIn / Mastodon)
 > De meeste cyclus-apps willen eerst een account — je intiemste data belandt op hun server.
 > **Paced** doet het anders: alles blijft lokaal op je toestel. Geen account, geen tracking,
-> geen reclame. Gratis. 🔗 paced.nl
+> geen reclame. Gratis — in de browser of als iPhone-app.
+> 🔗 paced.nl · https://apps.apple.com/app/id6804403415
 
 ---
 
@@ -124,7 +128,8 @@ Stuur dit naar de **auteur** van het artikel (zoek de byline + contact; personal
 >   own device**.
 > - Because the data never leaves the device, there's nothing to leak, sell, or hand over.
 > - Full export (CSV / Apple Health) and one-tap wipe; no hidden backups.
-> - Free; works in the browser (PWA), iOS app coming. It's a wellness/awareness tool, not a
+> - Free; works in any browser (PWA) and as a native iPhone app
+>   (https://apps.apple.com/app/id6804403415). It's a wellness/awareness tool, not a
 >   medical device.
 >
 > Built by Xaven BV (Netherlands). Happy to answer questions or share more detail — and either
