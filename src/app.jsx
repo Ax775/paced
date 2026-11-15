@@ -12,7 +12,7 @@ import {
   Check, Droplet, Wheat, Salad, ChevronLeft, ChevronRight, ChevronDown,
   BookOpen, Activity, BarChart2, Download, X, TrendingUp, Undo2,
   Thermometer, Info, Heart, Dumbbell, Plus, RefreshCw, Calendar, Briefcase,
-  Lock,
+  Lock, Smartphone,
 } from 'lucide-react';
 
 import {
@@ -33,7 +33,7 @@ import {
 } from './lib/storage.js';
 import { computeBadges } from './lib/badges.js';
 import { personalize } from './lib/content/personalize.js';
-import { IS_NATIVE_IOS } from './config/brand.js';
+import { IS_NATIVE_IOS, APP_STORE_URL } from './config/brand.js';
 import { initMonitoring, captureError } from './lib/monitoring.js';
 import { resolveEntitlement, canUseFeature } from './lib/entitlement.js';
 import { fetchSubscription, startCheckout, openBillingPortal } from './supabaseSubscription.js';
@@ -1441,6 +1441,35 @@ function TemperatureMiniChart({ series }) {
 }
 
 /**
+ * Verwijzing naar de iOS-app.
+ *
+ * De statische hero in index.html had deze link al, maar die hero zit ín
+ * `#root` en React leegt `#root` bij mount — crawlers zagen 'm dus wél en
+ * echte bezoekers nooit. Deze component zet de verwijzing binnen de app,
+ * waar iemand 'm daadwerkelijk tegenkomt.
+ *
+ * Bewust géén banner of smart-app-banner: de PWA is het product en werkt
+ * ook op Android en desktop. Dit is een aanbod, geen onderbreking. In de
+ * native iOS-app zelf verdwijnt de link volledig.
+ */
+function AppStoreLink({ className = '' }) {
+  const { t } = useT();
+  if (IS_NATIVE_IOS) return null;
+  return (
+    <a
+      href={APP_STORE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`inline-flex items-center gap-1.5 text-[12px] text-sage-600 hover:text-sage-700
+                  underline decoration-dotted underline-offset-2 active:scale-95 transition ${className}`}
+    >
+      <Smartphone className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+      {t('appStore.link')}
+    </a>
+  );
+}
+
+/**
  * Eén regel onderaan een opt-in-kaart: "dit hoeft niet, en zo zet je 'm
  * uit". Staat bij de kaart zelf i.p.v. alleen in Instellingen, zodat
  * niemand zich verplicht voelt dagelijks te meten.
@@ -2149,6 +2178,11 @@ function Onboarding({ onComplete }) {
               <br />
               {t('onb.intro.privacyMore')}
             </p>
+            {/* Liever de native app? Hier, waar iemand kiest hoe ze Paced
+                gaat gebruiken — niet als banner over het scherm heen. */}
+            <div className="text-center mt-4">
+              <AppStoreLink />
+            </div>
           </Card>
         )}
 
@@ -2972,6 +3006,10 @@ function SettingsScreen({ profile, onSave, onReset, onBack, theme = 'light', onT
           <Heart className="w-4 h-4 text-sage-600" aria-hidden="true" />
           {t('settings.feedback.button')}
         </a>
+        {/* Blijvend vindbaar voor wie de web-app al gebruikt. */}
+        <div className="mt-4 pt-4 border-t border-cream-200/60">
+          <AppStoreLink />
+        </div>
       </Card>
 
       {/* Danger zone */}

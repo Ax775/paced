@@ -87,3 +87,15 @@
 - **Screenshots van een verborgen paneel zijn leeg, niet fout.** DOM-
   inspectie (`getComputedStyle`, `innerText`, `aria-label`) is dan het
   betrouwbare alternatief — en voor contrast zelfs beter dan kijken.
+
+## App Store-verwijzing (2026-11-15)
+
+- **Een statische hero binnen `#root` is onzichtbaar voor echte bezoekers.**
+  React leegt `#root` bij mount, dus alles wat daar als SEO-fallback staat,
+  bereikt alleen crawlers en no-JS. "Staat het op de site?" en "ziet een
+  bezoeker het?" zijn twee verschillende vragen — `curl` beantwoordt alleen
+  de eerste. Controleer zulke claims in de gemounte app, niet in de HTML.
+- **Een eerder niet-doel is geen permanent verbod.** "Geen download-banner"
+  was een goede keuze tegen opdringerigheid, maar leidde ertoe dat er in de
+  app nul verwijzing overbleef. De juiste correctie was niet de banner alsnog,
+  maar een rustige link op twee plekken waar iemand 'm zoekt.
